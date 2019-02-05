@@ -1,0 +1,182 @@
+{% extends "views/page.njk" %}
+
+
+{% block head %}
+    <style>
+        .threadTitle {
+            font-size: 1.6em;
+            margin-bottom: 10px;
+        }
+        
+        .threadContent {
+            border-left: 3px solid hsl(230, 26%, 70.2%);
+            padding-left: 7px;
+        }
+        
+        .threadPageContent {
+            display: flex;
+            align-items: flex-start;
+        }
+    </style>
+{% endblock %}
+
+{% macro renderComment(comment, likes, liked) %}
+    <div class="content">{{utils.renderMarkdown(comment.content) | safe}}</div>
+    <a href="/user/{{utils.renderUserName(comment.author)}}" class="author">{{utils.renderUserName(comment.author)}}</a>
+    <span style="font-size: 0.8em">
+        <span>likes: <span id="{{comment.id}}_likes">{{likes}}</span></span>
+        {% if userName %}
+            <span id="{{comment.id}}_likeControls" class="{% if not liked and userName %}canLike{% endif %}">
+                <span class="likeButton linkButton" toLike="{{comment.id}}">like</span>
+                <span class="unlikeButton linkButton" toUnlike="{{comment.id}}">unlike</span>
+            </span>
+        {% endif %}
+    </span>
+    {% if isAdmin or isBranchAdmin %}
+        <div class="smallText" style="display: inline-block">
+            <form action="/adminRemoveComment" method="POST">
+                <input type="hidden" name="branchName" value="{{branch.name}}"/>
+                <input type="hidden" name="id" value="{{comment.id}}"/>
+                <input type="submit" class="linkButton" style="box-shadow: none; color: black !important;" value="Delete this comment"/>
+            </form>
+        </div>
+    {% endif %}
+    {% if userName %}
+        {% if user.name == comment.author %}
+            <span class="linkButton smallText" toDisplay="{{comment.id}}_editForm">edit</span>
+            <form action="/newComment" method="POST" id="{{comment.id}}_editForm" style="display: none;">
+                <input type="hidden" name="backUrl" value="{{thread.id}}"/>
+                <input type="hidden" name="id" value="{{comment.id}}"/>
+                <textarea style="margin-bottom: 10px;" name="content">{{comment.content}}</textarea>
+                <div style="margin-bottom: 10px;">
+                    <input style="display: inline-block" type="submit" value="Save"/>
+                    <input style="display: inline-block" type="button" toHide="{{comment.id}}_editForm" value="cancel"/>
+                </div>
+            </form>
+        {% endif %}
+        <span class="linkButton smallText" toDisplay="{{comment.id}}_answerForm">answer</span>
+        <form id="{{comment.id}}_answerForm" class="newComment" action="/newComment" method="POST" style="display: none">
+            <textarea style="width: 100%; height: 65px; max-width: 500px;" name="content"></textarea>
+            <input type="hidden" name="objectId" value="{{utils.encodeURIComponent(comment.id)}}"/>
+            <input type="hidden" name="backUrl" value="{{thread.id}}">
+            <div style="margin-bottom: 10px; margin-top: 10px;">
+                <input type="submit" style="display: inline-block" value="send"/>
+                <input style="display: inline-block" type="button" toHide="{{comment.id}}_answerForm" value="cancel"/>
+            </div>
+        </form>
+    {% endif %}
+{% endmacro %}
+
+{% macro renderTree(childrens) %}
+    {% for comment in childrens %}
+        <div class="comment">
+            {{renderComment(comment.comment, comment.likes, comment.liked)}}
+            <div class="comments" style="margin-left: 10px;">
+                {% for tree in comment.childrens %}
+                    <div class="comment">
+                        {{renderComment(tree.comment, tree.likes, tree.liked)}}
+                        <div class="comments" style="margin-left: 10px;">
+                            {{renderTree(tree.childrens)}}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endfor %}
+{% endmacro %}
+
+<style>
+    .threadPageContent {
+        display: flex;
+    }
+    
+    @media only screen and (max-width: 600px) {
+        .threadPageContent {
+            flex-direction: column;
+        }
+        
+        .rightPane {
+            padding: 0;
+            width: auto;
+        }
+    }
+</style>
+
+{% block body %}
+    <div class="threadPageContent">
+        <div class="leftPane">
+            <div class="lightSection">
+                <a href="/branch/{{thread.branch}}" style="margin-bottom:20px; display: inline-block">On branch: {{thread.branch}}</a>
+                
+                <div class="threadTitle">
+                    {{thread.title}}
+                </div>
+                
+                <div id="{{thread.id}}_likeControls" class="likeCount {% if not commentTree.liked and userName %}canLike{% endif %}">
+                    Likes: <span id="{{thread.id}}_likes">{{commentTree.likes}}</span>
+                    {% if userName %}
+                        <span class="likeButton linkButton" toLike="{{thread.id}}">like</span>
+                        <span class="unlikeButton linkButton" toUnLike="{{thread.id}}">unlike</span>
+                    {% endif %}
+                </div>
+                <div class="threadContent">
+                    {{utils.renderMarkdown(thread.content) | safe}}
+                </div>
+                {% if thread.media %}
+                    {% if thread.media.type == "image" %}
+                        <img style="max-width: 100%" src="{{thread.media.url}}"/>
+                    {% elif thread.media.type == "iframe" %}
+                        <iframe src="{{thread.media.url}}" allowfullscreen></iframe>
+                    {% elif thread.media.type == "video" %}
+                        <video style="max-width: 100%" src="{{thread.media.url}}" controls/>
+                    {% endif %}
+                {% endif %}
+                {% if user.name == thread.author %}
+                    <span class="linkButton" toDisplay="{{thread.id}}_editForm">edit</span>
+                    <form action="/newThread" method="POST" id="{{thread.id}}_editForm" style="display: none;">
+                        <input type="hidden" style="margin-bottom: 10px;" name="id" value="{{thread.id}}"/>
+                        <textarea style="margin-bottom: 10px;" name="content">{{thread.content}}</textarea>
+                        <div style="margin-bottom: 10px;">
+                            <input style="display: inline-block" type="submit" value="Save"/>
+                            <input style="display: inline-block" type="button" toHide="{{thread.id}}_editForm" value="cancel"/>
+                        </div>
+                    </form>
+                {% endif %}
+                <a href="/user/{{utils.renderUserName(thread.author)}}" class="author">{{utils.renderUserName(thread.author)}}</a>
+            </div>
+            
+            {% if userName %}
+                <div class="lightSection" style="margin-top: 10px;">
+                    <div>New comment</div>
+                    <form action="/newComment" method="POST">
+                        <textarea style="width: 100%; height: 65px; max-width: 500px;" name="content"></textarea>
+                        <input type="hidden" name="threadId" value="{{utils.encodeURIComponent(thread.id)}}"/>
+                        <input type="hidden" name="backUrl" value="{{thread.id}}">
+                        <input type="submit" style="margin-top: 10px;" value="send"/>
+                    </form>
+                </div>
+            {% endif %}
+            
+            <div class="lightSection" style="margin-top: 10px;">
+                {{renderTree(commentTree.childrens)}}
+            </div>
+        </div>
+        <div class="rightPane">
+            <div class="branchTitle">{{branch.name}}</div>
+            
+            <div class="description">
+                {{utils.renderMarkdown(branch.description) | safe}}
+            </div>
+            
+            {% if isAdmin or isBranchAdmin %}
+                <div>
+                    <form action="/adminRemoveComment" method="POST">
+                        <input type="hidden" name="branchName" value="{{branch.name}}"/>
+                        <input type="hidden" name="id" value="{{thread.id}}"/>
+                        <input type="submit" value="Delete this thread"/>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

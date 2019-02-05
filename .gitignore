@@ -1,0 +1,6 @@
+node_modules
+config.json
+log.txt
+store.json
+urlStats.json
+.DS_Store

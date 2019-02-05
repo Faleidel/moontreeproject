@@ -1,0 +1,28 @@
+{% extends "views/page.njk" %}
+
+{% block head %}
+{% endblock %}
+
+{% block body %}
+    <a href="{{instance.host}}">{{instance.name}}</a>
+    
+    {% if instance.blocked %}
+        <span style="color: red">This instance was blocked by the administrators.</span>
+        
+        {% if isAdmin %}
+            <form action="/instanceBlockStatus" method="POST">
+                <input type="hidden" name="block" value="false">
+                <input type="hidden" name="host" value="{{instance.host}}">
+                <input type="submit" value="unblock instance">
+            </form>
+        {% endif %}
+    {% else %}
+        {% if isAdmin %}
+            <form action="/instanceBlockStatus" method="POST">
+                <input type="hidden" name="block" value="true">
+                <input type="hidden" name="host" value="{{instance.host}}">
+                <input type="submit" value="block instance">
+            </form>
+        {% endif %}
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "views/page.njk" %}
+
+{% block head %}
+{% endblock %}
+
+{% block body %}
+    <div class="">
+        {% for branch in branches %}
+            <div class="lightSection" style="margin-bottom: 10px;">
+                <a style="font-size: 2em; margin-bottom: 10px; display: inline-block;" href="/branch/{{branch.name}}">{{branch.name}}</a>
+                <span>{{branch.threadsCount}} threads</span>
+                <div>
+                    {{branch.description}}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}

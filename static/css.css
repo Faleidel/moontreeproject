@@ -1,0 +1,258 @@
+body {
+    font-family: sans-serif;
+    background-image: url(/static/full-bloom.png);
+    margin: 0;
+}
+form { margin: 0 }
+
+.button {
+    display: inline-block;
+    background: black;
+    color: white;
+    padding: 5px;
+    margin: 5px;
+    cursor: pointer;
+}
+
+.pageContent {
+    padding: 20px;
+}
+
+@media (max-width: 600px) {
+    .pageContent {
+        padding: 0;
+        padding-top: 10px;
+    }
+    
+    div.rightPane {
+        margin: 0;
+        width: 100%;
+        padding: 10px;
+        margin-top: 10px;
+    }
+}
+
+.mobile {
+    display: none;
+}
+
+@media (max-width: 600px) {
+    .desktop {
+        display: none;
+    }
+    
+    .mobile {
+        display: block;
+    }
+}
+
+div.header {
+    box-shadow: 1px 1px 4px black;
+    padding: 10px;
+    font-size: 25px;
+    
+    display: flex;
+    justify-content: space-between;
+}
+
+div.footer {
+    text-align: center;
+    padding: 20px 0;
+}
+
+div.footer * {
+    color: grey;
+}
+
+.header, .lightSection, .outlineSection, .rightPane {
+    background: hsla(215, 100%, 99%, 1);
+}
+
+body *, a {
+    color: hsla(230, 56%, 21%, 1);
+}
+
+.header .rightSection {
+    text-align: right;
+    flex-grow: 1;
+    line-height: 52px;
+}
+.header .leftSection {
+    text-align: left;
+    flex-grow: 1;
+    line-height: 52px;
+}
+
+.thread, .comment {
+    padding: 10px;
+    padding-right: 0;
+    margin-bottom: 10px;
+}
+
+.branchTitle {
+    font-size: 25px;
+    margin-bottom: 25px;
+    margin-top: 25px;
+}
+
+.comment .author {
+    color: hsl(230, 26%, 70.2%) !important;
+    font-size: 0.8em;
+}
+
+.comment .content {
+    border-left: 3px solid hsl(230, 26%, 70.2%);
+    padding-left: 7px;
+    padding-top: 1px;
+    padding-bottom: 1px;
+}
+
+.userNameTitle {
+    font-size: 25px;
+}
+
+.likeButton {
+    display: none;
+}
+
+.canLike .likeButton {
+    display: inline;
+}
+
+.canLike .unlikeButton {
+    display: none;
+}
+
+.leftPane {
+    flex-grow: 1;
+    
+    animation-name: fadeIn;
+    animation-duration: 0.5s;
+}
+
+.rightPane {
+    width: 25%;
+    margin-left: 20px;
+    padding-left: 20px;
+    box-sizing: border-box;
+    
+    animation-name: fadeIn;
+    animation-duration: 0.5s;
+}
+
+.thread.pinedThread {
+    border-radius: 5px;
+    padding: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.button, button, input[type=button], input[type=submit] {
+    display: block;
+    border-radius: 4px;
+    border: none;
+    box-shadow: 1px 1px 1px black;
+    font-size: 0.8em;
+    
+    /*background: white;*/
+    cursor: pointer;
+    margin: 0px;
+    padding: 5px 15px;
+    
+    background: #4c85d8;
+    color: white !important;
+}
+
+.mediumText, .button.mediumText {
+    font-size: 1.4em;
+}
+
+.smallText, .button.smallText {
+    font-size: 0.8em;
+}
+
+.linkButton, input[type=button].linkButton, input[type=submit].linkButton {
+    cursor: pointer;
+    border: none;
+    padding: 0;
+    margin: 0;
+    background: none;
+    text-decoration: underline;
+}
+
+.sectionLimits {
+    font-size: 0.8em;
+    margin-bottom: 10px;
+    background: hsla(215, 50%, 97%, 1);
+    padding: 10px;
+    padding-left: 15px;
+}
+
+.lightSection, .rightPane {
+    padding: 10px;
+    border-radius: 5px;
+    color: #28373d;
+    box-shadow: 2px 2px 3px rgba(0,0,0,0.2);
+}
+
+.outlineSection {
+    padding: 10px;
+    border-radius: 5px;
+    color: #28373d;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+input[type=user], input[type=password], input[type=input], textarea {
+    border-radius: 2px;
+    border: 0;
+    font-size: 1.2em;
+    width: 50%;
+    background: hsla(215, 100%, 97%, 1);
+    padding: 5px;
+}
+
+.mediaContainer img {
+    max-width: 100%;
+}
+
+@media only screen and (max-width: 600px) {
+    .rightPane {
+        padding: 0;
+        width: auto;
+    }
+}
+
+@keyframes fadeIn {
+  from {
+      opacity: 0;
+      transform: translateY(20px);
+  }
+  to {
+      opacity: 1;
+      transform: translateY(0px);
+  }
+}
+
+@media only screen and (max-width: 600px) {
+    .branchContent, .threadPageContent {
+        flex-direction: column;
+    }
+}
+
+.formBox {
+    max-width: 300px;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.formBox form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 40px;
+}
+
+.formBox form input {
+    width: 100%;
+}

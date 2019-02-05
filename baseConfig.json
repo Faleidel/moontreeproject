@@ -1,0 +1,19 @@
+{
+    "host": "localhost",
+    "port": "9090",
+    "protocol": "http",
+    "serverName": "Iron Tree",
+    "homeTitle": "Iron Tree Test Server",
+    "homeDescription": "Home description",
+    "overviewHasThreads": true,
+    "overviewBranches": [],
+    "admins": [],
+    "blockedInstances": [],
+    "acceptSignUp": true,
+    "blockNewInstances": false,
+    "headHTML": "",
+    "customCSS": "",
+    "generateTestData": false,
+    "migrationNumber": 1,
+    "footerHTML": ""
+}

@@ -1,0 +1,63 @@
+{% extends "views/page.njk" %}
+
+{% block head %}
+{% endblock %}
+
+{% block body %}
+    <div class="userNameTitle">{{accountName}}</div>
+    
+    <style>
+        .unreadNotif {
+            background: #ecf3f9;
+        }
+        
+        .markSeen {
+            display: inline-block;
+            font-size: 0.8em;
+            padding: 8px;
+        }
+    </style>
+    
+    {% if isAdmin %}
+        <div>Is this user Banned: {{isBanned}}</div>
+        <div style="margin: 10px 0">
+            <form action="/banUser" method="POST">
+                <input type="hidden" name="name" value="{{accountName}}"/>
+                <input type="submit" value="Ban this user"/>
+            </form>
+        </div>
+    {% endif %}
+    
+    {% if notifications %}
+        <div class="lightSection" style="margin-bottom: 10px;">
+            <h2>Notifications: </h2>
+            {% for notif in notifications %}
+                <div id="{{notif.id}}_container"
+                     style="margin-bottom: 10px;"
+                     class="lightSection {% if not notif.read %}unreadNotif{% endif %}"
+                >
+                    {{notif.title}}
+                    <div>{{utils.renderMarkdown(notif.content) | safe}}</div>
+                    {% if not notif.read %}
+                        <div class="button markSeen"
+                             id="{{notif.id}}_hideButton"
+                             readedNotif="{{notif.id}}"
+                             toHide="{{notif.id}}_hideButton"
+                        >
+                            Mark seen
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+    
+    <div class="lightSection">
+        <h2>Posts: </h2>
+        {% for act in activitys %}
+            <div class="post lightSection" style="margin-bottom: 10px;">
+                <a href="{{act.object.id}}">{{act.object.title}} {{act.object.content}}</a>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}

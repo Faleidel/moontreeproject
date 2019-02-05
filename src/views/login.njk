@@ -1,0 +1,15 @@
+{% extends "views/page.njk" %}
+
+{% block head %}
+{% endblock %}
+
+{% block body %}
+    <div class="lightSection formBox">
+        <h1>Login</h1>
+        <form action="/login" method="POST">
+            <input style="margin-bottom: 10px;" type="user" placeholder="user" name="user"/>
+            <input style="margin-bottom: 10px;" type="password" placeholder="password" name="password"/>
+            <input type="submit" value="Login"/>
+        </form>
+    </div>
+{% endblock %}

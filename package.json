@@ -1,0 +1,26 @@
+{
+  "name": "irontree",
+  "version": "1.0.0",
+  "description": "Mastodon compatible link agregator",
+  "main": "dist/main.js",
+  "dependencies": {
+    "@types/node": "^10.12.11",
+    "@types/nunjucks": "^3.1.0",
+    "@types/showdown": "^1.9.1",
+    "nunjucks": "^3.1.4",
+    "request": "^2.88.0",
+    "sanitize-html": "^1.20.0",
+    "showdown": "^1.9.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://Faleidel@bitbucket.org/Faleidel/irontree.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "homepage": "https://bitbucket.org/Faleidel/irontree#readme"
+}

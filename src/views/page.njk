@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>{{serverName}}</title>
+        
+        <link rel="icon" type="image/png" href="/favicon.ico">
+        
+        {{headHTML | safe}}
+        
+        <style>{{customCSS | safe}}</style>
+        <link rel="stylesheet" type="text/css" href="/static/css.css"></link>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        {% block head %}
+        {% endblock %}
+        
+        <script>
+            function setAndCollect(destDiv,html) {
+                destDiv.innerHTML = html;
+                
+                var parts = html.split('id="');
+                parts.splice(0,1);
+                parts = parts.map(s => s.split('"')[0]);
+                
+                var r = {};
+                
+                for ( var i in parts ) {
+                    var id = parts[i];
+                    let node = document.getElementById(id);
+                    r[id] = node;
+                    node.removeAttribute("id");
+                }
+                
+                return r;
+            }
+            
+            function http(url, a2, a3) {
+                let cb = a2;
+                let content = undefined;
+                
+                if (a3) {
+                    cb = a3;
+                    content = a2;
+                }
+                
+                var xhttp = new XMLHttpRequest();
+                xhttp.onreadystatechange = function (e) {
+                    if (this.readyState == 4 && this.status == 200) {
+                        cb && cb(e.target.responseText);
+                    }
+                };
+                xhttp.open(content == undefined ? "GET" : "POST", url, true);
+                xhttp.send(content);
+            }
+            
+            document.addEventListener("DOMContentLoaded", function(event) {
+                document.body.onclick = e => {
+                    let toLike = e.target.getAttribute("toLike");
+                    
+                    if (toLike) {
+                        http("/like", toLike, () => {});
+                        
+                        let likesDiv = document.getElementById(toLike + "_likes");
+                        let likes = parseInt(likesDiv.innerHTML);
+                        likesDiv.innerHTML = likes + 1;
+                        
+                        let threadDiv = document.getElementById(toLike + "_likeControls");
+                        threadDiv.classList.remove("canLike");
+                    }
+                    
+                    let toUnlike = e.target.getAttribute("toUnlike");
+                    
+                    if (toUnlike) {
+                        http("/unlike", toUnlike, () => {});
+                        
+                        let likesDiv = document.getElementById(toUnlike + "_likes");
+                        let likes = parseInt(likesDiv.innerHTML);
+                        likesDiv.innerHTML = likes + -1;
+                        
+                        let threadDiv = document.getElementById(toUnlike + "_likeControls");
+                        threadDiv.classList.add("canLike");
+                    }
+                    
+                    let mediaToShow = e.target.getAttribute("showMedia");
+                    
+                    if (mediaToShow) {
+                        let mediaDiv  = e.target.getAttribute("destination");
+                        let mediaType = e.target.getAttribute("mediaType");
+                        
+                        let destination = document.getElementById(mediaDiv);
+                        
+                        if (destination.innerHTML == "") {
+                            if (mediaType == "image") {
+                                destination.innerHTML = `
+                                    <img src="${mediaToShow}"/>
+                                `;
+                            } else if (mediaType == "iframe") {
+                                destination.innerHTML = `
+                                    <iframe src="${mediaToShow}" allowfullscreen></iframe>
+                                `;
+                            } else if (mediaType == "video") {
+                                destination.innerHTML = `
+                                    <video src="${mediaToShow}" controls/>
+                                `;
+                            }
+                        } else {
+                            destination.innerHTML = "";
+                        }
+                    }
+                    
+                    let toDisplay = e.target.getAttribute("toDisplay");
+                    
+                    if (toDisplay) {
+                        let div = document.getElementById(toDisplay);
+                        div.style.display = "block";
+                    }
+                    
+                    let toHide = e.target.getAttribute("toHide");
+                    
+                    if (toHide) {
+                        let div = document.getElementById(toHide);
+                        div.style.display = "none";
+                    }
+                    
+                    let toToggle = e.target.getAttribute("toToggle");
+                    
+                    if (toToggle) {
+                        let div = document.getElementById(toToggle);
+                        if (div.style.display == "none")
+                            div.style.display = "block";
+                        else
+                            div.style.display = "none";
+                    }
+                    
+                    let readedNotif = e.target.getAttribute("readedNotif");
+                    
+                    if (readedNotif) {
+                        let div = document.getElementById(readedNotif + "_container");
+                        div.classList.remove("unreadNotif");
+                        http("/readNotification", readedNotif, () => {});
+                    }
+                }
+            });
+        </script>
+    </head>
+    <body>
+        <style>
+            #mobileMenu .button {
+                margin-bottom: 10px;
+                background: none;
+                box-shadow: none;
+            }
+        </style>
+        <div class="header">
+            <div style="width: 57px; cursor: pointer" onclick="document.location.href='/'">
+                <img src="/static/logo200.png" style="height:50px;"/>
+            </div>
+            <div class="leftSection">
+                <a href="/">{{serverName}}</a>
+                <a class="desktop" href="/branchList" style="font-size: 1.1rem">branch list</a>
+                {% if userName %}
+                    <a class="desktop" href="/newBranch" style="font-size: 1rem;">new branch</a>
+                {% endif %}
+                {% if isAdmin %}<a class="desktop" href="/config" style="font-size: 1rem">config</a>{% endif %}
+            </div>
+            <div class="rightSection">
+                {% if userName %}
+                    <div class="desktop">
+                        <span class="welcome">Welcome, </span>
+                        <a href="/user/{{userName}}" style="margin-right: 10px;">
+                            {{utils.renderUserName(userName)}}
+                            {% if notifCount %}
+                                <span class="notifCount">({{notifCount}})</span>
+                            {% endif %}
+                        </a>
+                        <a href="/logout">logout</a>
+                    </div>
+                {% endif %}
+                {% if not userName %}
+                    <a href="/login" class="desktop">login</a>
+                    {% if acceptSignUp %}<a href="/signup" class="desktop">signup</a>{% endif %}
+                {% endif %}
+                <div class="mobile">
+                    <img toToggle="mobileMenu" style="position: relative; top: 9px; right: 13px; cursor: pointer;" src="data:image/svg+xml;utf8;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pgo8IS0tIEdlbmVyYXRvcjogQWRvYmUgSWxsdXN0cmF0b3IgMTguMS4xLCBTVkcgRXhwb3J0IFBsdWctSW4gLiBTVkcgVmVyc2lvbjogNi4wMCBCdWlsZCAwKSAgLS0+CjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4PSIwcHgiIHk9IjBweCIgdmlld0JveD0iMCAwIDQyNCA0MjQiIHN0eWxlPSJlbmFibGUtYmFja2dyb3VuZDpuZXcgMCAwIDQyNCA0MjQ7IiB4bWw6c3BhY2U9InByZXNlcnZlIiB3aWR0aD0iMzJweCIgaGVpZ2h0PSIzMnB4Ij4KPGc+Cgk8Zz4KCQk8cGF0aCBkPSJNMzUsODlDMTUsODksMCw3NCwwLDU0czE1LTM2LDM1LTM2aDM1M2MyMCwwLDM2LDE2LDM2LDM2cy0xNiwzNS0zNiwzNUgzNXoiIGZpbGw9IiMwMDAwMDAiLz4KCQk8cGF0aCBkPSJNMzg4LDE3NmMyMCwwLDM2LDE2LDM2LDM2cy0xNiwzNS0zNiwzNUgzNWMtMjAsMC0zNS0xNS0zNS0zNXMxNS0zNiwzNS0zNkgzODh6IiBmaWxsPSIjMDAwMDAwIi8+CgkJPHBhdGggZD0iTTM4OCwzMzVjMjAsMCwzNiwxNSwzNiwzNXMtMTYsMzYtMzYsMzZIMzVjLTIwLDAtMzUtMTYtMzUtMzZzMTUtMzUsMzUtMzVIMzg4eiIgZmlsbD0iIzAwMDAwMCIvPgoJPC9nPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+Cjwvc3ZnPgo="/>
+                </div>
+            </div>
+        </div>
+        <style>
+            #mobileMenu {
+                font-size: 1.6em;
+            }
+        </style>
+        <div style="display:none; margin-top: 10px;" id="mobileMenu" class="lightSection mobile">
+            <div class="button"><a href="/branchList">branch list</a></div>
+            {% if userName %}
+                <div class="button"><a href="/newBranch">new branch</a></div>
+            {% endif %}
+            {% if isAdmin %}<div class="button"><a href="/config">config</a></div>{% endif %}
+            
+            {% if userName %}
+                <div>
+                    <div class="button">
+                    <a href="/user/{{userName}}" style="margin-right: 10px;">
+                        account
+                        {% if notifCount %}
+                            <span class="notifCount">({{notifCount}})</span>
+                        {% endif %}
+                    </a>
+                    </div>
+                    <div class="button"><a href="/logout">logout</a></div>
+                </div>
+            {% endif %}
+            {% if not userName %}
+                <div class="button"><a href="/login">login</a></div>
+                {% if acceptSignUp %}<div class="button"><a href="/signup">signup</a></div>{% endif %}
+            {% endif %}
+        </div>
+        <div class="pageContent">
+            {% block body %}
+            {% endblock %}
+        </div>
+        
+        <div class="footer">
+            <div style="margin-bottom: 5px;">
+                {{footerHTML | safe}}
+            </div>
+            <div style="margin-bottom: 3px;">
+                <span><a href="futur link TODO">This project is open source on github</a></span>
+            </div>
+            <div>
+                <div style="font-size: 0.7em">Menu and arrow icons made by <a href="https://www.freepik.com/" title="Freepik">Freepik</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a> is licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0" target="_blank">CC 3.0 BY</a></div>
+                <div style="font-size: 0.7em">Iron tree logo made by Mélissa Labelle-Côter</div>
+            </div>
+        </div>
+    </body>
+</html>

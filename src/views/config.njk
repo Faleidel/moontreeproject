@@ -1,0 +1,146 @@
+{% extends "views/page.njk" %}
+
+{% block head %}
+{% endblock %}
+
+{% block body %}
+    <h1>Config Editor</h1>
+    
+    <div class="lightSection" style="margin-bottom: 10px;">
+        Remote instances:
+        {% for instance in remoteInstances %}
+            <a href="instance/{{instance.host}}">{{instance.host}} {{instance.name}} {{instance.blocked}}</a>
+        {% endfor %}
+    </div>
+    
+    <div class="lightSection" style="margin-bottom: 10px;">
+        Url views:
+        {% for url, number in urlStats %}
+            <div>
+                <a href="{{url}}">{{url}}</a>: {{number}}
+            </div>
+        {% endfor %}
+    </div>
+    
+    <div class="lightSection" style="margin-bottom: 10px;">
+        Users:
+        {% for user in users %}
+            <div>
+                <a href="/user/{{user.name}}">{{user.name}}</a>
+            </div>
+        {% endfor %}
+    </div>
+    
+    <form action="setConfig" method="POST">
+        <div class="lightSection" style="margin-bottom: 10px;">
+            Server name
+            <input type="input" name="serverName" value="{{serverNameValue}}"/>
+        </div>
+        
+        <div class="lightSection" style="margin-bottom: 10px;">
+            Admin names
+            <input type="input" name="admins" value="{{adminsValue}}"/>
+        </div>
+        
+        <div class="lightSection" style="margin-bottom: 10px;">
+            HTML to add in HEAD
+            <textarea name="headHTML">{{headHTMLValue}}</textarea>
+        </div>
+        
+        <div class="lightSection" style="margin-bottom: 10px;">
+            HTML to add to the footer
+            <textarea name="footerHTML">{{footerHTMLValue}}</textarea>
+        </div>
+        
+        <div class="lightSection" style="margin-bottom: 10px;">
+            Custom CSS
+            <textarea name="customCSS">{{customCSSValue}}</textarea>
+        </div>
+        
+        <div class="lightSection" style="margin-bottom: 10px;">
+            Block new instances
+            <select name="blockNewInstances">
+                <option value="true" {% if blockNewInstancesValue %}selected{% endif %}>yes</option>
+                <option value="false" {% if not blockNewInstancesValue %}selected{% endif %}>no</option>
+            </select>
+        </div>
+        
+        <div class="lightSection" style="margin-bottom: 10px;">
+            Accept new signup
+            <select name="acceptSignUp">
+                <option value="true" {% if acceptSignUpValue %}selected{% endif %}>yes</option>
+                <option value="false" {% if not acceptSignUpValue %}selected{% endif %}>no</option>
+            </select>
+        </div>
+        
+        
+        <div class="lightSection" style="margin-bottom: 10px;">
+            Overview branches
+            <input type="hidden" value="{{overviewBranchesJSON}}" id="overviewBranchesJSON" name="overviewBranchesJSON">
+            <div id="overviewBranchesEditor">
+            </div>
+            <script>
+                document.addEventListener("DOMContentLoaded", function(event) {
+                    e = document.getElementById("overviewBranchesJSON");
+                    let els = JSON.parse(document.getElementById("overviewBranchesJSON").value);
+                    
+                    function renderOverviewBranches() {
+                        let refs = setAndCollect(document.getElementById("overviewBranchesEditor"), `
+                            ${els.map((e, index) => {
+                                return `
+                                    <div style="margin-top: 5px; margin-bottom: 5px;">
+                                        <input type="input" style="width: initial" id="name_${index}" value="${e.name}"/>
+                                        <input type="input" style="width: initial" id="value_${index}" value="${e.branchs.join(", ")}"/>
+                                        <div class="button" id="remove_${index}" style="display: inline-block;">Remove</div>
+                                    </div>
+                                `;
+                            }).join("")}
+                            <div>
+                                <div>New section</div>
+                                <input id="sectionName"></input>
+                                <div class="button" id="newSection" style="display: inline-block">Create section</div>
+                            </div>
+                        `);
+                        
+                        els.map((section, index) => {
+                            refs["name_"+index].oninput = () => {
+                                console.log("Input name");
+                                section.name = refs["name_"+index].value;
+                                document.getElementById("overviewBranchesJSON").value = JSON.stringify(els);
+                            };
+                            
+                            refs["value_"+index].oninput = () => {
+                                console.log("Input value");
+                                section.branchs = refs["value_"+index].value.split(",").map(e => e.replace(/ /g, ""));
+                                document.getElementById("overviewBranchesJSON").value = JSON.stringify(els);
+                            };
+                            
+                            refs["remove_"+index].onclick = () => {
+                                els.splice(index, 1);
+                                document.getElementById("overviewBranchesJSON").value = JSON.stringify(els);
+                                renderOverviewBranches();
+                            };
+                        });
+                        
+                        refs.newSection.onclick = () => {
+                            els.push({name: refs.sectionName.value, branchs: []});
+                            document.getElementById("overviewBranchesJSON").value = JSON.stringify(els);
+                            renderOverviewBranches();
+                        };
+                    }
+                    renderOverviewBranches();
+                });
+            </script>
+        </div>
+        
+        <div class="lightSection" style="margin-bottom: 10px;">
+            Overview has threads
+            <select name="overviewHasThreads">
+                <option value="true" {% if overviewHasThreads %}selected{% endif %}>yes</option>
+                <option value="false" {% if not overviewHasThreads %}selected{% endif %}>no</option>
+            </select>
+        </div>
+        
+        <input type="submit"/>
+    </form>
+{% endblock %}

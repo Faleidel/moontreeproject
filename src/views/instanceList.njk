@@ -1,0 +1,13 @@
+{% extends "views/page.njk" %}
+
+{% block head %}
+{% endblock %}
+
+{% block body %}
+    {% for instance in instanceList %}
+        <div>
+            <a href="/instance/{{instance.host}}">{{instance.name}}</a>
+            <a href="{{instance.host}}">{{instance.host}}</a>
+        </div>
+    {% endfor %}
+{% endblock %}

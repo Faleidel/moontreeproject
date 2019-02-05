@@ -1,0 +1,259 @@
+{% extends "views/page.njk" %}
+
+{% block head %}
+{% endblock %}
+
+{% block body %}
+    <div class="branchContent">
+        <div class="leftPane">
+            {% if userName and postableBranch %}
+                <div class="threadCreation lightSection">
+                    <h1>Create a new thread</h1>
+                    <form action="/newThread" method="POST">
+                        <h2>Thread title:</h2>
+                        <input type="input" class="titleInput" name="title"/>
+                        
+                        <h2>Thread link or text:</h2>
+                        <textarea class="contentInput" name="content"></textarea>
+                        
+                        <input type="hidden" name="branch" value="{{branch.name}}"/>
+                        
+                        <input type="submit" class="button mediumText" value="Create" style="margin-top:10px;"/>
+                    </form>
+                </div>
+            {% endif %}
+            
+            {% if overview and overview.length > 0 %}
+                <div class="lightSection" style="margin-bottom: 10px;">
+                {% for section in overview %}
+                    <div class="lightSection" style="{% if not loop.last %}margin-bottom: 10px;{% endif %}">
+                        <div>{{section.name}}:</div>
+                        {% for br in section.branchs %}
+                            <a href="/branch/{{br}}">{{br}}</a>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+                </div>
+            {% endif %}
+            
+            <style>
+                .branchContent {
+                    display: flex;
+                    align-items: flex-start;
+                }
+                
+                .threadCreation {
+                    margin-bottom: 10px;
+                }
+                
+                .threadCreation h1 {
+                    font-size: 1.4em;
+                    margin: 0;
+                }
+                 
+                .threadCreation h2 {
+                    font-size: 1.1em;
+                    margin: 0;
+                    margin-top: 10px;
+                }
+                
+                .threadCreation .titleInput {
+                    border-radius: 2px;
+                    border: 0;
+                    font-size: 1.4em;
+                    width: 50%;
+                    background: hsla(215, 100%, 97%, 1);
+                }
+                
+                .threadCreation .contentInput {
+                    border-radius: 2px;
+                    border: 0;
+                    font-size: 1.4em;
+                    width: 50%;
+                    background: hsla(215, 100%, 97%, 1);
+                }
+                
+                .thread {
+                    display: flex;
+                    border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+                }
+                
+                .thread .threadPosition, .thread .likeCount {
+                    min-height: 60px;
+                    display: flex;
+                    align-items: center;
+                }
+                
+                .thread .likeCount {
+                    width: 60px;
+                }
+                
+                .thread .threadPosition > div, .thread .likeCount > div {
+                    display: flex;
+                    flex-direction: column;
+                    width: 100%;
+                    text-align: center;
+                }
+                
+                .thread .threadInfos {
+                    min-height: 60px;
+                    width: 100%;
+                    padding: 10px;
+                    box-sizing: border-box;
+                    border-radius: 5px;
+                }
+                
+                .thread .publishedTime > * {
+                    font-size: 0.6em;
+                }
+                
+                .thread .commentsCount {
+                    font-size: 0.6em;
+                }
+                
+                .thread .threadInfosBottomLines {
+                    display: flex;
+                }
+                
+                .mediaButton {
+                    color: black !important;
+                    background: white;
+                    height: 25px;
+                    width: 25px;
+                    text-align: center;
+                    padding: 0;
+                    border: none;
+                    margin-top: 3px;
+                    margin-right: 3px;
+                    border: 1px solid black;
+                    border-radius: 6px;
+                    box-sizing: content-box;
+                    font-size: 20px;
+                    cursor: pointer;
+                }
+                
+                .mediaContainer > * {
+                    margin-top: 10px;
+                }
+                
+                .sort a {
+                    color: grey;
+                }
+                
+                .sort a.selected {
+                    font-weight: 900;
+                    color: black;
+                }
+            </style>
+            
+            {% if not hideThreads %}
+                <div class="lightSection">
+                    <div class="sectionLimits sort">
+                        Sort By:
+                        <a href="?sort=hot" class="{{ "selected" if sort == "hot" or not sort }}">HOT</a>
+                        <a href="?sort=new" class="{{ "selected" if sort == "new" }}">NEW</a>
+                        or
+                        <a href="?sort=top" class="{{ "selected" if sort == "top" }}">TOP</a>
+                    </div>
+                    
+                    {% for thread in threads %}
+                        <div id="{{thread.id}}" class="thread {% if thread.pined %}pinedThread{% endif %}">
+                            <div class="threadPosition"><div>{{thread.position}}</div></div>
+                            <div id="{{thread.id}}_likeControls" class="likeCount {% if not thread.liked and userName %}canLike{% endif %}">
+                                <div>
+                                    {% if userName %}
+                                        <span class="likeButton" style="cursor: pointer" toLike="{{thread.id}}">^</span>
+                                    {% endif %}
+                                    <span id="{{thread.id}}_likes">{{thread.likes}}</span>
+                                    {% if userName %}
+                                        <span class="unlikeButton" style="cursor: pointer" toUnLike="{{thread.id}}">v</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="threadInfos">
+                                <div class="threadtitle">
+                                    {% if thread.isLink %}
+                                        <a href="{{thread.content}}">{{thread.title}}</a>
+                                    {% else %}
+                                        <a href="{{thread.id}}">{{thread.title}}</a>
+                                    {% endif %}
+                                </div>
+                                <div class="threadInfosBottomLines">
+                                    {% if thread.media %}
+                                        <div>
+                                            <button showMedia="{{thread.media.url}}"
+                                                    mediaType="{{thread.media.type}}"
+                                                    destination="{{thread.id}}_media"
+                                                    class="mediaButton"
+                                            >
+                                                +
+                                            </button>
+                                        </div>
+                                    {% endif %}
+                                    <div>
+                                        <div class="publishedTime">
+                                            <span>{{utils.renderRelativeTime(thread.published)}}</span>
+                                            <span>in <a href="/branch/{{thread.branch}}">branch {{thread.branch}}</a></span>
+                                        </div>
+                                        <div class="commentsCount">
+                                            <a href="{{utils.threadLink(thread.id) | safe}}">comments: {{thread.commentsCount}}</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="{{thread.id}}_media" class="mediaContainer"></div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="noThreads">
+                            No threads here
+                        </div>
+                    {% endfor %}
+                    
+                    <div class="sectionLimits">
+                        {% if pageNumber > 0 %}
+                            <a href="?page={{pageNumber - 1}}{% if sort %}&sort={{sort}}{% endif %}"><img src="data:image/svg+xml;utf8;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pgo8IS0tIEdlbmVyYXRvcjogQWRvYmUgSWxsdXN0cmF0b3IgMTkuMC4wLCBTVkcgRXhwb3J0IFBsdWctSW4gLiBTVkcgVmVyc2lvbjogNi4wMCBCdWlsZCAwKSAgLS0+CjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgdmVyc2lvbj0iMS4xIiBpZD0iTGF5ZXJfMSIgeD0iMHB4IiB5PSIwcHgiIHZpZXdCb3g9IjAgMCA0OTIgNDkyIiBzdHlsZT0iZW5hYmxlLWJhY2tncm91bmQ6bmV3IDAgMCA0OTIgNDkyOyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSIgd2lkdGg9IjI0cHgiIGhlaWdodD0iMjRweCI+CjxnPgoJPGc+CgkJPHBhdGggZD0iTTQ2NC4zNDQsMjA3LjQxOGwwLjc2OCwwLjE2OEgxMzUuODg4bDEwMy40OTYtMTAzLjcyNGM1LjA2OC01LjA2NCw3Ljg0OC0xMS45MjQsNy44NDgtMTkuMTI0ICAgIGMwLTcuMi0yLjc4LTE0LjAxMi03Ljg0OC0xOS4wODhMMjIzLjI4LDQ5LjUzOGMtNS4wNjQtNS4wNjQtMTEuODEyLTcuODY0LTE5LjAwOC03Ljg2NGMtNy4yLDAtMTMuOTUyLDIuNzgtMTkuMDE2LDcuODQ0ICAgIEw3Ljg0NCwyMjYuOTE0QzIuNzYsMjMxLjk5OC0wLjAyLDIzOC43NywwLDI0NS45NzRjLTAuMDIsNy4yNDQsMi43NiwxNC4wMiw3Ljg0NCwxOS4wOTZsMTc3LjQxMiwxNzcuNDEyICAgIGM1LjA2NCw1LjA2LDExLjgxMiw3Ljg0NCwxOS4wMTYsNy44NDRjNy4xOTYsMCwxMy45NDQtMi43ODgsMTkuMDA4LTcuODQ0bDE2LjEwNC0xNi4xMTJjNS4wNjgtNS4wNTYsNy44NDgtMTEuODA4LDcuODQ4LTE5LjAwOCAgICBjMC03LjE5Ni0yLjc4LTEzLjU5Mi03Ljg0OC0xOC42NTJMMTM0LjcyLDI4NC40MDZoMzI5Ljk5MmMxNC44MjgsMCwyNy4yODgtMTIuNzgsMjcuMjg4LTI3LjZ2LTIyLjc4OCAgICBDNDkyLDIxOS4xOTgsNDc5LjE3MiwyMDcuNDE4LDQ2NC4zNDQsMjA3LjQxOHoiIGZpbGw9IiMwMDAwMDAiLz4KCTwvZz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8L3N2Zz4K" /></a>
+                        {% endif %}
+                        <span style="font-size: 1.2em; position: relative; bottom: 7px; padding: 0 18px;">page: {{pageNumber}}</span>
+                        <a href="?page={{pageNumber + 1}}{% if sort %}&sort={{sort}}{% endif %}">
+                            <img style="transform: rotate(180deg)" src="data:image/svg+xml;utf8;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pgo8IS0tIEdlbmVyYXRvcjogQWRvYmUgSWxsdXN0cmF0b3IgMTkuMC4wLCBTVkcgRXhwb3J0IFBsdWctSW4gLiBTVkcgVmVyc2lvbjogNi4wMCBCdWlsZCAwKSAgLS0+CjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgdmVyc2lvbj0iMS4xIiBpZD0iTGF5ZXJfMSIgeD0iMHB4IiB5PSIwcHgiIHZpZXdCb3g9IjAgMCA0OTIgNDkyIiBzdHlsZT0iZW5hYmxlLWJhY2tncm91bmQ6bmV3IDAgMCA0OTIgNDkyOyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSIgd2lkdGg9IjI0cHgiIGhlaWdodD0iMjRweCI+CjxnPgoJPGc+CgkJPHBhdGggZD0iTTQ2NC4zNDQsMjA3LjQxOGwwLjc2OCwwLjE2OEgxMzUuODg4bDEwMy40OTYtMTAzLjcyNGM1LjA2OC01LjA2NCw3Ljg0OC0xMS45MjQsNy44NDgtMTkuMTI0ICAgIGMwLTcuMi0yLjc4LTE0LjAxMi03Ljg0OC0xOS4wODhMMjIzLjI4LDQ5LjUzOGMtNS4wNjQtNS4wNjQtMTEuODEyLTcuODY0LTE5LjAwOC03Ljg2NGMtNy4yLDAtMTMuOTUyLDIuNzgtMTkuMDE2LDcuODQ0ICAgIEw3Ljg0NCwyMjYuOTE0QzIuNzYsMjMxLjk5OC0wLjAyLDIzOC43NywwLDI0NS45NzRjLTAuMDIsNy4yNDQsMi43NiwxNC4wMiw3Ljg0NCwxOS4wOTZsMTc3LjQxMiwxNzcuNDEyICAgIGM1LjA2NCw1LjA2LDExLjgxMiw3Ljg0NCwxOS4wMTYsNy44NDRjNy4xOTYsMCwxMy45NDQtMi43ODgsMTkuMDA4LTcuODQ0bDE2LjEwNC0xNi4xMTJjNS4wNjgtNS4wNTYsNy44NDgtMTEuODA4LDcuODQ4LTE5LjAwOCAgICBjMC03LjE5Ni0yLjc4LTEzLjU5Mi03Ljg0OC0xOC42NTJMMTM0LjcyLDI4NC40MDZoMzI5Ljk5MmMxNC44MjgsMCwyNy4yODgtMTIuNzgsMjcuMjg4LTI3LjZ2LTIyLjc4OCAgICBDNDkyLDIxOS4xOTgsNDc5LjE3MiwyMDcuNDE4LDQ2NC4zNDQsMjA3LjQxOHoiIGZpbGw9IiMwMDAwMDAiLz4KCTwvZz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8Zz4KPC9nPgo8L3N2Zz4K" />
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+            
+        </div>
+        <div class="rightPane">
+            <div class="branchTitle">{{branch.name}}</div>
+            
+            <div class="description">
+                {{utils.renderMarkdown(branch.description) | safe}}
+            </div>
+            
+            {% if isBranchAdmin %}
+                <div>
+                    <form action="/branchConfig" method="POST">
+                        <input type="hidden" name="branch" value="{{branch.name}}"/>
+                        <div>Pinned thread list separeted by comma</div>
+                        <input name="pinedThreads" value="{{branch.pinedThreads.join(", ")}}"/>
+                        <input type="submit" value="save"/>
+                    </form>
+                </div>
+            {% endif %}
+            
+            {% if isAdmin and not branch.isHome %}
+                <div>
+                    <form action="/branchAdmin" method="POST">
+                        <input type="hidden" name="branch" value="{{branch.name}}"/>
+                        <input type="submit" style="margin-bottom: 10px;" value="Ban this branch"/>
+                    </form>
+                </div>
+            {% endif %}
+            
+            {% if branch.creator %}
+                <div class="branchCreator">
+                    Created by: {{branch.creator}}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
