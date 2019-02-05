@@ -1,6 +1,6 @@
 # The Moon Tree Project
 
-## What is the Moon tree Tree?
+## What is the Moon tree Project?
 
 The Moon Tree Project is a link aggregator like reddit or hackernews. The big difference is that it is opensource, you can host your own Moon Tree server and it is decentralized.
 
