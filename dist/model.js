@@ -36,7 +36,7 @@ async function activityToJSON(act) {
                 cc: [object.inReplyTo],
                 title: object.title,
                 content: object.content,
-                published: object.published,
+                published: new Date(object.published).toISOString(),
                 sensitive: false,
                 summary: null,
                 tag: [{
@@ -698,7 +698,7 @@ exports.getActivityById = getActivityById;
 async function createActivity(author, object) {
     let activity = {
         id: utils.urlForPath("activity/" + (Math.random() * 100000000000000000)),
-        published: new Date().toUTCString(),
+        published: new Date().toISOString(),
         author: author.name,
         to: ["https://www.w3.org/ns/activitystreams#Public"],
         objectId: object.id

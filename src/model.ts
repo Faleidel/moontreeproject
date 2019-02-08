@@ -64,7 +64,7 @@ export async function activityToJSON(act: Activity): Promise<any | undefined> {
                 cc: [object.inReplyTo],
                 title: object.title,
                 content: object.content,
-                published: object.published,
+                published: new Date(object.published).toISOString(),
                 sensitive: false,
                 summary: null,
                 tag: [{
@@ -855,7 +855,7 @@ export async function getActivityById(id: string): Promise<Activity | undefined>
 export async function createActivity(author: User, object: Comment): Promise<Activity> {
     let activity: Activity = {
         id: utils.urlForPath("activity/" + (Math.random() * 100000000000000000)),
-        published: new Date().toUTCString(),
+        published: new Date().toISOString(),
         author: author.name,
         to: ["https://www.w3.org/ns/activitystreams#Public"],
         objectId: object.id
