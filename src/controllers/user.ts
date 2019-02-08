@@ -88,9 +88,9 @@ export async function handleUserGet(url: string[], query: any, req: any, res: an
                     id: utils.urlForPath("user/" + name + "/outbox?page=true"),
                     prev: utils.urlForPath("user/" + name + "/outbox?page=true"),
                     partOf: utils.urlForPath("user/" + name + "/outbox"),
-                    orderedItems: await Promise.all(activitys.map(async (act: model.Activity) => {
-                        return (await model.activityToJSON(act)).filter((e: any) => !!e);
-                    }))
+                    orderedItems: (await Promise.all(activitys.map(async (act: model.Activity) => {
+                        return (await model.activityToJSON(act));
+                    }))).filter((e: any) => !!e)
                 }));
             }
         }
