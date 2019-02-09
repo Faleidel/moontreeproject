@@ -93,7 +93,7 @@ async function threadToJSON(thread) {
 exports.threadToJSON = threadToJSON;
 async function threadFromJSON(json) {
     let comment = await commentFromJSON(json);
-    if (comment)
+    if (comment && json.isLink != undefined && json.branch != undefined)
         return Object.assign({}, comment, { title: json.title, branch: json.branch, isLink: json.isLink, media: json.media, adminDeleted: false, lastUpdate: new Date().getTime() });
     else
         return undefined;
@@ -836,7 +836,7 @@ async function getThreadById(id) {
             }
         })().catch(() => undefined));
     }
-    if (thread && (await isBranchBanned(thread.branch) || thread.adminDeleted))
+    if (thread && ((thread.branch && await isBranchBanned(thread.branch)) || thread.adminDeleted))
         return undefined;
     else
         return thread;

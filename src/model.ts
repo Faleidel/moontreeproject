@@ -154,7 +154,7 @@ export async function threadToJSON(thread: Thread): Promise<any> {
 export async function threadFromJSON(json: any): Promise<Thread | undefined> {
     let comment = await commentFromJSON(json);
     
-    if (comment)
+    if (comment && json.isLink != undefined && json.branch != undefined)
         return {
             ... comment,
             
@@ -1006,7 +1006,7 @@ export async function getThreadById(id: string): Promise<Thread | undefined> {
         })().catch(() => undefined));
     }
     
-    if (thread && (await isBranchBanned(thread.branch) || thread.adminDeleted))
+    if (thread && ((thread.branch && await isBranchBanned(thread.branch)) || thread.adminDeleted))
         return undefined;
     else
         return thread;
