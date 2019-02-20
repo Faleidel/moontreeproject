@@ -35,8 +35,12 @@ export async function handleThread(url: string[], query: any, req: any, res: any
                         commentTree: await model.getThreadCommentsForClient(user, thread.id)
                     };
                     
-                    let html = utils.renderTemplate("views/thread.njk", viewData);
-                    res.end(html);
+                    let simpleRender = !!query.simple;
+                    
+                    if (simpleRender)
+                        res.end(utils.renderTemplate("views/simpleThread.njk", viewData));
+                    else
+                        res.end(utils.renderTemplate("views/thread.njk", viewData));
                 }
                 else
                     res.end("Error finding branch");

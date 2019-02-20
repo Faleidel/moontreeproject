@@ -27,8 +27,11 @@ async function handleThread(url, query, req, res, body, cookies) {
                 let user = await utils.getLoggedUser(cookies);
                 if (branch) {
                     let viewData = Object.assign({}, await utils.createViewData(cookies), { thread: thread, branch: branch, isBranchAdmin: await model.isBranchAdmin(user, branch), commentTree: await model.getThreadCommentsForClient(user, thread.id) });
-                    let html = utils.renderTemplate("views/thread.njk", viewData);
-                    res.end(html);
+                    let simpleRender = !!query.simple;
+                    if (simpleRender)
+                        res.end(utils.renderTemplate("views/simpleThread.njk", viewData));
+                    else
+                        res.end(utils.renderTemplate("views/thread.njk", viewData));
                 }
                 else
                     res.end("Error finding branch");

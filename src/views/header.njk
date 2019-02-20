@@ -1,0 +1,74 @@
+{% macro renderHeader(utils, serverName, userName, notifCount, isAdmin, acceptSignUp) %}
+    <style>
+        #mobileMenu .button {
+            margin-bottom: 10px;
+            background: none;
+            box-shadow: none;
+        }
+    </style>
+    <div class="header">
+        <div style="width: 57px; cursor: pointer" onclick="document.location.href='/'">
+            <img src="/static/logo200.png" style="height:50px;"/>
+        </div>
+        <div class="leftSection">
+            <a href="/">{{serverName}}</a>
+            <a class="desktop" href="/branchList" style="font-size: 1.1rem">branch list</a>
+            {% if userName %}
+                <a class="desktop" href="/newBranch" style="font-size: 1rem;">new branch</a>
+            {% endif %}
+            {% if isAdmin %}<a class="desktop" href="/config" style="font-size: 1rem">config</a>{% endif %}
+        </div>
+        <div class="rightSection">
+            {% if userName %}
+                <div class="desktop">
+                    <span class="welcome">Welcome, </span>
+                    <a href="/user/{{userName}}" style="margin-right: 10px;">
+                        {{utils.renderUserName(userName)}}
+                        {% if notifCount %}
+                            <span class="notifCount">({{notifCount}})</span>
+                        {% endif %}
+                    </a>
+                    <a href="/logout">logout</a>
+                </div>
+            {% endif %}
+            {% if not userName %}
+                <a href="/login" class="desktop">login</a>
+                {% if acceptSignUp %}<a href="/signup" class="desktop">signup</a>{% endif %}
+            {% endif %}
+            <div class="mobile">
+                <img toToggle="mobileMenu" style="position: relative; top: 9px; right: 13px; cursor: pointer;" src="data:image/svg+xml;utf8;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pgo8IS0tIEdlbmVyYXRvcjogQWRvYmUgSWxsdXN0cmF0b3IgMTguMS4xLCBTVkcgRXhwb3J0IFBsdWctSW4gLiBTVkcgVmVyc2lvbjogNi4wMCBCdWlsZCAwKSAgLS0+CjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4PSIwcHgiIHk9IjBweCIgdmlld0JveD0iMCAwIDQyNCA0MjQiIHN0eWxlPSJlbmFibGUtYmFja2dyb3VuZDpuZXcgMCAwIDQyNCA0MjQ7IiB4bWw6c3BhY2U9InByZXNlcnZlIiB3aWR0aD0iMzJweCIgaGVpZ2h0PSIzMnB4Ij4KPGc+Cgk8Zz4KCQk8cGF0aCBkPSJNMzUsODlDMTUsODksMCw3NCwwLDU0czE1LTM2LDM1LTM2aDM1M2MyMCwwLDM2LDE2LDM2LDM2cy0xNiwzNS0zNiwzNUgzNXoiIGZpbGw9IiMwMDAwMDAiLz4KCQk8cGF0aCBkPSJNMzg4LDE3NmMyMCwwLDM2LDE2LDM2LDM2cy0xNiwzNS0zNiwzNUgzNWMtMjAsMC0zNS0xNS0zNS0zNXMxNS0zNiwzNS0zNkgzODh6IiBmaWxsPSIjMDAwMDAwIi8+CgkJPHBhdGggZD0iTTM4OCwzMzVjMjAsMCwzNiwxNSwzNiwzNXMtMTYsMzYtMzYsMzZIMzVjLTIwLDAtMzUtMTYtMzUtMzZzMTUtMzUsMzUtMzVIMzg4eiIgZmlsbD0iIzAwMDAwMCIvPgoJPC9nPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+Cjwvc3ZnPgo="/>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        #mobileMenu {
+            font-size: 1.6em;
+        }
+    </style>
+    <div style="display:none; margin-top: 10px;" id="mobileMenu" class="lightSection mobile">
+        <div class="button"><a href="/branchList">branch list</a></div>
+        {% if userName %}
+            <div class="button"><a href="/newBranch">new branch</a></div>
+        {% endif %}
+        {% if isAdmin %}<div class="button"><a href="/config">config</a></div>{% endif %}
+        
+        {% if userName %}
+            <div>
+                <div class="button">
+                <a href="/user/{{userName}}" style="margin-right: 10px;">
+                    account
+                    {% if notifCount %}
+                        <span class="notifCount">({{notifCount}})</span>
+                    {% endif %}
+                </a>
+                </div>
+                <div class="button"><a href="/logout">logout</a></div>
+            </div>
+        {% endif %}
+        {% if not userName %}
+            <div class="button"><a href="/login">login</a></div>
+            {% if acceptSignUp %}<div class="button"><a href="/signup">signup</a></div>{% endif %}
+        {% endif %}
+    </div>
+{% endmacro %}

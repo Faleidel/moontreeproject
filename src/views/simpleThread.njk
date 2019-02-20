@@ -3,20 +3,21 @@
 {% block head %}
     <style>
         .threadTitle {
-            font-size: 1.6em;
-            margin-bottom: 10px;
+            font-size: 40px;
+            line-height: 34px;
         }
         
-        .threadContent {
-            border-left: 3px solid hsl(230, 26%, 70.2%);
-            padding-left: 7px;
+        .pageContent {
+            padding: 40px;
         }
         
-        .threadPageContent {
-            display: flex;
-            align-items: flex-start;
+        .branchDescription {
+            margin-top: 40px;
         }
     </style>
+{% endblock %}
+
+{% block footer %}
 {% endblock %}
 
 {% macro renderComment(comment, likes, liked) %}
@@ -84,40 +85,41 @@
     {% endfor %}
 {% endmacro %}
 
-<style>
-    .threadPageContent {
-        display: flex;
-    }
-    
-    @media only screen and (max-width: 600px) {
-        .threadPageContent {
-            flex-direction: column;
-        }
+{% block header %}
+    <div class="pageContent" style="padding-bottom: 20px;">
+        <h1 style="margin: 0; padding: 0">{{serverName}}</h1>
         
-        .rightPane {
-            padding: 0;
-            width: auto;
-        }
-    }
-</style>
+        <div style="display: flex; justify-content: space-around">
+            <img style="margin-top: 25px; height: 34px; max-width: 100%;" src="/static/Vintage-Decorative-Divider.svg"></img>
+        </div>
+    </div>
+{% endblock %}
 
 {% block body %}
     <div class="threadPageContent">
         <div class="leftPane">
-            <div class="lightSection">
-                <a href="/branch/{{thread.branch}}" style="margin-bottom:20px; display: inline-block">On branch: {{thread.branch}}</a>
-                
-                <div class="threadTitle">
-                    {{thread.title}}
+            <div class="">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div class="threadTitle">
+                        {{thread.title}}
+                    </div>
+                    <div style="text-align: right">
+                        <div>
+                            This thread was posted on branch
+                            <a href="/branch/{{thread.branch}}" style="display: inline-block">{{thread.branch}}</a>
+                            by
+                            <a href="/user/{{utils.renderUserName(thread.author)}}" class="author">{{utils.renderUserName(thread.author)}}</a>
+                        </div>
+                        <div id="{{thread.id}}_likeControls" class="likeCount {% if not commentTree.liked and userName %}canLike{% endif %}">
+                            <div>This post has <span id="{{thread.id}}_likes">{{commentTree.likes}} like(s)</span></div>
+                            {% if userName %}
+                                <div class="likeButton linkButton" toLike="{{thread.id}}">-> add a like</div>
+                                <div class="unlikeButton linkButton" toUnLike="{{thread.id}}">-> remove a like</span></div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
                 
-                <div id="{{thread.id}}_likeControls" class="likeCount {% if not commentTree.liked and userName %}canLike{% endif %}">
-                    Likes: <span id="{{thread.id}}_likes">{{commentTree.likes}}</span>
-                    {% if userName %}
-                        <span class="likeButton linkButton" toLike="{{thread.id}}">like</span>
-                        <span class="unlikeButton linkButton" toUnLike="{{thread.id}}">unlike</span>
-                    {% endif %}
-                </div>
                 <div class="threadContent">
                     {{utils.renderMarkdown(thread.content) | safe}}
                 </div>
@@ -141,28 +143,23 @@
                         </div>
                     </form>
                 {% endif %}
-                <a href="/user/{{utils.renderUserName(thread.author)}}" class="author">{{utils.renderUserName(thread.author)}}</a>
             </div>
             
             {% if userName %}
-                <div class="lightSection" style="margin-top: 10px;">
-                    <div>New comment</div>
-                    <form action="/newComment" method="POST">
-                        <textarea style="width: 100%; height: 65px; max-width: 500px;" name="content"></textarea>
-                        <input type="hidden" name="threadId" value="{{utils.encodeURIComponent(thread.id)}}"/>
-                        <input type="hidden" name="backUrl" value="{{thread.id}}">
-                        <input type="submit" style="margin-top: 10px;" value="send"/>
-                    </form>
-                </div>
+                <a href="#">-> add a new comment</a>
             {% endif %}
             
-            <div class="lightSection" style="margin-top: 10px;">
+            <div class="" style="margin-top: 10px;">
                 {{renderTree(commentTree.childrens)}}
             </div>
         </div>
-        <div class="rightPane">
-            <div class="branchTitle">{{branch.name}}</div>
-            
+        
+        <div style="display: flex; justify-content: space-around">
+            <img style="margin-top: 25px; height: 34px; max-width: 100%;" src="/static/Vintage-Decorative-Divider.svg"></img>
+        </div>
+        
+        <div class="branchDescription">
+            <div>Additional information on this branch:</div>
             <div class="description">
                 {{utils.renderMarkdown(branch.description) | safe}}
             </div>
