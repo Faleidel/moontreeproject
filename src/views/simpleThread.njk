@@ -48,8 +48,15 @@
             margin-top: 40px;
         }
         
+        @media (max-width: 1000px) {
+            .pageContent {
+                padding: 20px;
+            }
+        }
+        
         .comment .content {
             border-left: 1px solid black;
+            border: none;
         }
     </style>
 {% endblock %}
@@ -58,54 +65,55 @@
 {% endblock %}
 
 {% macro renderComment(comment, likes, liked) %}
-    <div>
-        <span>This comment was made by: </span>
-        <a href="/user/{{utils.renderUserName(comment.author)}}" class="author">{{utils.renderUserName(comment.author)}}</a>
-    </div>
-    <div class="content">{{utils.renderMarkdown(comment.content) | safe}}</div>
-    <span style="font-size: 0.8em">
-        <span>This comment has <span id="{{comment.id}}_likes">{{likes}}</span> likes</span>
-        <span>You can: </span>
-        {% if userName %}
-            <span id="{{comment.id}}_likeControls" class="{% if not liked and userName %}canLike{% endif %}">
-                <span class="likeButton linkButton" toLike="{{comment.id}}">-> add a like</span>
-                <span class="unlikeButton linkButton" toUnlike="{{comment.id}}">-> remove a like</span>
-            </span>
+    <div class="content">
+        {{utils.renderMarkdown(comment.content) | safe}}
+        <span style="font-size: 0.8em">
+            <span>By: </span>
+            <a href="/user/{{utils.renderUserName(comment.author)}}" class="author">{{utils.renderUserName(comment.author)}}</a>
+            <span>with <span id="{{comment.id}}_likes">{{likes}}</span> likes</span>
+            {% if userName %}
+                <span>You can: </span>
+                <span id="{{comment.id}}_likeControls" class="{% if not liked and userName %}canLike{% endif %}">
+                    <span class="likeButton linkButton" toLike="{{comment.id}}">-> add a like</span>
+                    <span class="unlikeButton linkButton" toUnlike="{{comment.id}}">-> remove a like</span>
+                </span>
+            {% endif %}
+        </span>
+        {% if isAdmin or isBranchAdmin %}
+            <div class="smallText" style="display: inline-block">
+                <form action="/adminRemoveComment" method="POST">
+                    <input type="hidden" name="branchName" value="{{branch.name}}"/>
+                    <input type="hidden" name="id" value="{{comment.id}}"/>
+                    <input type="submit" class="linkButton" style="box-shadow: none; color: black !important;" value="Delete this comment"/>
+                </form>
+            </div>
         {% endif %}
-    </span>
-    {% if isAdmin or isBranchAdmin %}
-        <div class="smallText" style="display: inline-block">
-            <form action="/adminRemoveComment" method="POST">
-                <input type="hidden" name="branchName" value="{{branch.name}}"/>
-                <input type="hidden" name="id" value="{{comment.id}}"/>
-                <input type="submit" class="linkButton" style="box-shadow: none; color: black !important;" value="Delete this comment"/>
-            </form>
-        </div>
-    {% endif %}
-    {% if userName %}
-        {% if user.name == comment.author %}
-            <span class="linkButton smallText" toDisplay="{{comment.id}}_editForm">-> edit</span>
-            <form action="/newComment" method="POST" id="{{comment.id}}_editForm" style="display: none;">
-                <input type="hidden" name="backUrl" value="{{thread.id}}"/>
-                <input type="hidden" name="id" value="{{comment.id}}"/>
-                <textarea style="margin-bottom: 10px;" name="content">{{comment.content}}</textarea>
-                <div style="margin-bottom: 10px;">
-                    <input style="display: inline-block" type="submit" value="Save"/>
-                    <input style="display: inline-block" type="button" toHide="{{comment.id}}_editForm" value="cancel"/>
+        {% if userName %}
+            {% if user.name == comment.author %}
+                <span class="linkButton smallText" toDisplay="{{comment.id}}_editForm">-> edit</span>
+                <form action="/newComment" method="POST" id="{{comment.id}}_editForm" style="display: none;">
+                    <input type="hidden" name="backUrl" value="{{thread.id}}"/>
+                    <input type="hidden" name="id" value="{{comment.id}}"/>
+                    <textarea style="margin-bottom: 10px;" name="content">{{comment.content}}</textarea>
+                    <div style="margin-bottom: 10px;">
+                        <input style="display: inline-block" type="submit" value="Save"/>
+                        <input style="display: inline-block" type="button" toHide="{{comment.id}}_editForm" value="cancel"/>
+                    </div>
+                </form>
+            {% endif %}
+            <span class="linkButton smallText" toDisplay="{{comment.id}}_answerForm">-> answer</span>
+            <form id="{{comment.id}}_answerForm" class="newComment" action="/newComment" method="POST" style="display: none">
+                <textarea style="width: 100%; height: 65px; max-width: 500px;" name="content"></textarea>
+                <input type="hidden" name="objectId" value="{{utils.encodeURIComponent(comment.id)}}"/>
+                <input type="hidden" name="backUrl" value="{{thread.id}}">
+                <div style="margin-bottom: 10px; margin-top: 10px;">
+                    <input type="submit" style="display: inline-block" value="send"/>
+                    <input style="display: inline-block" type="button" toHide="{{comment.id}}_answerForm" value="cancel"/>
                 </div>
             </form>
         {% endif %}
-        <span class="linkButton smallText" toDisplay="{{comment.id}}_answerForm">-> answer</span>
-        <form id="{{comment.id}}_answerForm" class="newComment" action="/newComment" method="POST" style="display: none">
-            <textarea style="width: 100%; height: 65px; max-width: 500px;" name="content"></textarea>
-            <input type="hidden" name="objectId" value="{{utils.encodeURIComponent(comment.id)}}"/>
-            <input type="hidden" name="backUrl" value="{{thread.id}}">
-            <div style="margin-bottom: 10px; margin-top: 10px;">
-                <input type="submit" style="display: inline-block" value="send"/>
-                <input style="display: inline-block" type="button" toHide="{{comment.id}}_answerForm" value="cancel"/>
-            </div>
-        </form>
-    {% endif %}
+        <img src="/static/separator.png" style="display: block; height: 5px; width: 50%;"/>
+    </div>
 {% endmacro %}
 
 {% macro renderTree(childrens) %}
@@ -128,7 +136,7 @@
 
 {% block header %}
     <div class="pageContent" style="padding-bottom: 20px;">
-        <h1 style="margin: 0; padding: 0">{{serverName}}</h1>
+        <h1 style="margin: 0; padding: 0; font-size: 40px; text-align: center">- {{serverName}} -</h1>
         
         {{ separator.render() }}
     </div>
@@ -138,25 +146,22 @@
     <div class="threadPageContent">
         <div class="leftPane">
             <div class="">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div class="threadTitle">
-                        {{thread.title}}
+                <div class="threadTitle">
+                    {{thread.title}}
+                </div>
+                <div style="font-size: 12px; line-height: 16px; margin: 13px 0px;">
+                    This thread was posted on branch
+                    <a href="/branch/{{thread.branch}}" style="display: inline-block">{{thread.branch}}</a>
+                    by
+                    <a href="/user/{{utils.renderUserName(thread.author)}}" class="author">{{utils.renderUserName(thread.author)}}</a>
+                    <div id="{{thread.id}}_likeControls" class="likeCount {% if not commentTree.liked and userName %}canLike{% endif %}">
+                        <div>This post has <span id="{{thread.id}}_likes">{{commentTree.likes}}</span> like(s)</div>
+                        {% if userName %}
+                            <div class="likeButton linkButton" toLike="{{thread.id}}">-> add a like</div>
+                            <div class="unlikeButton linkButton" toUnLike="{{thread.id}}">-> remove a like</span></div>
+                        {% endif %}
                     </div>
-                    <div style="text-align: right">
-                        <div>
-                            This thread was posted on branch
-                            <a href="/branch/{{thread.branch}}" style="display: inline-block">{{thread.branch}}</a>
-                            by
-                            <a href="/user/{{utils.renderUserName(thread.author)}}" class="author">{{utils.renderUserName(thread.author)}}</a>
-                        </div>
-                        <div id="{{thread.id}}_likeControls" class="likeCount {% if not commentTree.liked and userName %}canLike{% endif %}">
-                            <div>This post has <span id="{{thread.id}}_likes">{{commentTree.likes}}</span> like(s)</div>
-                            {% if userName %}
-                                <div class="likeButton linkButton" toLike="{{thread.id}}">-> add a like</div>
-                                <div class="unlikeButton linkButton" toUnLike="{{thread.id}}">-> remove a like</span></div>
-                            {% endif %}
-                        </div>
-                    </div>
+                    <div style="height: 1px; width: 50%; background: black; margin-top: 18px"></div>
                 </div>
                 
                 <div class="threadContent">

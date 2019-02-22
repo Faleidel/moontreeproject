@@ -452,6 +452,8 @@ http.createServer(async function (req, res) {
         }
         else if (url[0] == "static") {
             if (url[1].indexOf(".png") == -1) {
+                if (url[1].indexOf(".svg") != -1)
+                    res.setHeader('Content-Type', 'image/svg+xml');
                 fs.readFile("static/" + url[1], "utf-8", (err, data) => {
                     res.end(data);
                 });
