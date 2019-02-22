@@ -1,7 +1,40 @@
 {% extends "views/page.njk" %}
+{% import "views/separator.njk" as separator %}
+
 
 {% block head %}
+    <link href="https://fonts.googleapis.com/css?family=Titillium+Web" rel="stylesheet">
+    
     <style>
+        html {
+            background: white;
+        }
+        
+        body {
+            box-sizing: border-box;
+            font-family: 'Titillium Web', sans-serif;
+            
+            width: 1000px;
+            margin: auto;
+            margin-top: 50px;
+            margin-bottom: 50px;
+            
+            border-radius: 25px;
+            
+            box-shadow: 1px 1px 1px 1px rgba(0, 0, 0, 0.44);
+        }
+        
+        @media (max-width: 1000px) {
+            body {
+                width: 100%;
+                padding: 20px;
+                
+                margin-top: 0px;
+                margin-bottom: 0px;
+                border-radius: 0px;
+            }
+        }
+        
         .threadTitle {
             font-size: 40px;
             line-height: 34px;
@@ -14,6 +47,10 @@
         .branchDescription {
             margin-top: 40px;
         }
+        
+        .comment .content {
+            border-left: 1px solid black;
+        }
     </style>
 {% endblock %}
 
@@ -21,14 +58,18 @@
 {% endblock %}
 
 {% macro renderComment(comment, likes, liked) %}
+    <div>
+        <span>This comment was made by: </span>
+        <a href="/user/{{utils.renderUserName(comment.author)}}" class="author">{{utils.renderUserName(comment.author)}}</a>
+    </div>
     <div class="content">{{utils.renderMarkdown(comment.content) | safe}}</div>
-    <a href="/user/{{utils.renderUserName(comment.author)}}" class="author">{{utils.renderUserName(comment.author)}}</a>
     <span style="font-size: 0.8em">
-        <span>likes: <span id="{{comment.id}}_likes">{{likes}}</span></span>
+        <span>This comment has <span id="{{comment.id}}_likes">{{likes}}</span> likes</span>
+        <span>You can: </span>
         {% if userName %}
             <span id="{{comment.id}}_likeControls" class="{% if not liked and userName %}canLike{% endif %}">
-                <span class="likeButton linkButton" toLike="{{comment.id}}">like</span>
-                <span class="unlikeButton linkButton" toUnlike="{{comment.id}}">unlike</span>
+                <span class="likeButton linkButton" toLike="{{comment.id}}">-> add a like</span>
+                <span class="unlikeButton linkButton" toUnlike="{{comment.id}}">-> remove a like</span>
             </span>
         {% endif %}
     </span>
@@ -43,7 +84,7 @@
     {% endif %}
     {% if userName %}
         {% if user.name == comment.author %}
-            <span class="linkButton smallText" toDisplay="{{comment.id}}_editForm">edit</span>
+            <span class="linkButton smallText" toDisplay="{{comment.id}}_editForm">-> edit</span>
             <form action="/newComment" method="POST" id="{{comment.id}}_editForm" style="display: none;">
                 <input type="hidden" name="backUrl" value="{{thread.id}}"/>
                 <input type="hidden" name="id" value="{{comment.id}}"/>
@@ -54,7 +95,7 @@
                 </div>
             </form>
         {% endif %}
-        <span class="linkButton smallText" toDisplay="{{comment.id}}_answerForm">answer</span>
+        <span class="linkButton smallText" toDisplay="{{comment.id}}_answerForm">-> answer</span>
         <form id="{{comment.id}}_answerForm" class="newComment" action="/newComment" method="POST" style="display: none">
             <textarea style="width: 100%; height: 65px; max-width: 500px;" name="content"></textarea>
             <input type="hidden" name="objectId" value="{{utils.encodeURIComponent(comment.id)}}"/>
@@ -89,9 +130,7 @@
     <div class="pageContent" style="padding-bottom: 20px;">
         <h1 style="margin: 0; padding: 0">{{serverName}}</h1>
         
-        <div style="display: flex; justify-content: space-around">
-            <img style="margin-top: 25px; height: 34px; max-width: 100%;" src="/static/Vintage-Decorative-Divider.svg"></img>
-        </div>
+        {{ separator.render() }}
     </div>
 {% endblock %}
 
@@ -111,7 +150,7 @@
                             <a href="/user/{{utils.renderUserName(thread.author)}}" class="author">{{utils.renderUserName(thread.author)}}</a>
                         </div>
                         <div id="{{thread.id}}_likeControls" class="likeCount {% if not commentTree.liked and userName %}canLike{% endif %}">
-                            <div>This post has <span id="{{thread.id}}_likes">{{commentTree.likes}} like(s)</span></div>
+                            <div>This post has <span id="{{thread.id}}_likes">{{commentTree.likes}}</span> like(s)</div>
                             {% if userName %}
                                 <div class="likeButton linkButton" toLike="{{thread.id}}">-> add a like</div>
                                 <div class="unlikeButton linkButton" toUnLike="{{thread.id}}">-> remove a like</span></div>
@@ -145,6 +184,8 @@
                 {% endif %}
             </div>
             
+            {{ separator.render() }}
+            
             {% if userName %}
                 <a href="#">-> add a new comment</a>
             {% endif %}
@@ -154,12 +195,10 @@
             </div>
         </div>
         
-        <div style="display: flex; justify-content: space-around">
-            <img style="margin-top: 25px; height: 34px; max-width: 100%;" src="/static/Vintage-Decorative-Divider.svg"></img>
-        </div>
+        {{ separator.render() }}
         
         <div class="branchDescription">
-            <div>Additional information on this branch:</div>
+            <h1>Additional information about this branch:</h1>
             <div class="description">
                 {{utils.renderMarkdown(branch.description) | safe}}
             </div>
