@@ -125,6 +125,7 @@ body *, a {
 
 .leftPane {
     flex-grow: 1;
+    width: 75%;
     
     animation-name: fadeIn;
     animation-duration: 0.5s;
