@@ -7,7 +7,7 @@
     
     <style>
         html {
-            background: white;
+            background: black;
         }
         
         body {
@@ -59,9 +59,6 @@
             border: none;
         }
     </style>
-{% endblock %}
-
-{% block footer %}
 {% endblock %}
 
 {% macro renderComment(comment, likes, liked) %}
@@ -144,7 +141,7 @@
 
 {% block body %}
     <div class="threadPageContent">
-        <div class="leftPane">
+        <div class="">
             <div class="">
                 <div class="threadTitle">
                     {{thread.title}}
@@ -218,5 +215,10 @@
                 </div>
             {% endif %}
         </div>
+        
+        <a href="?" style="text-align: right; display: block; color: grey">-> You can switch back to the normal theme</a>
     </div>
+{% endblock %}
+
+{% block footer %}
 {% endblock %}

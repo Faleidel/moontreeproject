@@ -35,12 +35,12 @@ export async function handleThread(url: string[], query: any, req: any, res: any
                         commentTree: await model.getThreadCommentsForClient(user, thread.id)
                     };
                     
-                    let simpleRender = !!query.simple;
+                    let theme = query.theme || "";
                     
-                    if (simpleRender)
-                        res.end(utils.renderTemplate("views/simpleThread.njk", viewData));
-                    else
-                        res.end(utils.renderTemplate("views/thread.njk", viewData));
+                    if (theme)
+                        theme = theme + "-";
+                    
+                    res.end(utils.renderTemplate("views/"+theme+"thread.njk", viewData));
                 }
                 else
                     res.end("Error finding branch");
