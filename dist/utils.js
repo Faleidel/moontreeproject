@@ -218,7 +218,8 @@ function renderTemplate(templatePath, viewData) {
                     return days + " days ago";
                 else
                     return "one day ago";
-            }
+            },
+            isUrl: isUrl
         } }, viewData));
 }
 exports.renderTemplate = renderTemplate;

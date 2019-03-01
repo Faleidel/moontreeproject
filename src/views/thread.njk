@@ -119,7 +119,11 @@
                     {% endif %}
                 </div>
                 <div class="threadContent">
-                    {{utils.renderMarkdown(thread.content) | safe}}
+                    {% if utils.isUrl(thread.content) %}
+                        <a href="{{thread.content}}" style="margin: 10px 0; display: inline-block">{{thread.content}}</a>
+                    {% else %}
+                        {{utils.renderMarkdown(thread.content) | safe}}
+                    {% endif %}
                 </div>
                 {% if thread.media %}
                     {% if thread.media.type == "image" %}

@@ -228,7 +228,8 @@ export function renderTemplate(templatePath: string, viewData: any): string {
                     return days + " days ago";
                 else
                     return "one day ago";
-            }
+            },
+            isUrl: isUrl
         },
         ...viewData
     });
