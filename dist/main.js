@@ -11,6 +11,7 @@ const http = __importStar(require("http"));
 const urlUtils = __importStar(require("url"));
 const utils = __importStar(require("./utils"));
 const model = __importStar(require("./model"));
+const protocol = __importStar(require("./protocol"));
 const fs = __importStar(require("fs"));
 const queryString = __importStar(require("querystring"));
 const user_1 = require("./controllers/user");
@@ -299,6 +300,7 @@ http.createServer(async function (req, res) {
                             let obj = objectC || objectT;
                             let comment = await model.createComment(user, content, obj.id);
                             let activity = await model.createActivity(user, comment);
+                            protocol.postToRemote(activity, { host: "mastodon.social", name: "mastodon", blocked: false });
                             utils.endWithRedirect(res, backUrl);
                         }
                         else {

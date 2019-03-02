@@ -35,7 +35,7 @@ export interface Session {
 export interface Activity {
     id: string,
     objectId: string,
-    published: string,
+    published: number,
     author: string,
     to: string[]
 }
@@ -55,7 +55,7 @@ export async function activityToJSON(act: Activity): Promise<any | undefined> {
             type: "Create",
             to: act.to,
             cc: [object.inReplyTo],
-            published: act.published,
+            published: new Date(act.published).toISOString(),
             actor: act.author,
             object: {
                 id: object.id,
@@ -70,7 +70,7 @@ export async function activityToJSON(act: Activity): Promise<any | undefined> {
                 tag: [{
                     type: "Mention",
                     href: object.inReplyTo,
-                    name: "@faleidel@mastodon.social"
+                    name: "@faleidel@mastodon.social" //TODO
                 }],
                 to: object.to,
                 type: "Note",
@@ -332,6 +332,25 @@ export function loadStore(cb: any): void {
             Object.values(store.likes).map(t => indexLike(t));
             Object.values(store.likeBundles).map(t => indexLikeBundle(t));
             Object.values(store.notifications).map(t => indexNotification(t));
+            
+            if (utils.migrationNumber == 1) {
+                utils.log("Migration is 1, migrating to 2");
+                
+                // change activitys publish date from string format to timestamp
+                Object.values(store.activitys).map(act => {
+                    act.published = new Date(act.published).getTime();
+                });
+                Object.values(store.comments).map(act => {
+                    act.published = new Date(act.published).getTime();
+                });
+                Object.values(store.threads).map(act => {
+                    act.published = new Date(act.published).getTime();
+                });
+                
+                saveStore();
+                
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
         } else {
             console.log("Got no store");
             (async () => {
@@ -355,7 +374,7 @@ export function loadStore(cb: any): void {
                     
                     for (let i = 0 ; i < 200 ; i++) {
                         let thread = await createThread(admin, "test thread" + i, "With no content", randomBranch());
-                        thread.published -= 1000 * 60 * 60 * 24 * 5 * Math.random();
+                        thread.published -= Math.floor(1000 * 60 * 60 * 24 * 5 * Math.random());
                     }
                     
                     await (async () => {
@@ -570,7 +589,7 @@ export async function importForeignUserData(name: string) {
                 let comment: Comment = {
                     id: act.object.id,
                     content: act.object.content,
-                    published: act.object.published,
+                    published: new Date(act.object.published).getTime(),
                     author: name,
                     to: act.object.to,
                     inReplyTo: act.object.inReplyTo,
@@ -580,7 +599,7 @@ export async function importForeignUserData(name: string) {
                 let activity: Activity = {
                     id: act.id,
                     objectId: act.object.id,
-                    published: act.published,
+                    published: new Date(act.published).getTime(),
                     author: name,
                     to: act.to
                 };
@@ -855,7 +874,7 @@ export async function getActivityById(id: string): Promise<Activity | undefined>
 export async function createActivity(author: User, object: Comment): Promise<Activity> {
     let activity: Activity = {
         id: utils.urlForPath("activity/" + (Math.random() * 100000000000000000)),
-        published: new Date().toISOString(),
+        published: new Date().getTime(),
         author: author.name,
         to: ["https://www.w3.org/ns/activitystreams#Public"],
         objectId: object.id

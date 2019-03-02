@@ -27,7 +27,7 @@ async function activityToJSON(act) {
             type: "Create",
             to: act.to,
             cc: [object.inReplyTo],
-            published: act.published,
+            published: new Date(act.published).toISOString(),
             actor: act.author,
             object: {
                 id: object.id,
@@ -42,7 +42,7 @@ async function activityToJSON(act) {
                 tag: [{
                         type: "Mention",
                         href: object.inReplyTo,
-                        name: "@faleidel@mastodon.social"
+                        name: "@faleidel@mastodon.social" //TODO
                     }],
                 to: object.to,
                 type: "Note",
@@ -216,6 +216,21 @@ function loadStore(cb) {
             Object.values(exports.store.likes).map(t => indexLike(t));
             Object.values(exports.store.likeBundles).map(t => indexLikeBundle(t));
             Object.values(exports.store.notifications).map(t => indexNotification(t));
+            if (utils.migrationNumber == 1) {
+                utils.log("Migration is 1, migrating to 2");
+                // change activitys publish date from string format to timestamp
+                Object.values(exports.store.activitys).map(act => {
+                    act.published = new Date(act.published).getTime();
+                });
+                Object.values(exports.store.comments).map(act => {
+                    act.published = new Date(act.published).getTime();
+                });
+                Object.values(exports.store.threads).map(act => {
+                    act.published = new Date(act.published).getTime();
+                });
+                saveStore();
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
         }
         else {
             console.log("Got no store");
@@ -234,7 +249,7 @@ function loadStore(cb) {
                     let randomBranch = () => ["gold", "silver", "iron"][Math.floor(Math.random() * 3)];
                     for (let i = 0; i < 200; i++) {
                         let thread = await createThread(admin, "test thread" + i, "With no content", randomBranch());
-                        thread.published -= 1000 * 60 * 60 * 24 * 5 * Math.random();
+                        thread.published -= Math.floor(1000 * 60 * 60 * 24 * 5 * Math.random());
                     }
                     await (async () => {
                         for (let tid in exports.store.threads) {
@@ -431,7 +446,7 @@ async function importForeignUserData(name) {
                 let comment = {
                     id: act.object.id,
                     content: act.object.content,
-                    published: act.object.published,
+                    published: new Date(act.object.published).getTime(),
                     author: name,
                     to: act.object.to,
                     inReplyTo: act.object.inReplyTo,
@@ -440,7 +455,7 @@ async function importForeignUserData(name) {
                 let activity = {
                     id: act.id,
                     objectId: act.object.id,
-                    published: act.published,
+                    published: new Date(act.published).getTime(),
                     author: name,
                     to: act.to
                 };
@@ -698,7 +713,7 @@ exports.getActivityById = getActivityById;
 async function createActivity(author, object) {
     let activity = {
         id: utils.urlForPath("activity/" + (Math.random() * 100000000000000000)),
-        published: new Date().toISOString(),
+        published: new Date().getTime(),
         author: author.name,
         to: ["https://www.w3.org/ns/activitystreams#Public"],
         objectId: object.id

@@ -2,6 +2,7 @@ import * as http from "http";
 import * as urlUtils from "url";
 import * as utils from "./utils";
 import * as model from "./model";
+import * as protocol from "./protocol";
 import * as fs from "fs";
 import * as queryString from "querystring";
 
@@ -327,6 +328,7 @@ http.createServer(async function (req: any, res) {
                             let obj: any = objectC || objectT;
                             let comment = await model.createComment(user, content as string, obj.id);
                             let activity = await model.createActivity(user, comment);
+                            protocol.postToRemote(activity, {host: "mastodon.social", name: "mastodon", blocked: false});
                             utils.endWithRedirect(res, backUrl);
                         } else {
                             console.log("Error, lacks threadId or objectId", threadId, objectId);
