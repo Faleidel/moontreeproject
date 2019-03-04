@@ -220,6 +220,10 @@ input[type=user], input[type=password], input[type=input], textarea {
         padding: 0;
         width: auto;
     }
+    
+    .leftPane {
+        width: 100%;
+    }
 }
 
 @keyframes fadeIn {
