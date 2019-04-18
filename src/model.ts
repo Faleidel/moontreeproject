@@ -40,7 +40,6 @@ export interface Activity {
     to: string[]
 }
 export async function activityToJSON(act: Activity): Promise<any | undefined> {
-    //let post = store.posts[act.object];
     let object: any = typeof (act as any).object == "object"
                       ? (act as any).object
                       : await getThreadById(act.objectId) || await getCommentById(act.objectId) as any as Comment;
@@ -54,27 +53,25 @@ export async function activityToJSON(act: Activity): Promise<any | undefined> {
             id: act.id,
             type: "Create",
             to: act.to,
-            cc: [object.inReplyTo],
+            cc: "https://mastodon.social/users/faleidel",
             published: new Date(act.published).toISOString(),
-            actor: act.author,
+            actor: utils.urlForPath("user/" + act.author),
             object: {
+                type: "Note",
                 id: object.id,
+                url: object.id,
                 attachment: [],
                 attributedTo: act.author,
-                cc: [object.inReplyTo],
+                actor: utils.urlForPath("user/" + act.author),
+                to: object.to,
+                cc: "https://mastodon.social/users/faleidel",
+                inReplyTo: object.inReplyTo,
                 title: object.title,
                 content: object.content,
                 published: new Date(object.published).toISOString(),
                 sensitive: false,
                 summary: null,
-                tag: [{
-                    type: "Mention",
-                    href: object.inReplyTo,
-                    name: "@faleidel@mastodon.social" //TODO
-                }],
-                to: object.to,
-                type: "Note",
-                url: object.id
+                tag: object.tags
             }
         };
     }
@@ -82,14 +79,21 @@ export async function activityToJSON(act: Activity): Promise<any | undefined> {
         return undefined;
 }
 
+export interface CommentTag {
+    type: string,
+    href: string,
+    name: string,
+}
+
 export interface Comment {
     id: string,
     content: string,
     published: number,
     author: string,
-    to: string[],
+    to: string[], // activitypub "to" field. Mostly just the special value for public posts
     adminDeleted: boolean,
-    inReplyTo: string | undefined // complete URL of the object. Can be an other comment or a thread
+    inReplyTo: string | undefined, // complete URL of the object. Can be an other comment or a thread
+    tags: CommentTag[]
 }
 export async function commentToJSON(comment: Comment): Promise<any> {
     return {
@@ -115,6 +119,7 @@ export async function commentFromJSON(json: any): Promise<Comment | undefined> {
         author: json.attributedTo,
         to: json.to,
         inReplyTo: json.inReplyTo,
+        tags: json.tag,
         adminDeleted: false
     };
 }
@@ -499,8 +504,12 @@ export async function getUserByName(name: string): Promise<User | undefined> {
         }
     } else {
         if (name.indexOf("@" + utils.serverAddress) == -1) {
-            console.log("GET NEW FOREIGN USER");
-            return await getForeignUser(name);
+            if (name.indexOf("@") == -1)
+                return await getUserByName(name + "@" + utils.serverAddress);
+            else {
+                console.log("GET NEW FOREIGN USER");
+                return await getForeignUser(name);
+            }
         }
         else
             return undefined;
@@ -593,6 +602,7 @@ export async function importForeignUserData(name: string) {
                     author: name,
                     to: act.object.to,
                     inReplyTo: act.object.inReplyTo,
+                    tags: act.object.tag,
                     adminDeleted: false
                 };
                 
@@ -912,6 +922,7 @@ export async function createComment(author: User, content: string, inReplyTo: st
         author: author.name,
         to: ["https://www.w3.org/ns/activitystreams#Public"],
         inReplyTo: inReplyTo,
+        tags: [],
         adminDeleted: false
     }
     
@@ -1114,6 +1125,7 @@ export async function createThread(author: User, title: string, content: string,
         inReplyTo: undefined,
         branch: branch,
         adminDeleted: false,
+        tags: [],
         
         lastUpdate: 0
     }

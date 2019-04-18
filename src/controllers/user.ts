@@ -24,7 +24,7 @@ export async function handleUserGet(url: string[], query: any, req: any, res: an
     let asJson = !!query.json || (req.headers.accept.indexOf("json") != -1);
     
     if (asJson)
-        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Type', "application/ld+json");
     
     if (user) {
         let activitys: any = await model.getActivitysByAuthor(name) as any as model.Activity[];

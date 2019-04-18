@@ -13,7 +13,6 @@ const crypto = __importStar(require("crypto"));
 const urlLib = __importStar(require("url"));
 const request = require("request");
 async function activityToJSON(act) {
-    //let post = store.posts[act.object];
     let object = typeof act.object == "object"
         ? act.object
         : await getThreadById(act.objectId) || await getCommentById(act.objectId);
@@ -26,27 +25,25 @@ async function activityToJSON(act) {
             id: act.id,
             type: "Create",
             to: act.to,
-            cc: [object.inReplyTo],
+            cc: "https://mastodon.social/users/faleidel",
             published: new Date(act.published).toISOString(),
-            actor: act.author,
+            actor: utils.urlForPath("user/" + act.author),
             object: {
+                type: "Note",
                 id: object.id,
+                url: object.id,
                 attachment: [],
                 attributedTo: act.author,
-                cc: [object.inReplyTo],
+                actor: utils.urlForPath("user/" + act.author),
+                to: object.to,
+                cc: "https://mastodon.social/users/faleidel",
+                inReplyTo: object.inReplyTo,
                 title: object.title,
                 content: object.content,
                 published: new Date(object.published).toISOString(),
                 sensitive: false,
                 summary: null,
-                tag: [{
-                        type: "Mention",
-                        href: object.inReplyTo,
-                        name: "@faleidel@mastodon.social" //TODO
-                    }],
-                to: object.to,
-                type: "Note",
-                url: object.id
+                tag: object.tags
             }
         };
     }
@@ -79,6 +76,7 @@ async function commentFromJSON(json) {
         author: json.attributedTo,
         to: json.to,
         inReplyTo: json.inReplyTo,
+        tags: json.tag,
         adminDeleted: false
     };
 }
@@ -367,8 +365,12 @@ async function getUserByName(name) {
     }
     else {
         if (name.indexOf("@" + utils.serverAddress) == -1) {
-            console.log("GET NEW FOREIGN USER");
-            return await getForeignUser(name);
+            if (name.indexOf("@") == -1)
+                return await getUserByName(name + "@" + utils.serverAddress);
+            else {
+                console.log("GET NEW FOREIGN USER");
+                return await getForeignUser(name);
+            }
         }
         else
             return undefined;
@@ -450,6 +452,7 @@ async function importForeignUserData(name) {
                     author: name,
                     to: act.object.to,
                     inReplyTo: act.object.inReplyTo,
+                    tags: act.object.tag,
                     adminDeleted: false
                 };
                 let activity = {
@@ -750,6 +753,7 @@ async function createComment(author, content, inReplyTo) {
         author: author.name,
         to: ["https://www.w3.org/ns/activitystreams#Public"],
         inReplyTo: inReplyTo,
+        tags: [],
         adminDeleted: false
     };
     if (inReplyTo.split("/")[2] != utils.serverAddress) { // send comment to remote server
@@ -936,6 +940,7 @@ async function createThread(author, title, content, branch) {
         inReplyTo: undefined,
         branch: branch,
         adminDeleted: false,
+        tags: [],
         lastUpdate: 0
     };
     utils.getUrlFromOpenGraph(content).then(media => {

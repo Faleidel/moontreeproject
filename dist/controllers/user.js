@@ -25,7 +25,7 @@ async function handleUserGet(url, query, req, res, body, cookies) {
     let user = await model.getUserByName(name);
     let asJson = !!query.json || (req.headers.accept.indexOf("json") != -1);
     if (asJson)
-        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Type', "application/ld+json");
     if (user) {
         let activitys = await model.getActivitysByAuthor(name);
         if (url.length == 2) {

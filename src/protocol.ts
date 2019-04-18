@@ -7,6 +7,8 @@ export async function postToRemote(act: model.Activity, remote: model.RemoteInst
         let user = await model.getUserByName(act.author);
         
         if (user) {
+            utils.log("Sending post from", user.name, "to remote instance");
+            
             let inbox = "https://" + remote.host + "/inbox";
             
             let date = new Date().toUTCString();
@@ -22,13 +24,14 @@ export async function postToRemote(act: model.Activity, remote: model.RemoteInst
                     Date      : date,
                     Signature : header,
                 },
-                body: JSON.stringify(model.activityToJSON(act))
+                body: JSON.stringify(await model.activityToJSON(act))
             };
             
             request.post(options, (err: any, resp: any, body: string) => {
-                console.log(err, resp, body);
-                utils.log(err, resp, body);
+                utils.log("Post to remote instance answer", err, resp, body);
             });
         }
+    } else {
+        throw("Can't post to remote instance, instance " + remote.host + " is blocked");
     }
 }

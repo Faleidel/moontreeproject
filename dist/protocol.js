@@ -14,6 +14,7 @@ async function postToRemote(act, remote) {
     if (!remote.blocked) {
         let user = await model.getUserByName(act.author);
         if (user) {
+            utils.log("Sending post from", user.name, "to remote instance");
             let inbox = "https://" + remote.host + "/inbox";
             let date = new Date().toUTCString();
             let stringToSign = `date: ${date}`;
@@ -26,13 +27,15 @@ async function postToRemote(act, remote) {
                     Date: date,
                     Signature: header,
                 },
-                body: JSON.stringify(model.activityToJSON(act))
+                body: JSON.stringify(await model.activityToJSON(act))
             };
             request.post(options, (err, resp, body) => {
-                console.log(err, resp, body);
-                utils.log(err, resp, body);
+                utils.log("Post to remote instance answer", err, resp, body);
             });
         }
+    }
+    else {
+        throw ("Can't post to remote instance, instance " + remote.host + " is blocked");
     }
 }
 exports.postToRemote = postToRemote;
