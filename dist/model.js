@@ -25,7 +25,7 @@ async function activityToJSON(act) {
             id: act.id,
             type: "Create",
             to: act.to,
-            cc: "https://mastodon.social/users/faleidel",
+            cc: ["https://mastodon.social/users/faleidel"],
             published: new Date(act.published).toISOString(),
             actor: utils.urlForPath("user/" + act.author),
             object: {
@@ -36,7 +36,7 @@ async function activityToJSON(act) {
                 attributedTo: act.author,
                 actor: utils.urlForPath("user/" + act.author),
                 to: object.to,
-                cc: "https://mastodon.social/users/faleidel",
+                cc: ["https://mastodon.social/users/faleidel"],
                 inReplyTo: object.inReplyTo,
                 title: object.title,
                 content: object.content,
@@ -229,6 +229,12 @@ function loadStore(cb) {
                 saveStore();
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
+            if (utils.migrationNumber == 2) {
+                utils.log("Migration is 1, migrating to 2");
+                Object.values(exports.store.users).map(user => user.followers = []);
+                saveStore();
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
         }
         else {
             console.log("Got no store");
@@ -406,6 +412,7 @@ async function getForeignUser(name) {
             local: false,
             lastUpdate: new Date().getTime(),
             foreignUrl: userLink,
+            followers: [],
             banned: false
         };
         exports.store.users[name] = newUser;
@@ -496,6 +503,7 @@ async function createUser(name, password) {
                 local: true,
                 lastUpdate: 0,
                 foreignUrl: "",
+                followers: [],
                 banned: false
             };
             exports.store.users[name] = user;

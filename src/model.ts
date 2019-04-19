@@ -10,7 +10,8 @@ export interface User {
     passwordSalt: string,
     publicKey: string,
     privateKey: string,
-    banned: boolean
+    followers: string[], // string: actor url
+    banned: boolean,
     
     local: boolean,
     lastUpdate: number,
@@ -53,7 +54,7 @@ export async function activityToJSON(act: Activity): Promise<any | undefined> {
             id: act.id,
             type: "Create",
             to: act.to,
-            cc: "https://mastodon.social/users/faleidel",
+            cc: ["https://mastodon.social/users/faleidel"],
             published: new Date(act.published).toISOString(),
             actor: utils.urlForPath("user/" + act.author),
             object: {
@@ -64,7 +65,7 @@ export async function activityToJSON(act: Activity): Promise<any | undefined> {
                 attributedTo: act.author,
                 actor: utils.urlForPath("user/" + act.author),
                 to: object.to,
-                cc: "https://mastodon.social/users/faleidel",
+                cc: ["https://mastodon.social/users/faleidel"],
                 inReplyTo: object.inReplyTo,
                 title: object.title,
                 content: object.content,
@@ -356,6 +357,16 @@ export function loadStore(cb: any): void {
                 
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
+            
+            if (utils.migrationNumber == 2) {
+                utils.log("Migration is 1, migrating to 2");
+                
+                Object.values(store.users).map(user => user.followers = []);
+                
+                saveStore();
+                
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
         } else {
             console.log("Got no store");
             (async () => {
@@ -547,6 +558,7 @@ export async function getForeignUser(name: string): Promise<User | undefined> {
             local: false,
             lastUpdate: new Date().getTime(),
             foreignUrl: userLink,
+            followers: [],
             banned: false
         };
         
@@ -652,6 +664,7 @@ export async function createUser(name: string, password: string): Promise<User |
                 local: true,
                 lastUpdate: 0,
                 foreignUrl: "",
+                followers: [],
                 banned: false
             };
             

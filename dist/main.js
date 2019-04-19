@@ -22,38 +22,6 @@ const thread_1 = require("./controllers/thread");
 const branch_1 = require("./controllers/branch");
 const { generateKeyPair } = require("crypto");
 const request = require("request");
-//function newPost(from: string, to: string | undefined, content: string): any {
-//    let user = store.users[from];
-//    
-//    if (user) {
-//        let post = {
-//            id: Math.random()*100000000000000000,
-//            type: "Note",
-//            content: content,
-//            published: new Date().toISOString(),
-//            to: "https://www.w3.org/ns/activitystreams#Public",
-//            inReplyTo: "https://mastodon.social/users/" + to
-//        };
-//        
-//        let act = {
-//            id: Math.random()*100000000000000000,
-//            type: "Create",
-//            to: ["https://www.w3.org/ns/activitystreams#Public"],
-//            actor: utils.urlForPath("/user/testUser"),
-//            published: new Date().toISOString(),
-//            object: post.id
-//        };
-//        
-//        store.posts[post.id] = post;
-//        store.activitys[act.id] = act;
-//        
-//        user.posts.push(act.id);
-//        
-//        saveStore();
-//        
-//        return act;
-//    }
-//}
 let urlStats = {};
 fs.readFile("urlStats.json", "utf-8", (err, data) => {
     if (data) {
