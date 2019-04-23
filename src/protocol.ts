@@ -5,6 +5,7 @@ const request = require("request");
 export async function postToRemote(act: model.Activity, remote: model.RemoteInstance): Promise<void> {
     if (!remote.blocked) {
         let user = await model.getUserByName(act.author);
+        console.log("posting to", remote);
         
         if (user) {
             utils.log("Sending post from", user.name, "to remote instance");
@@ -34,4 +35,12 @@ export async function postToRemote(act: model.Activity, remote: model.RemoteInst
     } else {
         throw("Can't post to remote instance, instance " + remote.host + " is blocked");
     }
+}
+
+export async function postToRemoteForUsers(users: string[], activity: model.Activity): Promise<void> {
+    users.map(async (follower: string) => {
+        let remote = await model.getRemoteInstanceByHost(follower.split("/")[2]);
+        if (remote)
+            postToRemote(activity, remote);
+    });
 }

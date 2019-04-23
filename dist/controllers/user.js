@@ -34,7 +34,6 @@ async function handleUserInboxPost(url, query, req, res, body, cookies) {
                 actor: utils.urlForPath("user/" + user.name),
                 object: streamObject
             });
-            utils.log("ACCEPT BODY", body);
             let options = {
                 url: streamObject.actor + "/inbox",
                 headers: {

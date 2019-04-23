@@ -45,7 +45,9 @@ export async function activityToJSON(act: Activity): Promise<any | undefined> {
                       ? (act as any).object
                       : await getThreadById(act.objectId) || await getCommentById(act.objectId) as any as Comment;
     
-    if (object) {
+    let user = await getUserByName(act.author);
+    
+    if (object && user) {
         return {
             "@context": [
                 "https://www.w3.org/ns/activitystreams",
@@ -54,7 +56,7 @@ export async function activityToJSON(act: Activity): Promise<any | undefined> {
             id: act.id,
             type: "Create",
             to: act.to,
-            cc: ["https://mastodon.social/users/faleidel"],
+            cc: user.followers,
             published: new Date(act.published).toISOString(),
             actor: utils.urlForPath("user/" + act.author),
             object: {
@@ -65,7 +67,7 @@ export async function activityToJSON(act: Activity): Promise<any | undefined> {
                 attributedTo: act.author,
                 actor: utils.urlForPath("user/" + act.author),
                 to: object.to,
-                cc: ["https://mastodon.social/users/faleidel"],
+                cc: user.followers,
                 inReplyTo: object.inReplyTo,
                 title: object.title,
                 content: object.content,

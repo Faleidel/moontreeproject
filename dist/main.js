@@ -210,7 +210,7 @@ http.createServer(async function (req, res) {
                         if (!id) {
                             let thread = await model.createThread(user, title, content, branch);
                             let activity = await model.createActivity(user, thread);
-                            protocol.postToRemote(activity, { host: "mastodon.social", name: "mastodon", blocked: false });
+                            protocol.postToRemoteForUsers(user.followers, activity);
                             utils.endWithRedirect(res, thread.id);
                         }
                         else {
@@ -270,7 +270,7 @@ http.createServer(async function (req, res) {
                             let obj = objectC || objectT;
                             let comment = await model.createComment(user, content, obj.id);
                             let activity = await model.createActivity(user, comment);
-                            protocol.postToRemote(activity, { host: "mastodon.social", name: "mastodon", blocked: false });
+                            protocol.postToRemoteForUsers(user.followers, activity);
                             utils.endWithRedirect(res, backUrl);
                         }
                         else {

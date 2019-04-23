@@ -13,6 +13,7 @@ const request = require("request");
 async function postToRemote(act, remote) {
     if (!remote.blocked) {
         let user = await model.getUserByName(act.author);
+        console.log("posting to", remote);
         if (user) {
             utils.log("Sending post from", user.name, "to remote instance");
             let inbox = "https://" + remote.host + "/inbox";
@@ -39,3 +40,11 @@ async function postToRemote(act, remote) {
     }
 }
 exports.postToRemote = postToRemote;
+async function postToRemoteForUsers(users, activity) {
+    users.map(async (follower) => {
+        let remote = await model.getRemoteInstanceByHost(follower.split("/")[2]);
+        if (remote)
+            postToRemote(activity, remote);
+    });
+}
+exports.postToRemoteForUsers = postToRemoteForUsers;
