@@ -387,6 +387,11 @@ async function getUserList() {
     return Object.values(exports.store.users);
 }
 exports.getUserList = getUserList;
+async function addUserFollower(user, follower) {
+    user.followers.push(follower);
+    saveStore();
+}
+exports.addUserFollower = addUserFollower;
 async function getForeignUser(name) {
     let domain = name.split("@")[1];
     let remoteInstance = await getRemoteInstanceByHost(domain);

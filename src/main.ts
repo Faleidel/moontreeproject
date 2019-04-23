@@ -233,6 +233,8 @@ http.createServer(async function (req: any, res) {
                     if (errors.length == 0) {
                         if (!id) {
                             let thread = await model.createThread(user, title as string, content as string, branch as string);
+                            let activity = await model.createActivity(user, thread);
+                            protocol.postToRemote(activity, {host: "mastodon.social", name: "mastodon", blocked: false});
                             utils.endWithRedirect(res, thread.id);
                         } else {
                             let thread = await model.getThreadById(id);

@@ -529,6 +529,10 @@ export async function getUserByName(name: string): Promise<User | undefined> {
 export async function getUserList(): Promise<User[]> {
     return Object.values(store.users);
 }
+export async function addUserFollower(user: User, follower: string): Promise<void> {
+    user.followers.push(follower);
+    saveStore();
+}
 export async function getForeignUser(name: string): Promise<User | undefined> {
     let domain = name.split("@")[1];
     
