@@ -26,7 +26,7 @@ async function activityToJSON(act) {
             id: act.id,
             type: "Create",
             to: act.to,
-            cc: user.followers,
+            cc: await getFollowersByActor(utils.urlForPath('user/' + user.name)),
             published: new Date(act.published).toISOString(),
             actor: utils.urlForPath("user/" + act.author),
             object: {
@@ -37,7 +37,7 @@ async function activityToJSON(act) {
                 attributedTo: act.author,
                 actor: utils.urlForPath("user/" + act.author),
                 to: object.to,
-                cc: user.followers,
+                cc: await getFollowersByActor(utils.urlForPath('user/' + user.name)),
                 inReplyTo: object.inReplyTo,
                 title: object.title,
                 content: object.content,
@@ -138,7 +138,8 @@ exports.store = {
     likes: {},
     likeBundles: {},
     remoteInstances: {},
-    notifications: {}
+    notifications: {},
+    follows: {}
 };
 let indexs = {
     commentChildrens: {},
@@ -149,7 +150,8 @@ let indexs = {
     likeOfActorOnObject: {},
     likeBundlesByObject: {},
     branchesBySource: {},
-    notificationsByUser: {}
+    notificationsByUser: {},
+    followActorsByTarget: {}
 };
 function addToIndex(indexName, key, value) {
     let list = indexs[indexName][key];
@@ -164,6 +166,9 @@ function indexComment(comment) {
         addToIndex("userComments", comment.author, comment.id);
     if (comment.inReplyTo && (!indexs.commentChildrens[comment.inReplyTo] || !indexs.commentChildrens[comment.inReplyTo].find(c => c == comment.id)))
         addToIndex("commentChildrens", comment.inReplyTo, comment.id);
+}
+function indexFollow(follow) {
+    addToIndex("followActorsByTarget", follow.target, follow.follower);
 }
 function indexThread(thread) {
     if (!indexs.hotThreadsByBranch[thread.branch] || !indexs.hotThreadsByBranch[thread.branch].find(c => c == thread.id))
@@ -204,17 +209,10 @@ async function testLikeOn(comment, amount) {
     }
 }
 function loadStore(cb) {
-    fs.readFile("store.json", "utf-8", (err, data) => {
+    fs.readFile("store.json", "utf-8", async (err, data) => {
         if (data) {
-            console.log("Got store");
+            console.log("Loading JSON store...");
             exports.store = JSON.parse(data);
-            Object.values(exports.store.comments).map(c => indexComment(c));
-            Object.values(exports.store.threads).map(t => indexComment(t));
-            Object.values(exports.store.threads).map(t => indexThread(t));
-            Object.values(exports.store.activitys).map(t => indexActivity(t));
-            Object.values(exports.store.likes).map(t => indexLike(t));
-            Object.values(exports.store.likeBundles).map(t => indexLikeBundle(t));
-            Object.values(exports.store.notifications).map(t => indexNotification(t));
             if (utils.migrationNumber == 1) {
                 utils.log("Migration is 1, migrating to 2");
                 // change activitys publish date from string format to timestamp
@@ -231,11 +229,23 @@ function loadStore(cb) {
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
             if (utils.migrationNumber == 2) {
-                utils.log("Migration is 1, migrating to 2");
-                Object.values(exports.store.users).map(user => user.followers = []);
                 saveStore();
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
+            if (utils.migrationNumber == 3) {
+                exports.store.follows = {};
+                saveStore();
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            Object.values(exports.store.comments).map(c => indexComment(c));
+            Object.values(exports.store.threads).map(t => indexComment(t));
+            Object.values(exports.store.threads).map(t => indexThread(t));
+            Object.values(exports.store.activitys).map(t => indexActivity(t));
+            Object.values(exports.store.likes).map(t => indexLike(t));
+            Object.values(exports.store.likeBundles).map(t => indexLikeBundle(t));
+            Object.values(exports.store.follows).map(t => indexFollow(t));
+            Object.values(exports.store.notifications).map(t => indexNotification(t));
+            console.log("Finised loading, migrating and indexing JSON store");
         }
         else {
             console.log("Got no store");
@@ -388,11 +398,6 @@ async function getUserList() {
     return Object.values(exports.store.users);
 }
 exports.getUserList = getUserList;
-async function addUserFollower(user, follower) {
-    user.followers.push(follower);
-    saveStore();
-}
-exports.addUserFollower = addUserFollower;
 async function getForeignUser(name) {
     let domain = name.split("@")[1];
     let remoteInstance = await getRemoteInstanceByHost(domain);
@@ -418,7 +423,6 @@ async function getForeignUser(name) {
             local: false,
             lastUpdate: new Date().getTime(),
             foreignUrl: userLink,
-            followers: [],
             banned: false
         };
         exports.store.users[name] = newUser;
@@ -509,7 +513,6 @@ async function createUser(name, password) {
                 local: true,
                 lastUpdate: 0,
                 foreignUrl: "",
-                followers: [],
                 banned: false
             };
             exports.store.users[name] = user;
@@ -1099,3 +1102,20 @@ async function setRemoteInstanceBlockedStatus(instance, blocked) {
     saveStore();
 }
 exports.setRemoteInstanceBlockedStatus = setRemoteInstanceBlockedStatus;
+async function createFollow(follower, target) {
+    let follow = {
+        follower: follower,
+        target: target,
+        id: Math.random() * 100000000000000000 + ""
+    };
+    exports.store.follows[follow.id] = follow;
+    indexFollow(follow);
+    console.log(exports.store.follows);
+    saveStore();
+    return follow;
+}
+exports.createFollow = createFollow;
+async function getFollowersByActor(actor) {
+    return indexs.followActorsByTarget[actor] || [];
+}
+exports.getFollowersByActor = getFollowersByActor;

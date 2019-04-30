@@ -10,7 +10,6 @@ export interface User {
     passwordSalt: string,
     publicKey: string,
     privateKey: string,
-    followers: string[], // string: actor url
     banned: boolean,
     
     local: boolean,
@@ -56,7 +55,7 @@ export async function activityToJSON(act: Activity): Promise<any | undefined> {
             id: act.id,
             type: "Create",
             to: act.to,
-            cc: user.followers,
+            cc: await getFollowersByActor(utils.urlForPath('user/' + user.name)),
             published: new Date(act.published).toISOString(),
             actor: utils.urlForPath("user/" + act.author),
             object: {
@@ -67,7 +66,7 @@ export async function activityToJSON(act: Activity): Promise<any | undefined> {
                 attributedTo: act.author,
                 actor: utils.urlForPath("user/" + act.author),
                 to: object.to,
-                cc: user.followers,
+                cc: await getFollowersByActor(utils.urlForPath('user/' + user.name)),
                 inReplyTo: object.inReplyTo,
                 title: object.title,
                 content: object.content,
@@ -245,6 +244,12 @@ export interface LikeBundle {
     amount: number
 }
 
+export interface Follow {
+    follower: string,
+    target: string,
+    id: string
+}
+
 export let store = {
     users: {} as {[name: string]: User},
     sessions: {} as {[id: string]: Session},
@@ -255,7 +260,8 @@ export let store = {
     likes: {} as {[id: string]: Like},
     likeBundles: {} as {[id: string]: LikeBundle}, // id is object.id + server name
     remoteInstances: {} as {[host: string]: RemoteInstance},
-    notifications: {} as {[id: string]: Notification}
+    notifications: {} as {[id: string]: Notification},
+    follows: {} as {[id: string]: Follow}
 };
 
 let indexs = {
@@ -267,7 +273,8 @@ let indexs = {
     likeOfActorOnObject: {} as {[id: string]: Like},
     likeBundlesByObject: {} as {[object: string]: string[]},
     branchesBySource: {} as {[name: string]: Branch[]},
-    notificationsByUser: {} as {[name: string]: string[]}
+    notificationsByUser: {} as {[name: string]: string[]},
+    followActorsByTarget: {} as {[target: string]: string[]}
 };
 function addToIndex(indexName: string, key: string, value: string) {
     let list = (indexs as any)[indexName][key];
@@ -285,6 +292,9 @@ function indexComment(comment: Comment): void {
     
     if (comment.inReplyTo && (!indexs.commentChildrens[comment.inReplyTo] || !indexs.commentChildrens[comment.inReplyTo].find(c => c == comment.id)))
         addToIndex("commentChildrens", comment.inReplyTo, comment.id);
+}
+function indexFollow(follow: Follow): void {
+    addToIndex("followActorsByTarget", follow.target, follow.follower);
 }
 function indexThread(thread: Thread): void {
     if (!indexs.hotThreadsByBranch[thread.branch] || !indexs.hotThreadsByBranch[thread.branch].find(c => c == thread.id))
@@ -328,18 +338,10 @@ async function testLikeOn(comment: Comment, amount: number): Promise<void> {
 }
 
 export function loadStore(cb: any): void {
-    fs.readFile("store.json", "utf-8", (err, data) => {
+    fs.readFile("store.json", "utf-8", async (err, data) => {
         if (data) {
-            console.log("Got store");
+            console.log("Loading JSON store...");
             store = JSON.parse(data);
-            
-            Object.values(store.comments).map(c => indexComment(c));
-            Object.values(store.threads).map(t => indexComment(t));
-            Object.values(store.threads).map(t => indexThread(t));
-            Object.values(store.activitys).map(t => indexActivity(t));
-            Object.values(store.likes).map(t => indexLike(t));
-            Object.values(store.likeBundles).map(t => indexLikeBundle(t));
-            Object.values(store.notifications).map(t => indexNotification(t));
             
             if (utils.migrationNumber == 1) {
                 utils.log("Migration is 1, migrating to 2");
@@ -361,14 +363,29 @@ export function loadStore(cb: any): void {
             }
             
             if (utils.migrationNumber == 2) {
-                utils.log("Migration is 1, migrating to 2");
+                saveStore();
                 
-                Object.values(store.users).map(user => user.followers = []);
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            
+            if (utils.migrationNumber == 3) {
+                store.follows = {};
                 
                 saveStore();
                 
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
+            
+            Object.values(store.comments).map(c => indexComment(c));
+            Object.values(store.threads).map(t => indexComment(t));
+            Object.values(store.threads).map(t => indexThread(t));
+            Object.values(store.activitys).map(t => indexActivity(t));
+            Object.values(store.likes).map(t => indexLike(t));
+            Object.values(store.likeBundles).map(t => indexLikeBundle(t));
+            Object.values(store.follows).map(t => indexFollow(t));
+            Object.values(store.notifications).map(t => indexNotification(t));
+            
+            console.log("Finised loading, migrating and indexing JSON store");
         } else {
             console.log("Got no store");
             (async () => {
@@ -531,10 +548,6 @@ export async function getUserByName(name: string): Promise<User | undefined> {
 export async function getUserList(): Promise<User[]> {
     return Object.values(store.users);
 }
-export async function addUserFollower(user: User, follower: string): Promise<void> {
-    user.followers.push(follower);
-    saveStore();
-}
 export async function getForeignUser(name: string): Promise<User | undefined> {
     let domain = name.split("@")[1];
     
@@ -564,7 +577,6 @@ export async function getForeignUser(name: string): Promise<User | undefined> {
             local: false,
             lastUpdate: new Date().getTime(),
             foreignUrl: userLink,
-            followers: [],
             banned: false
         };
         
@@ -670,7 +682,6 @@ export async function createUser(name: string, password: string): Promise<User |
                 local: true,
                 lastUpdate: 0,
                 foreignUrl: "",
-                followers: [],
                 banned: false
             };
             
@@ -1322,4 +1333,22 @@ export async function getRemoteInstances(): Promise<RemoteInstance[]> {
 export async function setRemoteInstanceBlockedStatus(instance: RemoteInstance, blocked: boolean) {
     instance.blocked = blocked;
     saveStore();
+}
+export async function createFollow(follower: string, target: string): Promise<Follow> {
+    let follow = {
+        follower: follower,
+        target: target,
+        id: Math.random() * 100000000000000000 + ""
+    };
+    
+    store.follows[follow.id] = follow;
+    indexFollow(follow);
+    console.log(store.follows);
+    
+    saveStore();
+    
+    return follow;
+}
+export async function getFollowersByActor(actor: string): Promise<string[]> {
+    return indexs.followActorsByTarget[actor] || [];
 }

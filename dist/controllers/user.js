@@ -16,7 +16,7 @@ async function handleUserInboxPost(url, query, req, res, body, cookies) {
     if (streamObject.type == "Follow" && streamObject.actor) {
         let user = await model.getUserByName(userName);
         if (user) {
-            model.addUserFollower(user, streamObject.actor);
+            await model.createFollow(streamObject.actor, utils.urlForPath('user/' + user.name));
             res.statusCode = 201;
             res.end();
             let remoteDomain = streamObject.actor.split("/")[2];

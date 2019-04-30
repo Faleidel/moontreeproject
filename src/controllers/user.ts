@@ -11,7 +11,7 @@ export async function handleUserInboxPost(url: string[], query: any, req: any, r
         let user: model.User | undefined = await model.getUserByName(userName);
         
         if (user) {
-            model.addUserFollower(user, streamObject.actor);
+            await model.createFollow(streamObject.actor, utils.urlForPath('user/' + user.name));
             
             res.statusCode = 201;
             res.end();

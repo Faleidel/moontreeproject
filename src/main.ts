@@ -234,7 +234,7 @@ http.createServer(async function (req: any, res) {
                         if (!id) {
                             let thread = await model.createThread(user, title as string, content as string, branch as string);
                             let activity = await model.createActivity(user, thread);
-                            protocol.postToRemoteForUsers(user.followers, activity);
+                            protocol.postToRemoteForUsers(await model.getFollowersByActor(utils.urlForPath('user/' + user.name)), activity);
                             utils.endWithRedirect(res, thread.id);
                         } else {
                             let thread = await model.getThreadById(id);
@@ -297,7 +297,7 @@ http.createServer(async function (req: any, res) {
                             let obj: any = objectC || objectT;
                             let comment = await model.createComment(user, content as string, obj.id);
                             let activity = await model.createActivity(user, comment);
-                            protocol.postToRemoteForUsers(user.followers, activity);
+                            protocol.postToRemoteForUsers(await model.getFollowersByActor(utils.urlForPath('user/' + user.name)), activity);
                             utils.endWithRedirect(res, backUrl);
                         } else {
                             console.log("Error, lacks threadId or objectId", threadId, objectId);

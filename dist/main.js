@@ -210,7 +210,7 @@ http.createServer(async function (req, res) {
                         if (!id) {
                             let thread = await model.createThread(user, title, content, branch);
                             let activity = await model.createActivity(user, thread);
-                            protocol.postToRemoteForUsers(user.followers, activity);
+                            protocol.postToRemoteForUsers(await model.getFollowersByActor(utils.urlForPath('user/' + user.name)), activity);
                             utils.endWithRedirect(res, thread.id);
                         }
                         else {
@@ -270,7 +270,7 @@ http.createServer(async function (req, res) {
                             let obj = objectC || objectT;
                             let comment = await model.createComment(user, content, obj.id);
                             let activity = await model.createActivity(user, comment);
-                            protocol.postToRemoteForUsers(user.followers, activity);
+                            protocol.postToRemoteForUsers(await model.getFollowersByActor(utils.urlForPath('user/' + user.name)), activity);
                             utils.endWithRedirect(res, backUrl);
                         }
                         else {
