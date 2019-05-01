@@ -1390,7 +1390,6 @@ export async function createFollow(follower: string, target: string): Promise<Fo
     
     store.follows[follow.id] = follow;
     indexFollow(follow);
-    console.log(store.follows);
     
     saveStore();
     

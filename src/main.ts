@@ -11,7 +11,7 @@ import { handleLoginPost } from "./controllers/login";
 import { handleSignupPost } from "./controllers/signup";
 import { handleWellKnownGet } from "./controllers/wellKnown";
 import { handleThread } from "./controllers/thread";
-import { handleBranch } from "./controllers/branch";
+import { handleBranch, handleBranchInboxPost } from "./controllers/branch";
 
 const { generateKeyPair } = require("crypto");
 
@@ -62,6 +62,12 @@ http.createServer(async function (req: any, res) {
                 if (url[2] == "inbox") {
                     handleWith(handleUserInboxPost);
                 }
+                else
+                    res.end('error');
+            }
+            else if (url[0] == "branch") {
+                if (url[2] == "inbox")
+                    handleWith(handleBranchInboxPost);
                 else
                     res.end('error');
             }

@@ -65,6 +65,12 @@ http.createServer(async function (req, res) {
                 else
                     res.end('error');
             }
+            else if (url[0] == "branch") {
+                if (url[2] == "inbox")
+                    handleWith(branch_1.handleBranchInboxPost);
+                else
+                    res.end('error');
+            }
             else if (url[0] == "login") {
                 handleWith(login_1.handleLoginPost);
             }

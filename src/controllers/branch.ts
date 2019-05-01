@@ -1,6 +1,38 @@
 import * as utils from "../utils";
 import * as model from "../model";
+import * as protocol from "../protocol";
 const request = require("request");
+
+export async function handleBranchInboxPost(url: string[], query: any, req: any, res: any, body: string, cookies: any){
+    let branchName = url[1];
+    
+    let streamObject = JSON.parse(body);
+    
+    if (streamObject.type == "Follow" && streamObject.actor) {
+        let branch: model.Branch | undefined = await model.getBranchByName(branchName);
+        
+        if (branch) {
+            protocol.handleFollow(
+                streamObject,
+                utils.urlForBranch(branch),
+                utils.urlForBranch(branch) + "#main-key",
+                branch.privateKey
+            );
+            
+            res.statusCode = 201;
+            res.end();
+            
+        } else {
+            res.statusCode = 404;
+            res.end("Invalid branch");
+        }
+    } else {
+        utils.log("STREAM OBJECT IN INBOX", "User", branchName, "Type", streamObject.type, "Content", streamObject.object.content, streamObject);
+        
+        res.statusCode = 500;
+        res.end("Action not supported");
+    }
+}
 
 export async function handleBranch(url: string[], query: any, req: any, res: any, body: string, cookies: any){
     let branchName = url[1];

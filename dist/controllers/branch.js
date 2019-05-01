@@ -9,7 +9,30 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils = __importStar(require("../utils"));
 const model = __importStar(require("../model"));
+const protocol = __importStar(require("../protocol"));
 const request = require("request");
+async function handleBranchInboxPost(url, query, req, res, body, cookies) {
+    let branchName = url[1];
+    let streamObject = JSON.parse(body);
+    if (streamObject.type == "Follow" && streamObject.actor) {
+        let branch = await model.getBranchByName(branchName);
+        if (branch) {
+            protocol.handleFollow(streamObject, utils.urlForBranch(branch), utils.urlForBranch(branch) + "#main-key", branch.privateKey);
+            res.statusCode = 201;
+            res.end();
+        }
+        else {
+            res.statusCode = 404;
+            res.end("Invalid branch");
+        }
+    }
+    else {
+        utils.log("STREAM OBJECT IN INBOX", "User", branchName, "Type", streamObject.type, "Content", streamObject.object.content, streamObject);
+        res.statusCode = 500;
+        res.end("Action not supported");
+    }
+}
+exports.handleBranchInboxPost = handleBranchInboxPost;
 async function handleBranch(url, query, req, res, body, cookies) {
     let branchName = url[1];
     let branch = await model.getBranchByName(branchName);

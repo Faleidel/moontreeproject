@@ -1146,7 +1146,6 @@ async function createFollow(follower, target) {
     };
     exports.store.follows[follow.id] = follow;
     indexFollow(follow);
-    console.log(exports.store.follows);
     saveStore();
     return follow;
 }
