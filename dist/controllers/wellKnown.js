@@ -28,7 +28,6 @@ async function handleWellKnownGet(url, query, req, res, body, cookies) {
                 }));
             }
             else {
-                console.log("GET BRANCH", userName);
                 let branch = await model.getBranchByName(userName);
                 if (branch) {
                     res.end(JSON.stringify({

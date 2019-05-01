@@ -48,3 +48,34 @@ async function postToRemoteForUsers(users, activity) {
     });
 }
 exports.postToRemoteForUsers = postToRemoteForUsers;
+async function handleFollow(streamObject, actorUrl, privateKeyId, privateKey) {
+    await model.createFollow(streamObject.actor, actorUrl);
+    let remoteDomain = streamObject.actor.split("/")[2];
+    let date = new Date().toUTCString();
+    let stringToSign = `date: ${date}`;
+    let signedString = utils.signString(privateKey, stringToSign);
+    let header = `keyId="${privateKeyId}#main-key",algorithm="rsa-sha256",headers="date",signature="${signedString}"`;
+    let body = JSON.stringify({
+        "@context": [
+            "https://www.w3.org/ns/activitystreams",
+            "https://w3id.org/security/v1"
+        ],
+        id: actorUrl + "/followaccept/${Math.random()}",
+        type: "Accept",
+        actor: actorUrl,
+        object: streamObject
+    });
+    let options = {
+        url: streamObject.actor + "/inbox",
+        headers: {
+            Host: remoteDomain,
+            Date: date,
+            Signature: header,
+        },
+        body: body
+    };
+    request.post(options, (err, resp, body) => {
+        utils.log("Post to remote instance follow accept answer", err, resp, body);
+    });
+}
+exports.handleFollow = handleFollow;
