@@ -104,10 +104,29 @@ async function branchToJSON(branch) {
             "https://www.w3.org/ns/activitystreams",
             "https://w3id.org/security/v1"
         ],
+        "id": utils.urlForBranch(branch),
+        "type": "Person",
+        "preferredUsername": branch.name + "@b@" + utils.host,
+        "inbox": utils.urlForBranch(branch) + "/inbox",
+        "outbox": utils.urlForBranch(branch) + "/outbox",
+        "publicKey": {
+            "id": utils.urlForBranch(branch) + "#main-key",
+            "owner": utils.urlForBranch(branch),
+            "publicKeyPem": branch.publicKey
+        }
+    };
+}
+exports.branchToJSON = branchToJSON;
+async function branchPostsToJSON(branch) {
+    return {
+        "@context": [
+            "https://www.w3.org/ns/activitystreams",
+            "https://w3id.org/security/v1"
+        ],
         type: "OrderedCollection",
-        first: utils.urlForPath("branch/" + branch.name + "?page=0"),
-        last: utils.urlForPath("branch/" + branch.name + "?page=10000"),
-        id: utils.urlForPath("branch/" + branch.name),
+        first: utils.urlForBranch(branch) + "/outbox/?page=0",
+        last: utils.urlForBranch(branch) + "/outbox/?page=10000",
+        id: utils.urlForBranch(branch),
         totalItems: 1000,
         name: utils.renderQualifiedName(utils.parseQualifiedName(branch.name)),
         creator: utils.renderQualifiedName(utils.parseQualifiedName(branch.creator)),
@@ -115,7 +134,7 @@ async function branchToJSON(branch) {
         description: branch.description
     };
 }
-exports.branchToJSON = branchToJSON;
+exports.branchPostsToJSON = branchPostsToJSON;
 async function branchFromJSON(obj) {
     return {
         name: obj.name,
@@ -124,6 +143,8 @@ async function branchFromJSON(obj) {
         sourceBranches: [],
         pinedThreads: obj.pinedThreads,
         lastUpdate: new Date().getTime(),
+        publicKey: "",
+        privateKey: "",
         banned: false
     };
 }
@@ -234,6 +255,15 @@ function loadStore(cb) {
             }
             if (utils.migrationNumber == 3) {
                 exports.store.follows = {};
+                saveStore();
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            if (utils.migrationNumber == 4) {
+                await Promise.all(Object.values(exports.store.branches).map(async (branch) => {
+                    let kp = await utils.generateUserKeyPair();
+                    branch.privateKey = kp.privateKey;
+                    branch.publicKey = kp.publicKey;
+                }));
                 saveStore();
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
@@ -595,6 +625,9 @@ async function getBranchByName(name) {
             }
             return branch;
         }
+        else {
+            return exports.store.branches[qName.name];
+        }
     }
     else {
         if (!qName.isOwn && new Date().getTime() - branch.lastUpdate > (1000 * 60 * 2)) {
@@ -667,6 +700,7 @@ async function createBranch(name, description, sourceBranches, creator) {
         return undefined;
     }
     else {
+        let kp = await utils.generateUserKeyPair();
         let branch = {
             name: name,
             description: description,
@@ -674,6 +708,8 @@ async function createBranch(name, description, sourceBranches, creator) {
             sourceBranches: sourceBranches,
             pinedThreads: [],
             banned: false,
+            publicKey: kp.publicKey,
+            privateKey: kp.privateKey,
             lastUpdate: 0 // only for remote branches
         };
         exports.store.branches[branch.name] = branch;

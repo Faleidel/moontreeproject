@@ -16,8 +16,8 @@ async function handleWellKnownGet(url, query, req, res, body, cookies) {
             let userName = userQuery.split("@")[0];
             let user = await model.getUserByName(userName);
             utils.log("webfinger", query.resource);
+            res.setHeader('Content-Type', 'application/json');
             if (user) {
-                res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify({
                     "subject": "acct:" + userQuery,
                     "links": [{
@@ -28,7 +28,21 @@ async function handleWellKnownGet(url, query, req, res, body, cookies) {
                 }));
             }
             else {
-                res.end("Error");
+                console.log("GET BRANCH", userName);
+                let branch = await model.getBranchByName(userName);
+                if (branch) {
+                    res.end(JSON.stringify({
+                        "subject": "acct:" + userQuery,
+                        "links": [{
+                                "rel": "self",
+                                "type": "application/activity+json",
+                                "href": utils.urlForPath("branch/" + userName + "@b@" + utils.host)
+                            }]
+                    }));
+                }
+                else {
+                    res.end("Error");
+                }
             }
         }
     }

@@ -193,6 +193,9 @@ export interface Branch {
     sourceBranches: string[],
     pinedThreads: string[],
     banned: boolean,
+     
+    publicKey: string,
+    privateKey: string,
     
     lastUpdate: number
 }
@@ -202,10 +205,30 @@ export async function branchToJSON(branch: Branch): Promise<any> {
             "https://www.w3.org/ns/activitystreams",
             "https://w3id.org/security/v1"
         ],
+        
+        "id": utils.urlForBranch(branch),
+        "type": "Person",
+        "preferredUsername": branch.name + "@b@" + utils.host,
+        "inbox": utils.urlForBranch(branch) + "/inbox",
+        "outbox": utils.urlForBranch(branch) + "/outbox",
+        
+        "publicKey": {
+            "id": utils.urlForBranch(branch) + "#main-key",
+            "owner": utils.urlForBranch(branch),
+            "publicKeyPem": branch.publicKey
+        }
+    };
+}
+export async function branchPostsToJSON(branch: Branch): Promise<any> {
+    return {
+        "@context": [
+            "https://www.w3.org/ns/activitystreams",
+            "https://w3id.org/security/v1"
+        ],
         type: "OrderedCollection",
-        first: utils.urlForPath("branch/" + branch.name + "?page=0"),
-        last: utils.urlForPath("branch/" + branch.name + "?page=10000"), // TODO
-        id: utils.urlForPath("branch/" + branch.name),
+        first: utils.urlForBranch(branch) + "/outbox/?page=0",
+        last: utils.urlForBranch(branch) + "/outbox/?page=10000", // TODO
+        id: utils.urlForBranch(branch),
         totalItems: 1000, // TODO
         
         name: utils.renderQualifiedName(utils.parseQualifiedName(branch.name)),
@@ -222,6 +245,10 @@ export async function branchFromJSON(obj: any): Promise<Branch | undefined> {
         sourceBranches: [],
         pinedThreads: obj.pinedThreads,
         lastUpdate: new Date().getTime(),
+        
+        publicKey: "",
+        privateKey: "",
+        
         banned: false
     };
 }
@@ -370,6 +397,19 @@ export function loadStore(cb: any): void {
             
             if (utils.migrationNumber == 3) {
                 store.follows = {};
+                
+                saveStore();
+                
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            
+            if (utils.migrationNumber == 4) {
+                await Promise.all(Object.values(store.branches).map(async (branch) => {
+                    let kp = await utils.generateUserKeyPair();
+                    
+                    branch.privateKey = kp.privateKey;
+                    branch.publicKey = kp.publicKey;
+                }));
                 
                 saveStore();
                 
@@ -771,6 +811,8 @@ export async function getBranchByName(name: string): Promise<Branch | undefined>
             }
             
             return branch;
+        } else {
+            return store.branches[qName.name];
         }
     }
     else {
@@ -850,6 +892,8 @@ export async function createBranch(name: string, description: string, sourceBran
     if (exists) {
         return undefined;
     } else {
+        let kp = await utils.generateUserKeyPair();
+        
         let branch: Branch = {
             name: name,
             description: description,
@@ -857,6 +901,9 @@ export async function createBranch(name: string, description: string, sourceBran
             sourceBranches: sourceBranches,
             pinedThreads: [],
             banned: false,
+            
+            publicKey: kp.publicKey,
+            privateKey: kp.privateKey,
             
             lastUpdate: 0 // only for remote branches
         };
