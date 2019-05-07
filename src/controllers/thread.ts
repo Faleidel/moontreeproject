@@ -8,7 +8,7 @@ export async function handleThread(url: string[], query: any, req: any, res: any
         
         let asJson = !!query.json || (req.headers.accept && (req.headers.accept.indexOf("json") != -1));
         if (asJson)
-            res.setHeader('Content-Type', 'application/json');
+            res.setHeader("Content-Type", "application/ld+json");
         
         let thread = await model.getThreadById(threadId);
         

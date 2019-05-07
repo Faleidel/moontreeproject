@@ -237,10 +237,22 @@ http.createServer(async function (req: any, res) {
                     }
                     
                     if (errors.length == 0) {
-                        if (!id) {
+                        let branchModel = await model.getBranchByName(branch as string);
+                        if (!id && branchModel) {
                             let thread = await model.createThread(user, title as string, content as string, branch as string);
                             let activity = await model.createActivity(user, thread);
-                            protocol.postToRemoteForUsers(await model.getFollowersByActor(utils.urlForPath('user/' + user.name)), activity);
+                            protocol.postToRemoteForUsers(
+                                await model.getFollowersByActor(utils.urlForPath('user/' + user.name)),
+                                JSON.stringify(await model.activityToJSON(activity)),
+                                utils.urlForUser(user),
+                                user.privateKey
+                            );
+                            protocol.postToRemoteForUsers(
+                                await model.getFollowersByActor(utils.urlForBranch(branch as string)),
+                                JSON.stringify(await model.createAnnounce(utils.urlForBranch(branch as string), thread.id)),
+                                utils.urlForBranch(branch as string),
+                                branchModel.privateKey
+                            );
                             utils.endWithRedirect(res, thread.id);
                         } else {
                             let thread = await model.getThreadById(id);
@@ -303,7 +315,12 @@ http.createServer(async function (req: any, res) {
                             let obj: any = objectC || objectT;
                             let comment = await model.createComment(user, content as string, obj.id);
                             let activity = await model.createActivity(user, comment);
-                            protocol.postToRemoteForUsers(await model.getFollowersByActor(utils.urlForPath('user/' + user.name)), activity);
+                            protocol.postToRemoteForUsers(
+                                await model.getFollowersByActor(utils.urlForPath('user/' + user.name)),
+                                JSON.stringify(await model.activityToJSON(activity)),
+                                utils.urlForUser(user),
+                                user.privateKey
+                            );
                             utils.endWithRedirect(res, backUrl);
                         } else {
                             console.log("Error, lacks threadId or objectId", threadId, objectId);

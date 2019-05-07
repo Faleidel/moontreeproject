@@ -81,6 +81,22 @@ export async function activityToJSON(act: Activity): Promise<any | undefined> {
         return undefined;
 }
 
+export async function createAnnounce(actorUrl: string, objectUrl: string): Promise<any> {
+    return {
+        "@context": [
+            "https://www.w3.org/ns/activitystreams",
+            "https://w3id.org/security/v1"
+        ],
+        id: utils.urlForPath("announce") + "/" + Math.random()*1000000000000,
+        type: "Announce",
+        actor: actorUrl,
+        published: new Date().toISOString(),
+        to: ["https://www.w3.org/ns/activitystreams#Public"],
+        cc: await getFollowersByActor(actorUrl),
+        object: objectUrl
+    };
+}
+
 export interface CommentTag {
     type: string,
     href: string,
@@ -104,13 +120,20 @@ export async function commentToJSON(comment: Comment): Promise<any> {
             "https://w3id.org/security/v1"
         ],
         id: comment.id,
+        url: comment.id,
         type: "Note",
         to: comment.to,
-        published: comment.published,
-        attributedTo: comment.author,
+        cc: [],
+        published: new Date(comment.published).toISOString(),
+        attributedTo: utils.urlForUser(comment.author),
+        actor: utils.urlForUser(comment.author),
         inReplyTo: comment.inReplyTo,
         content: comment.content,
-        likes: await getRemoteLikesAmount(comment) + (await getLikesByObject(comment)).length
+        attachment: [],
+        sensitive: false,
+        summary: null,
+        likes: await getRemoteLikesAmount(comment) + (await getLikesByObject(comment)).length,
+        tag: comment.tags
     };
 }
 export async function commentFromJSON(json: any): Promise<Comment | undefined> {
@@ -147,8 +170,8 @@ export async function threadToJSON(thread: Thread): Promise<any> {
         
         "@context": [
             "https://www.w3.org/ns/activitystreams",
-            "https://w3id.org/security/v1",
-            "ironTreeThread"
+            "https://w3id.org/security/v1"//,
+            //"ironTreeThread"
         ],
         
         title: thread.title,

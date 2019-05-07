@@ -15,11 +15,12 @@ async function handleThread(url, query, req, res, body, cookies) {
         let threadId = url[1].indexOf("://") != -1 ? decodeURIComponent(url[1]) : utils.urlForPath("thread/" + url[1]);
         let asJson = !!query.json || (req.headers.accept && (req.headers.accept.indexOf("json") != -1));
         if (asJson)
-            res.setHeader('Content-Type', 'application/json');
+            res.setHeader("Content-Type", "application/ld+json");
         let thread = await model.getThreadById(threadId);
         if (thread) {
             if (asJson) {
                 let threadJSON = Object.assign({}, await model.threadToJSON(thread), { childrens: await Promise.all((await model.getThreadFlatComments(thread)).map(model.commentToJSON)) });
+                console.log(JSON.stringify(threadJSON, null, 4));
                 res.end(JSON.stringify(threadJSON));
             }
             else {

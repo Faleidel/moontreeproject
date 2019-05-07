@@ -52,6 +52,22 @@ async function activityToJSON(act) {
         return undefined;
 }
 exports.activityToJSON = activityToJSON;
+async function createAnnounce(actorUrl, objectUrl) {
+    return {
+        "@context": [
+            "https://www.w3.org/ns/activitystreams",
+            "https://w3id.org/security/v1"
+        ],
+        id: utils.urlForPath("announce") + "/" + Math.random() * 1000000000000,
+        type: "Announce",
+        actor: actorUrl,
+        published: new Date().toISOString(),
+        to: ["https://www.w3.org/ns/activitystreams#Public"],
+        cc: await getFollowersByActor(actorUrl),
+        object: objectUrl
+    };
+}
+exports.createAnnounce = createAnnounce;
 async function commentToJSON(comment) {
     return {
         "@context": [
@@ -59,13 +75,20 @@ async function commentToJSON(comment) {
             "https://w3id.org/security/v1"
         ],
         id: comment.id,
+        url: comment.id,
         type: "Note",
         to: comment.to,
-        published: comment.published,
-        attributedTo: comment.author,
+        cc: [],
+        published: new Date(comment.published).toISOString(),
+        attributedTo: utils.urlForUser(comment.author),
+        actor: utils.urlForUser(comment.author),
         inReplyTo: comment.inReplyTo,
         content: comment.content,
-        likes: await getRemoteLikesAmount(comment) + (await getLikesByObject(comment)).length
+        attachment: [],
+        sensitive: false,
+        summary: null,
+        likes: await getRemoteLikesAmount(comment) + (await getLikesByObject(comment)).length,
+        tag: comment.tags
     };
 }
 exports.commentToJSON = commentToJSON;
@@ -85,8 +108,8 @@ exports.commentFromJSON = commentFromJSON;
 async function threadToJSON(thread) {
     return Object.assign({}, await commentToJSON(thread), { "@context": [
             "https://www.w3.org/ns/activitystreams",
-            "https://w3id.org/security/v1",
-            "ironTreeThread"
+            "https://w3id.org/security/v1" //,
+            //"ironTreeThread"
         ], title: thread.title, branch: thread.branch.indexOf("@") == -1 ? thread.branch + "@" + utils.serverAddress : thread.branch.split("@")[0], isLink: thread.isLink, media: thread.media, likes: await getRemoteLikesAmount(thread) + (await getLikesByObject(thread)).length });
 }
 exports.threadToJSON = threadToJSON;

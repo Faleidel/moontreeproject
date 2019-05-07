@@ -213,10 +213,12 @@ http.createServer(async function (req, res) {
                         errors.push("Error, title is too long");
                     }
                     if (errors.length == 0) {
-                        if (!id) {
+                        let branchModel = await model.getBranchByName(branch);
+                        if (!id && branchModel) {
                             let thread = await model.createThread(user, title, content, branch);
                             let activity = await model.createActivity(user, thread);
-                            protocol.postToRemoteForUsers(await model.getFollowersByActor(utils.urlForPath('user/' + user.name)), activity);
+                            protocol.postToRemoteForUsers(await model.getFollowersByActor(utils.urlForPath('user/' + user.name)), JSON.stringify(await model.activityToJSON(activity)), utils.urlForUser(user), user.privateKey);
+                            protocol.postToRemoteForUsers(await model.getFollowersByActor(utils.urlForBranch(branch)), JSON.stringify(await model.createAnnounce(utils.urlForBranch(branch), thread.id)), utils.urlForBranch(branch), branchModel.privateKey);
                             utils.endWithRedirect(res, thread.id);
                         }
                         else {
@@ -276,7 +278,7 @@ http.createServer(async function (req, res) {
                             let obj = objectC || objectT;
                             let comment = await model.createComment(user, content, obj.id);
                             let activity = await model.createActivity(user, comment);
-                            protocol.postToRemoteForUsers(await model.getFollowersByActor(utils.urlForPath('user/' + user.name)), activity);
+                            protocol.postToRemoteForUsers(await model.getFollowersByActor(utils.urlForPath('user/' + user.name)), JSON.stringify(await model.activityToJSON(activity)), utils.urlForUser(user), user.privateKey);
                             utils.endWithRedirect(res, backUrl);
                         }
                         else {

@@ -10,41 +10,39 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const utils = __importStar(require("./utils"));
 const model = __importStar(require("./model"));
 const request = require("request");
-async function postToRemote(act, remote) {
+async function postToRemote(actorUrl, actorKeyUrl, actorKey, activityJson, remote) {
     if (!remote.blocked) {
-        let user = await model.getUserByName(act.author);
-        console.log("posting to", remote);
-        if (user) {
-            utils.log("Sending post from", user.name, "to remote instance");
-            let inbox = "https://" + remote.host + "/inbox";
-            let date = new Date().toUTCString();
-            let stringToSign = `date: ${date}`;
-            let signedString = utils.signString(user.privateKey, stringToSign);
-            let header = `keyId="${utils.urlForPath("user/" + user.name)}#main-key",algorithm="rsa-sha256",headers="date",signature="${signedString}"`;
-            let options = {
-                url: inbox,
-                headers: {
-                    Host: remote.host,
-                    Date: date,
-                    Signature: header,
-                },
-                body: JSON.stringify(await model.activityToJSON(act))
-            };
-            request.post(options, (err, resp, body) => {
-                utils.log("Post to remote instance answer", err, resp, body);
-            });
-        }
+        console.log("posting to", remote, actorUrl, activityJson);
+        utils.log("Sending post from", actorUrl, "to remote instance", activityJson);
+        let inbox = "https://" + remote.host + "/inbox";
+        let date = new Date().toUTCString();
+        let stringToSign = `date: ${date}`;
+        let signedString = utils.signString(actorKey, stringToSign);
+        let header = `keyId="${actorKeyUrl}#main-key",algorithm="rsa-sha256",headers="date",signature="${signedString}"`;
+        let options = {
+            url: inbox,
+            headers: {
+                Host: remote.host,
+                Date: date,
+                Signature: header,
+            },
+            body: activityJson
+        };
+        request.post(options, (err, resp, body) => {
+            utils.log("Post to remote instance answer", err, resp, body);
+            console.log("Post to remote instance answer", err, body);
+        });
     }
     else {
         throw ("Can't post to remote instance, instance " + remote.host + " is blocked");
     }
 }
 exports.postToRemote = postToRemote;
-async function postToRemoteForUsers(users, activity) {
+async function postToRemoteForUsers(users, activity, authorUrl, privateKey) {
     users.map(async (follower) => {
         let remote = await model.getRemoteInstanceByHost(follower.split("/")[2]);
         if (remote)
-            postToRemote(activity, remote);
+            postToRemote(authorUrl, authorUrl + "#main-key", privateKey, activity, remote);
     });
 }
 exports.postToRemoteForUsers = postToRemoteForUsers;
