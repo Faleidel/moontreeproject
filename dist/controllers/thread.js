@@ -20,7 +20,6 @@ async function handleThread(url, query, req, res, body, cookies) {
         if (thread) {
             if (asJson) {
                 let threadJSON = Object.assign({}, await model.threadToJSON(thread), { childrens: await Promise.all((await model.getThreadFlatComments(thread)).map(model.commentToJSON)) });
-                console.log(JSON.stringify(threadJSON, null, 4));
                 res.end(JSON.stringify(threadJSON));
             }
             else {
