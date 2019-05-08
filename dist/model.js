@@ -127,15 +127,20 @@ async function branchToJSON(branch) {
             "https://www.w3.org/ns/activitystreams",
             "https://w3id.org/security/v1"
         ],
-        "id": utils.urlForBranch(branch),
-        "type": "Person",
-        "preferredUsername": branch.name + "@b@" + utils.host,
-        "inbox": utils.urlForBranch(branch) + "/inbox",
-        "outbox": utils.urlForBranch(branch) + "/outbox",
-        "publicKey": {
-            "id": utils.urlForBranch(branch) + "#main-key",
-            "owner": utils.urlForBranch(branch),
-            "publicKeyPem": branch.publicKey
+        id: utils.urlForBranch(branch),
+        type: "Person",
+        preferredUsername: branch.name + "@b@" + utils.host,
+        inbox: utils.urlForBranch(branch) + "/inbox",
+        outbox: utils.urlForBranch(branch) + "/outbox",
+        icon: {
+            type: "Image",
+            mediaType: "image/png",
+            url: branch.icon
+        },
+        publicKey: {
+            id: utils.urlForBranch(branch) + "#main-key",
+            owner: utils.urlForBranch(branch),
+            publicKeyPem: branch.publicKey
         }
     };
 }
@@ -166,6 +171,7 @@ async function branchFromJSON(obj) {
         sourceBranches: [],
         pinedThreads: obj.pinedThreads,
         lastUpdate: new Date().getTime(),
+        icon: "",
         publicKey: "",
         privateKey: "",
         banned: false
@@ -287,6 +293,13 @@ function loadStore(cb) {
                     branch.privateKey = kp.privateKey;
                     branch.publicKey = kp.publicKey;
                 }));
+                saveStore();
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            if (utils.migrationNumber == 5) {
+                Object.values(exports.store.branches).map(branch => {
+                    branch.icon = "";
+                });
                 saveStore();
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
@@ -731,6 +744,7 @@ async function createBranch(name, description, sourceBranches, creator) {
             sourceBranches: sourceBranches,
             pinedThreads: [],
             banned: false,
+            icon: "",
             publicKey: kp.publicKey,
             privateKey: kp.privateKey,
             lastUpdate: 0 // only for remote branches
@@ -741,6 +755,11 @@ async function createBranch(name, description, sourceBranches, creator) {
     }
 }
 exports.createBranch = createBranch;
+async function setBranchIcon(branch, iconPath) {
+    branch.icon = iconPath;
+    saveStore();
+}
+exports.setBranchIcon = setBranchIcon;
 async function isBranchAdmin(user, branch) {
     if (!user)
         return false;
@@ -750,6 +769,7 @@ async function isBranchAdmin(user, branch) {
 exports.isBranchAdmin = isBranchAdmin;
 async function setBranchPinedThreads(branch, pinedThreads) {
     branch.pinedThreads = pinedThreads;
+    saveStore();
 }
 exports.setBranchPinedThreads = setBranchPinedThreads;
 async function unsafeBranchList() {

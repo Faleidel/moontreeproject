@@ -6,11 +6,18 @@
 {% block body %}
     <div class="">
         {% for branch in branches %}
-            <div class="lightSection" style="margin-bottom: 10px;">
-                <a style="font-size: 2em; margin-bottom: 10px; display: inline-block;" href="/branch/{{branch.name}}">{{branch.name}}</a>
-                <span>{{branch.threadsCount}} threads</span>
-                <div>
-                    {{branch.description}}
+            <div class="lightSection" style="margin-bottom: 10px; display: flex;">
+                {% if branch.icon %}
+                    <div class="branchLeftSection" style="display: flex;">
+                        <img style="width: 100px; padding-right: 10px;" src="{{branch.icon}}"/>
+                    </div>
+                {% endif %}
+                <div class="branchRightSection">
+                    <a style="font-size: 2em; margin-bottom: 10px; display: inline-block;" href="/branch/{{branch.name}}">{{branch.name}}</a>
+                    <span>{{branch.threadsCount}} threads</span>
+                    <div>
+                        {{branch.description}}
+                    </div>
                 </div>
             </div>
         {% endfor %}

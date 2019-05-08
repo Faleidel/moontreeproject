@@ -95,6 +95,10 @@
                     text-align: center;
                 }
                 
+                .pinedThread .threadPosition {
+                    display: none;
+                }
+                
                 .thread .threadInfos {
                     min-height: 60px;
                     width: 100%;
@@ -159,6 +163,9 @@
                     {% for thread in threads %}
                         <div id="{{thread.id}}" class="thread {% if thread.pined %}pinedThread{% endif %}">
                             <div class="threadPosition"><div>{{thread.position}}</div></div>
+                            {% if thread.pined %}
+                                <img class="pinnedIcon" style="position: relative; left: 7px; width: 20px;" src="data:image/svg+xml;utf8;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pgo8IS0tIEdlbmVyYXRvcjogQWRvYmUgSWxsdXN0cmF0b3IgMTkuMC4wLCBTVkcgRXhwb3J0IFBsdWctSW4gLiBTVkcgVmVyc2lvbjogNi4wMCBCdWlsZCAwKSAgLS0+CjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4PSIwcHgiIHk9IjBweCIgdmlld0JveD0iMCAwIDUzLjAxMSA1My4wMTEiIHN0eWxlPSJlbmFibGUtYmFja2dyb3VuZDpuZXcgMCAwIDUzLjAxMSA1My4wMTE7IiB4bWw6c3BhY2U9InByZXNlcnZlIiB3aWR0aD0iMzJweCIgaGVpZ2h0PSIzMnB4Ij4KPHBhdGggZD0iTTUyLjk2MywyMS4yOTdjLTAuMDY4LTAuMzI5LTAuMjk3LTAuNjAzLTAuNjA5LTAuNzI3Yy0yLjc1Mi0xLjA5Ny01LjY3LTEuNjUzLTguNjczLTEuNjUzICBjLTQuNjgxLDAtOC4yOTMsMS4zMzgtOS42ODgsMS45NDJMMTkuMTE0LDguMmMwLjUyLTQuNTY4LTEuOTQ0LTcuNjkyLTIuMDU0LTcuODI4QzE2Ljg4MSwwLjE1MSwxNi42MTgsMC4wMTYsMTYuMzM1LDAgIGMtMC4yODItMC4wMDYtMC41NjEsMC4wOTEtMC43NjEsMC4yOTJMMC4zMiwxNS41NDZjLTAuMjAyLDAuMjAxLTAuMzA4LDAuNDc5LTAuMjkxLDAuNzY1YzAuMDE2LDAuMjg0LDAuMTUzLDAuNTQ5LDAuMzc2LDAuNzI2ICBjMi4xODEsMS43Myw0Ljg0MywyLjA5NCw2LjY5MSwyLjA5NGMwLjQxMiwwLDAuNzY0LTAuMDE5LDEuMDMzLTAuMDRsMTIuNzIyLDE0Ljk1NGMtMC44NjgsMi4yMy0zLjUyLDEwLjI3LTAuMzA3LDE4LjMzNyAgYzAuMTI0LDAuMzEzLDAuMzk3LDAuNTQxLDAuNzI3LDAuNjA5YzAuMDY3LDAuMDE0LDAuMTM1LDAuMDIxLDAuMjAyLDAuMDIxYzAuMjYzLDAsMC41MTgtMC4xMDQsMC43MDctMC4yOTNsMTQuNTctMTQuNTcgIGwxMy41NywxMy41N2MwLjE5NSwwLjE5NSwwLjQ1MSwwLjI5MywwLjcwNywwLjI5M3MwLjUxMi0wLjA5OCwwLjcwNy0wLjI5M2MwLjM5MS0wLjM5MSwwLjM5MS0xLjAyMywwLTEuNDE0bC0xMy41Ny0xMy41NyAgbDE0LjUyNy0xNC41MjhDNTIuOTI5LDIxLjk2OSw1My4wMzEsMjEuNjI3LDUyLjk2MywyMS4yOTd6IiBmaWxsPSIjMDAwMDAwIi8+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+Cjwvc3ZnPgo=" />
+                            {% endif %}
                             <div id="{{thread.id}}_likeControls" class="likeCount {% if not thread.liked and userName %}canLike{% endif %}">
                                 <div>
                                     {% if userName %}
@@ -225,23 +232,34 @@
         <div class="rightPane">
             <div class="branchTitle">{{branch.name}}</div>
             
+            <img style="width: 100%;" src="{{branch.icon}}"/>
+            
             <div class="description">
                 {{utils.renderMarkdown(branch.description) | safe}}
             </div>
             
             {% if isBranchAdmin %}
-                <div>
+                <div style="border-top: 1px solid grey; margin-top: 12px; padding-top: 12px;">
                     <form action="/branchConfig" method="POST">
+                        <div style="margin-bottom: 10px;">Pinned thread list separeted by comma</div>
+                        <input style="margin-bottom: 10px;" type="hidden" name="branch" value="{{branch.name}}"/>
+                        <textarea style="margin-bottom: 10px; width: 100%; box-sizing: border-box;" name="pinedThreads">{{branch.pinedThreads.join(", ")}}</textarea>
+                        <input type="submit" value="set pinned threads"/>
+                    </form>
+                </div>
+                
+                <div style="border-top: 1px solid grey; margin-top: 12px; padding-top: 12px;">
+                    <form action="/branchIcon" method="POST" enctype="multipart/form-data">
+                        <div style="margin-bottom: 10px;">Select branch icon</div>
                         <input type="hidden" name="branch" value="{{branch.name}}"/>
-                        <div>Pinned thread list separeted by comma</div>
-                        <input name="pinedThreads" value="{{branch.pinedThreads.join(", ")}}"/>
-                        <input type="submit" value="save"/>
+                        <input style="margin-bottom: 10px;" type="file" name="icon" accept="image/png, image/jpeg"/>
+                        <input type="submit" value="set icon"/>
                     </form>
                 </div>
             {% endif %}
             
             {% if isAdmin and not branch.isHome %}
-                <div>
+                <div style="border-top: 1px solid grey; margin-top: 12px; padding-top: 12px;">
                     <form action="/branchAdmin" method="POST">
                         <input type="hidden" name="branch" value="{{branch.name}}"/>
                         <input type="submit" style="margin-bottom: 10px;" value="Ban this branch"/>
@@ -250,7 +268,7 @@
             {% endif %}
             
             {% if branch.creator %}
-                <div class="branchCreator">
+                <div class="branchCreator" style="border-top: 1px solid grey; margin-top: 12px; padding-top: 20px;">
                     Created by: {{branch.creator}}
                 </div>
             {% endif %}

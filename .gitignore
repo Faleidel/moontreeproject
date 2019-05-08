@@ -4,3 +4,4 @@ log.txt
 store.json
 urlStats.json
 .DS_Store
+static/uploads/*

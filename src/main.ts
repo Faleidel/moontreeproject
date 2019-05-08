@@ -6,6 +6,8 @@ import * as protocol from "./protocol";
 import * as fs from "fs";
 import * as queryString from "querystring";
 
+import * as formidable from "formidable";
+
 import { handleUserInboxPost, handleUserGet } from "./controllers/user";
 import { handleLoginPost } from "./controllers/login";
 import { handleSignupPost } from "./controllers/signup";
@@ -48,36 +50,49 @@ http.createServer(async function (req: any, res) {
     utils.log("Url:", url, req.headers);
     
     if (req.method == "POST") {
-        let body = '';
-        req.on('data', (chunk: any) => {
-            body += chunk.toString();
-        });
-        req.on('end', async () => {
-            function handleWith(f: Function) {
-                f(url, query, req, res, body, cookies);
-            }
+        function withStringBody(handle: (body: string) => void) {
+            let bodyBuffer: Buffer = Buffer.from('');
+            req.on('data', (chunk: Buffer) => {
+                bodyBuffer = Buffer.concat([bodyBuffer, chunk]);
+            });
+            req.on('end', async () => {
+                handle(bodyBuffer.toString());
+            });
+        }
+        
+        function withFiles(handle: Function) {
+            let form = new formidable.IncomingForm();
+            form.parse(req, (err, fields, files) => {
+                handle(fields, files);
+            });
+        }
+        
+        function handleStringWith(f: Function) {
+            withStringBody(body => f(url, query, req, res, body, cookies));
+        }
             
-            // POST ROUTES
-            if (url[0] == "user") {
-                if (url[2] == "inbox") {
-                    handleWith(handleUserInboxPost);
-                }
-                else
-                    res.end('error');
+        // POST ROUTES
+        if (url[0] == "user") {
+            if (url[2] == "inbox") {
+                handleStringWith(handleUserInboxPost);
             }
-            else if (url[0] == "branch") {
-                if (url[2] == "inbox")
-                    handleWith(handleBranchInboxPost);
-                else
-                    res.end('error');
-            }
-            else if (url[0] == "login") {
-                handleWith(handleLoginPost);
-            }
-            else if (url[0] == "signup") {
-                handleWith(handleSignupPost);
-            }
-            else if (url[0] == "setConfig") {
+            else
+                res.end('error');
+        }
+        else if (url[0] == "branch") {
+            if (url[2] == "inbox")
+                handleStringWith(handleBranchInboxPost);
+            else
+                res.end('error');
+        }
+        else if (url[0] == "login") {
+            handleStringWith(handleLoginPost);
+        }
+        else if (url[0] == "signup") {
+            handleStringWith(handleSignupPost);
+        }
+        else if (url[0] == "setConfig") {
+            withStringBody(async (body) => {
                 let user = await utils.getLoggedUser(cookies);
                 
                 if (user && utils.isAdmin(user.name)) {
@@ -97,8 +112,10 @@ http.createServer(async function (req: any, res) {
                 } else {
                     utils.endWithRedirect(res, "/");
                 }
-            }
-            else if (url[0] == "branchConfig") {
+            });
+        }
+        else if (url[0] == "branchConfig") {
+            withStringBody(async (body) => {
                 let user = await utils.getLoggedUser(cookies);
                 
                 if (user) {
@@ -114,8 +131,33 @@ http.createServer(async function (req: any, res) {
                         utils.endWithRedirect(res, "/branch/"+ branch);
                     }
                 }
-            }
-            else if (url [0] == "branchAdmin") {
+            });
+        }
+        else if (url[0] == "branchIcon") {
+            withFiles((params: any, files: any) => {
+                console.log(params);
+                console.log(files);
+                
+                let branchName = params.branch;
+                
+                let name = utils.last(files.icon.path.split("/"));
+                let extention = utils.last(files.icon.name.split("."));
+                let newPath = "static/uploads/" + name + "." + extention;
+                
+                fs.copyFile(files.icon.path, newPath, async (err) => {
+                    console.log(err);
+                    
+                    let branch = await model.getBranchByName(branchName);
+                    
+                    if (branch) {
+                        model.setBranchIcon(branch, utils.urlForPath(newPath));
+                        utils.endWithRedirect(res, "/branch/" + branchName);
+                    }
+                });
+            });
+        }
+        else if (url[0] == "branchAdmin") {
+            withStringBody(async (body) => {
                 let user = await utils.getLoggedUser(cookies);
                 
                 if (user && utils.isAdmin(user.name)) {
@@ -126,8 +168,10 @@ http.createServer(async function (req: any, res) {
                 }
                 else
                     utils.endWithRedirect(res, "/");
-            }
-            else if (url[0] == "adminRemoveComment") {
+            });
+        }
+        else if (url[0] == "adminRemoveComment") {
+            withStringBody(async (body) => {
                 let user = await utils.getLoggedUser(cookies);
                 let {branchName, id} = queryString.parse(body) as any;
                 
@@ -139,8 +183,10 @@ http.createServer(async function (req: any, res) {
                 }
                 else
                     utils.endWithRedirect(res, "/");
-            }
-            else if (url[0] == "banUser") {
+            });
+        }
+        else if (url[0] == "banUser") {
+            withStringBody(async (body) => {
                 let user = await utils.getLoggedUser(cookies);
                 let {name} = queryString.parse(body) as any;
                 
@@ -150,8 +196,10 @@ http.createServer(async function (req: any, res) {
                 }
                 else
                    utils.endWithRedirect(res, "/");
-            }
-            else if (url[0] == "instanceBlockStatus") {
+            });
+        }
+        else if (url[0] == "instanceBlockStatus") {
+            withStringBody(async (body) => {
                 let user = await utils.getLoggedUser(cookies);
                 
                 if (user && utils.isAdmin(user.name)) {
@@ -166,24 +214,30 @@ http.createServer(async function (req: any, res) {
                     else
                         res.end("Invalid instance");
                 }
-            }
-            else if (url[0] == "like") {
+            });
+        }
+        else if (url[0] == "like") {
+            withStringBody(async (body) => {
                 let object = await model.getCommentById(body) || await model.getThreadById(body);
                 let user = await utils.getLoggedUser(cookies);
                 
                 if (object && user) {
                     model.createLike(user, object);
                 }
-            }
-            else if (url[0] == "unlike") {
+            });
+        }
+        else if (url[0] == "unlike") {
+            withStringBody(async (body) => {
                 let object = await model.getCommentById(body) || await model.getThreadById(body);
                 let user = await utils.getLoggedUser(cookies);
                 
                 if (object && user) {
                     model.deleteLikeOfOn(user, object);
                 }
-            }
-            else if (url[0] == "readNotification") {
+            });
+        }
+        else if (url[0] == "readNotification") {
+            withStringBody(async (body) => {
                 let id = body;
                 
                 let notification = await model.getNotificationsById(id);
@@ -192,8 +246,10 @@ http.createServer(async function (req: any, res) {
                     model.setNotificationRead(notification);
                 }
                 res.end("ok");
-            }
-            else if (url[0] == "newBranch") {
+            });
+        }
+        else if (url[0] == "newBranch") {
+            withStringBody(async (body) => {
                 let {name, description} = queryString.parse(body) as any;
                 let user = await utils.getLoggedUser(cookies);
                 
@@ -221,8 +277,10 @@ http.createServer(async function (req: any, res) {
                 } else {
                     res.end("Error with branch name or not logged in");
                 }
-            }
-            else if (url[0] == "newThread") {
+            });
+        }
+        else if (url[0] == "newThread") {
+            withStringBody(async (body) => {
                 let {title, content, branch, id} = queryString.parse(body) as any;
                 
                 let user = await utils.getLoggedUser(cookies);
@@ -232,9 +290,10 @@ http.createServer(async function (req: any, res) {
                     
                     if (content.length > 10000)
                         errors.push("Error, content is too long");
-                    if (!id && title.length > 200) {
+                    if (!id && title.length > 200)
                         errors.push("Error, title is too long");
-                    }
+                    if (content.length == 0)
+                        errors.push("Error, content is empty");
                     
                     if (errors.length == 0) {
                         let branchModel = await model.getBranchByName(branch as string);
@@ -275,8 +334,10 @@ http.createServer(async function (req: any, res) {
                 else {
                     res.end("Not logged in");
                 }
-            }
-            else if (url[0] == "newComment") {
+            });
+        }
+        else if (url[0] == "newComment") {
+            withStringBody(async (body) => {
                 let {content, threadId, objectId, backUrl, id} = queryString.parse(body) as any;
                 backUrl = decodeURIComponent(backUrl as string);
                 
@@ -287,6 +348,8 @@ http.createServer(async function (req: any, res) {
                     
                     if (content.length > 10000)
                         errors.push("Error, comment is too long");
+                    if (content.length > 0)
+                        errors.push("Error, comment is empty");
                     
                     if (id) {
                         let comment = await model.getCommentById(id);
@@ -334,8 +397,10 @@ http.createServer(async function (req: any, res) {
                 else {
                     res.end("Not logged in");
                 }
-            }
-            else if (url[0] == "inbox") {
+            });
+        }
+        else if (url[0] == "inbox") {
+            withStringBody(async (body) => {
                 console.log("GOT SOMETHING IN INBOX");
                 
                 let json = JSON.parse(body);
@@ -359,10 +424,10 @@ http.createServer(async function (req: any, res) {
                     
                     res.end("ok comment");
                 }
-            }
-            else
-                res.end('error');
-        });
+            });
+        }
+        else
+            res.end('error');
     }
     else {
         function handleWith(f: Function) {
@@ -478,15 +543,23 @@ http.createServer(async function (req: any, res) {
             handleWith(handleWellKnownGet);
         }
         else if (url[0] == "static") {
-            if (url[1].indexOf(".png") == -1) {
-                if (url[1].indexOf(".svg") != -1)
-                    res.setHeader('Content-Type', 'image/svg+xml');
+            let end = url[2] || url[1];
+            
+            let path = url[1];
+            if (url[2]) path += "/" + url[2];
+            
+            if (end.indexOf(".png") != -1 || end.indexOf(".jpg")) {
+                fs.readFile("static/" + path, (err, data) => {
+                    res.end(data);
+                })
+            } else if (end.indexOf(".svg") != -1) {
+                res.setHeader('Content-Type', 'image/svg+xml');
                 
-                fs.readFile("static/"+url[1], "utf-8", (err, data) => {
+                fs.readFile("static/" + url[1], "utf-8", (err, data) => {
                     res.end(data);
                 })
             } else {
-                fs.readFile("static/"+url[1], (err, data) => {
+                fs.readFile("static/" + url[1], "utf-8", (err, data) => {
                     res.end(data);
                 })
             }

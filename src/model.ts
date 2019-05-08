@@ -216,6 +216,7 @@ export interface Branch {
     sourceBranches: string[],
     pinedThreads: string[],
     banned: boolean,
+    icon: string,
      
     publicKey: string,
     privateKey: string,
@@ -229,16 +230,21 @@ export async function branchToJSON(branch: Branch): Promise<any> {
             "https://w3id.org/security/v1"
         ],
         
-        "id": utils.urlForBranch(branch),
-        "type": "Person",
-        "preferredUsername": branch.name + "@b@" + utils.host,
-        "inbox": utils.urlForBranch(branch) + "/inbox",
-        "outbox": utils.urlForBranch(branch) + "/outbox",
+        id: utils.urlForBranch(branch),
+        type: "Person",
+        preferredUsername: branch.name + "@b@" + utils.host,
+        inbox: utils.urlForBranch(branch) + "/inbox",
+        outbox: utils.urlForBranch(branch) + "/outbox",
+        icon: {
+            type: "Image",
+            mediaType: "image/png",
+            url: branch.icon
+        },
         
-        "publicKey": {
-            "id": utils.urlForBranch(branch) + "#main-key",
-            "owner": utils.urlForBranch(branch),
-            "publicKeyPem": branch.publicKey
+        publicKey: {
+            id: utils.urlForBranch(branch) + "#main-key",
+            owner: utils.urlForBranch(branch),
+            publicKeyPem: branch.publicKey
         }
     };
 }
@@ -268,6 +274,7 @@ export async function branchFromJSON(obj: any): Promise<Branch | undefined> {
         sourceBranches: [],
         pinedThreads: obj.pinedThreads,
         lastUpdate: new Date().getTime(),
+        icon: "",
         
         publicKey: "",
         privateKey: "",
@@ -433,6 +440,16 @@ export function loadStore(cb: any): void {
                     branch.privateKey = kp.privateKey;
                     branch.publicKey = kp.publicKey;
                 }));
+                
+                saveStore();
+                
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            
+            if (utils.migrationNumber == 5) {
+                Object.values(store.branches).map(branch => {
+                    branch.icon = "";
+                });
                 
                 saveStore();
                 
@@ -924,6 +941,7 @@ export async function createBranch(name: string, description: string, sourceBran
             sourceBranches: sourceBranches,
             pinedThreads: [],
             banned: false,
+            icon: "",
             
             publicKey: kp.publicKey,
             privateKey: kp.privateKey,
@@ -937,6 +955,11 @@ export async function createBranch(name: string, description: string, sourceBran
         return branch;
     }
 }
+export async function setBranchIcon(branch: Branch, iconPath: string): Promise<void> {
+    branch.icon = iconPath;
+    
+    saveStore();
+}
 export async function isBranchAdmin(user: User | undefined, branch: Branch): Promise<boolean> {
     if (!user)
         return false;
@@ -945,6 +968,8 @@ export async function isBranchAdmin(user: User | undefined, branch: Branch): Pro
 }
 export async function setBranchPinedThreads(branch: Branch, pinedThreads: string[]): Promise<void> {
     branch.pinedThreads = pinedThreads;
+    
+    saveStore();
 }
 export async function unsafeBranchList(): Promise<Branch[]> {
     return Object.values(store.branches).filter(b => !b.banned);
