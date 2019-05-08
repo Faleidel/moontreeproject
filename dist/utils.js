@@ -110,6 +110,20 @@ function urlForPath(path) {
     return exports.baseUrl + "/" + path;
 }
 exports.urlForPath = urlForPath;
+function urlForUser(user) {
+    if (typeof user == "string")
+        return urlForPath("user/" + user);
+    else
+        return urlForPath("user/" + user.name);
+}
+exports.urlForUser = urlForUser;
+function urlForBranch(branch) {
+    if (typeof branch == "string")
+        return urlForPath("branch/" + branch + "@b@" + exports.host);
+    else
+        return urlForPath("branch/" + branch.name + "@b@" + exports.host);
+}
+exports.urlForBranch = urlForBranch;
 function last(list) {
     return list[list.length - 1];
 }
@@ -339,15 +353,28 @@ function parseQualifiedName(str) {
         return {
             name: str,
             host: exports.host + (exports.port ? ":" + exports.port : ""),
-            isOwn: true
+            isOwn: true,
+            isBranch: false
         };
     }
-    else {
+    else if (parts.length == 2) {
         return {
             name: parts[0],
             host: parts[1],
-            isOwn: parts[1] == exports.serverAddress
+            isOwn: parts[1] == exports.serverAddress,
+            isBranch: false
         };
+    }
+    else if (parts.length == 3) {
+        return {
+            name: parts[0],
+            host: parts[2],
+            isOwn: parts[2] == exports.serverAddress,
+            isBranch: parts[1] == "b"
+        };
+    }
+    else {
+        throw (new Error('could not parse ' + str));
     }
 }
 exports.parseQualifiedName = parseQualifiedName;

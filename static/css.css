@@ -7,8 +7,9 @@ form { margin: 0 }
 
 .button {
     display: inline-block;
-    background: black;
-    color: white;
+    background: transparent;
+    color: black;
+    border: 1px solid black;
     padding: 5px;
     margin: 5px;
     cursor: pointer;
@@ -147,11 +148,10 @@ body *, a {
     border: 1px solid rgba(0, 0, 0, 0.2);
 }
 
-.button, button, input[type=button], input[type=submit] {
+.button,  button, input[type=button], input[type=submit] {
     display: block;
     border-radius: 4px;
-    border: none;
-    box-shadow: 1px 1px 1px black;
+    border: 1px solid black;
     font-size: 0.8em;
     
     /*background: white;*/
@@ -159,8 +159,14 @@ body *, a {
     margin: 0px;
     padding: 5px 15px;
     
-    background: #4c85d8;
-    color: white !important;
+    background: white;
+    color: black;
+    
+    transition: box-shadow 0.6s;
+}
+
+.button:hover,  button:hover, input[type=button]:hover, input[type=submit]:hover {
+    box-shadow: 0px 0px 40px -8px hsla(0, 0%, 0%, 0.33);
 }
 
 .mediumText, .button.mediumText {
@@ -209,6 +215,11 @@ input[type=user], input[type=password], input[type=input], textarea {
     width: 50%;
     background: hsla(215, 100%, 97%, 1);
     padding: 5px;
+    transition: box-shadow 0.6s;
+}
+
+input[type=user]:focus, input[type=password]:focus, input[type=input]:focus, textarea:focus {
+    box-shadow: 0px 0px 40px -8px hsla(0, 0%, 0%, 0.33);
 }
 
 .mediaContainer img {

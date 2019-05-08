@@ -9,13 +9,28 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils = __importStar(require("../utils"));
 const model = __importStar(require("../model"));
+const protocol = __importStar(require("../protocol"));
 const request = require("request");
-function handleUserInboxPost(url, query, req, res, body, cookies) {
-    let user = url[1];
+async function handleUserInboxPost(url, query, req, res, body, cookies) {
+    let userName = url[1];
     let streamObject = JSON.parse(body);
-    utils.log("STREAM OBJECT IN INBOX", "User", user, "Type", streamObject.type, "Content", streamObject.object.content);
-    res.statusCode = 201;
-    res.end();
+    if (streamObject.type == "Follow" && streamObject.actor) {
+        let user = await model.getUserByName(userName);
+        if (user) {
+            protocol.handleFollow(streamObject, utils.urlForUser(user), utils.urlForUser(user) + "#main-key", user.privateKey);
+            res.statusCode = 201;
+            res.end();
+        }
+        else {
+            res.statusCode = 404;
+            res.end("Invalid user");
+        }
+    }
+    else {
+        utils.log("STREAM OBJECT IN INBOX", "User", userName, "Type", streamObject.type, "Content", streamObject.object.content, streamObject);
+        res.statusCode = 500;
+        res.end("Action not supported");
+    }
 }
 exports.handleUserInboxPost = handleUserInboxPost;
 async function handleUserGet(url, query, req, res, body, cookies) {
@@ -25,10 +40,10 @@ async function handleUserGet(url, query, req, res, body, cookies) {
     let user = await model.getUserByName(name);
     let asJson = !!query.json || (req.headers.accept.indexOf("json") != -1);
     if (asJson)
-        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Type', "application/ld+json");
     if (user) {
         let activitys = await model.getActivitysByAuthor(name);
-        if (url.length == 2) {
+        if (url.length == 2) { // url is `/user/someUserName` and nothing more
             if (asJson) {
                 res.end(JSON.stringify({
                     "@context": [

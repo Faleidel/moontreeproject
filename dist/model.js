@@ -13,11 +13,11 @@ const crypto = __importStar(require("crypto"));
 const urlLib = __importStar(require("url"));
 const request = require("request");
 async function activityToJSON(act) {
-    //let post = store.posts[act.object];
     let object = typeof act.object == "object"
         ? act.object
         : await getThreadById(act.objectId) || await getCommentById(act.objectId);
-    if (object) {
+    let user = await getUserByName(act.author);
+    if (object && user) {
         return {
             "@context": [
                 "https://www.w3.org/ns/activitystreams",
@@ -26,27 +26,25 @@ async function activityToJSON(act) {
             id: act.id,
             type: "Create",
             to: act.to,
-            cc: [object.inReplyTo],
-            published: act.published,
-            actor: act.author,
+            cc: await getFollowersByActor(utils.urlForPath('user/' + user.name)),
+            published: new Date(act.published).toISOString(),
+            actor: utils.urlForPath("user/" + act.author),
             object: {
+                type: "Note",
                 id: object.id,
+                url: object.id,
                 attachment: [],
                 attributedTo: act.author,
-                cc: [object.inReplyTo],
+                actor: utils.urlForPath("user/" + act.author),
+                to: object.to,
+                cc: await getFollowersByActor(utils.urlForPath('user/' + user.name)),
+                inReplyTo: object.inReplyTo,
                 title: object.title,
                 content: object.content,
                 published: new Date(object.published).toISOString(),
                 sensitive: false,
                 summary: null,
-                tag: [{
-                        type: "Mention",
-                        href: object.inReplyTo,
-                        name: "@faleidel@mastodon.social"
-                    }],
-                to: object.to,
-                type: "Note",
-                url: object.id
+                tag: object.tags
             }
         };
     }
@@ -54,6 +52,22 @@ async function activityToJSON(act) {
         return undefined;
 }
 exports.activityToJSON = activityToJSON;
+async function createAnnounce(actorUrl, objectUrl) {
+    return {
+        "@context": [
+            "https://www.w3.org/ns/activitystreams",
+            "https://w3id.org/security/v1"
+        ],
+        id: utils.urlForPath("announce") + "/" + Math.random() * 1000000000000,
+        type: "Announce",
+        actor: actorUrl,
+        published: new Date().toISOString(),
+        to: ["https://www.w3.org/ns/activitystreams#Public"],
+        cc: await getFollowersByActor(actorUrl),
+        object: objectUrl
+    };
+}
+exports.createAnnounce = createAnnounce;
 async function commentToJSON(comment) {
     return {
         "@context": [
@@ -61,13 +75,20 @@ async function commentToJSON(comment) {
             "https://w3id.org/security/v1"
         ],
         id: comment.id,
+        url: comment.id,
         type: "Note",
         to: comment.to,
-        published: comment.published,
-        attributedTo: comment.author,
+        cc: [],
+        published: new Date(comment.published).toISOString(),
+        attributedTo: utils.urlForUser(comment.author),
+        actor: utils.urlForUser(comment.author),
         inReplyTo: comment.inReplyTo,
         content: comment.content,
-        likes: await getRemoteLikesAmount(comment) + (await getLikesByObject(comment)).length
+        attachment: [],
+        sensitive: false,
+        summary: null,
+        likes: await getRemoteLikesAmount(comment) + (await getLikesByObject(comment)).length,
+        tag: comment.tags
     };
 }
 exports.commentToJSON = commentToJSON;
@@ -79,6 +100,7 @@ async function commentFromJSON(json) {
         author: json.attributedTo,
         to: json.to,
         inReplyTo: json.inReplyTo,
+        tags: json.tag,
         adminDeleted: false
     };
 }
@@ -86,8 +108,8 @@ exports.commentFromJSON = commentFromJSON;
 async function threadToJSON(thread) {
     return Object.assign({}, await commentToJSON(thread), { "@context": [
             "https://www.w3.org/ns/activitystreams",
-            "https://w3id.org/security/v1",
-            "ironTreeThread"
+            "https://w3id.org/security/v1" //,
+            //"ironTreeThread"
         ], title: thread.title, branch: thread.branch.indexOf("@") == -1 ? thread.branch + "@" + utils.serverAddress : thread.branch.split("@")[0], isLink: thread.isLink, media: thread.media, likes: await getRemoteLikesAmount(thread) + (await getLikesByObject(thread)).length });
 }
 exports.threadToJSON = threadToJSON;
@@ -105,10 +127,34 @@ async function branchToJSON(branch) {
             "https://www.w3.org/ns/activitystreams",
             "https://w3id.org/security/v1"
         ],
+        id: utils.urlForBranch(branch),
+        type: "Person",
+        preferredUsername: branch.name + "@b@" + utils.host,
+        inbox: utils.urlForBranch(branch) + "/inbox",
+        outbox: utils.urlForBranch(branch) + "/outbox",
+        icon: {
+            type: "Image",
+            mediaType: "image/png",
+            url: branch.icon
+        },
+        publicKey: {
+            id: utils.urlForBranch(branch) + "#main-key",
+            owner: utils.urlForBranch(branch),
+            publicKeyPem: branch.publicKey
+        }
+    };
+}
+exports.branchToJSON = branchToJSON;
+async function branchPostsToJSON(branch) {
+    return {
+        "@context": [
+            "https://www.w3.org/ns/activitystreams",
+            "https://w3id.org/security/v1"
+        ],
         type: "OrderedCollection",
-        first: utils.urlForPath("branch/" + branch.name + "?page=0"),
-        last: utils.urlForPath("branch/" + branch.name + "?page=10000"),
-        id: utils.urlForPath("branch/" + branch.name),
+        first: utils.urlForBranch(branch) + "/outbox/?page=0",
+        last: utils.urlForBranch(branch) + "/outbox/?page=10000",
+        id: utils.urlForBranch(branch),
         totalItems: 1000,
         name: utils.renderQualifiedName(utils.parseQualifiedName(branch.name)),
         creator: utils.renderQualifiedName(utils.parseQualifiedName(branch.creator)),
@@ -116,7 +162,7 @@ async function branchToJSON(branch) {
         description: branch.description
     };
 }
-exports.branchToJSON = branchToJSON;
+exports.branchPostsToJSON = branchPostsToJSON;
 async function branchFromJSON(obj) {
     return {
         name: obj.name,
@@ -125,6 +171,9 @@ async function branchFromJSON(obj) {
         sourceBranches: [],
         pinedThreads: obj.pinedThreads,
         lastUpdate: new Date().getTime(),
+        icon: "",
+        publicKey: "",
+        privateKey: "",
         banned: false
     };
 }
@@ -139,7 +188,8 @@ exports.store = {
     likes: {},
     likeBundles: {},
     remoteInstances: {},
-    notifications: {}
+    notifications: {},
+    follows: {}
 };
 let indexs = {
     commentChildrens: {},
@@ -150,7 +200,8 @@ let indexs = {
     likeOfActorOnObject: {},
     likeBundlesByObject: {},
     branchesBySource: {},
-    notificationsByUser: {}
+    notificationsByUser: {},
+    followActorsByTarget: {}
 };
 function addToIndex(indexName, key, value) {
     let list = indexs[indexName][key];
@@ -165,6 +216,9 @@ function indexComment(comment) {
         addToIndex("userComments", comment.author, comment.id);
     if (comment.inReplyTo && (!indexs.commentChildrens[comment.inReplyTo] || !indexs.commentChildrens[comment.inReplyTo].find(c => c == comment.id)))
         addToIndex("commentChildrens", comment.inReplyTo, comment.id);
+}
+function indexFollow(follow) {
+    addToIndex("followActorsByTarget", follow.target, follow.follower);
 }
 function indexThread(thread) {
     if (!indexs.hotThreadsByBranch[thread.branch] || !indexs.hotThreadsByBranch[thread.branch].find(c => c == thread.id))
@@ -205,17 +259,59 @@ async function testLikeOn(comment, amount) {
     }
 }
 function loadStore(cb) {
-    fs.readFile("store.json", "utf-8", (err, data) => {
+    fs.readFile("store.json", "utf-8", async (err, data) => {
         if (data) {
-            console.log("Got store");
+            console.log("Loading JSON store...");
             exports.store = JSON.parse(data);
+            if (utils.migrationNumber == 1) {
+                utils.log("Migration is 1, migrating to 2");
+                // change activitys publish date from string format to timestamp
+                Object.values(exports.store.activitys).map(act => {
+                    act.published = new Date(act.published).getTime();
+                });
+                Object.values(exports.store.comments).map(act => {
+                    act.published = new Date(act.published).getTime();
+                });
+                Object.values(exports.store.threads).map(act => {
+                    act.published = new Date(act.published).getTime();
+                });
+                saveStore();
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            if (utils.migrationNumber == 2) {
+                saveStore();
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            if (utils.migrationNumber == 3) {
+                exports.store.follows = {};
+                saveStore();
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            if (utils.migrationNumber == 4) {
+                await Promise.all(Object.values(exports.store.branches).map(async (branch) => {
+                    let kp = await utils.generateUserKeyPair();
+                    branch.privateKey = kp.privateKey;
+                    branch.publicKey = kp.publicKey;
+                }));
+                saveStore();
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            if (utils.migrationNumber == 5) {
+                Object.values(exports.store.branches).map(branch => {
+                    branch.icon = "";
+                });
+                saveStore();
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
             Object.values(exports.store.comments).map(c => indexComment(c));
             Object.values(exports.store.threads).map(t => indexComment(t));
             Object.values(exports.store.threads).map(t => indexThread(t));
             Object.values(exports.store.activitys).map(t => indexActivity(t));
             Object.values(exports.store.likes).map(t => indexLike(t));
             Object.values(exports.store.likeBundles).map(t => indexLikeBundle(t));
+            Object.values(exports.store.follows).map(t => indexFollow(t));
             Object.values(exports.store.notifications).map(t => indexNotification(t));
+            console.log("Finised loading, migrating and indexing JSON store");
         }
         else {
             console.log("Got no store");
@@ -234,7 +330,7 @@ function loadStore(cb) {
                     let randomBranch = () => ["gold", "silver", "iron"][Math.floor(Math.random() * 3)];
                     for (let i = 0; i < 200; i++) {
                         let thread = await createThread(admin, "test thread" + i, "With no content", randomBranch());
-                        thread.published -= 1000 * 60 * 60 * 24 * 5 * Math.random();
+                        thread.published -= Math.floor(1000 * 60 * 60 * 24 * 5 * Math.random());
                     }
                     await (async () => {
                         for (let tid in exports.store.threads) {
@@ -352,8 +448,12 @@ async function getUserByName(name) {
     }
     else {
         if (name.indexOf("@" + utils.serverAddress) == -1) {
-            console.log("GET NEW FOREIGN USER");
-            return await getForeignUser(name);
+            if (name.indexOf("@") == -1)
+                return await getUserByName(name + "@" + utils.serverAddress);
+            else {
+                console.log("GET NEW FOREIGN USER");
+                return await getForeignUser(name);
+            }
         }
         else
             return undefined;
@@ -431,16 +531,17 @@ async function importForeignUserData(name) {
                 let comment = {
                     id: act.object.id,
                     content: act.object.content,
-                    published: act.object.published,
+                    published: new Date(act.object.published).getTime(),
                     author: name,
                     to: act.object.to,
                     inReplyTo: act.object.inReplyTo,
+                    tags: act.object.tag,
                     adminDeleted: false
                 };
                 let activity = {
                     id: act.id,
                     objectId: act.object.id,
-                    published: act.published,
+                    published: new Date(act.published).getTime(),
                     author: name,
                     to: act.to
                 };
@@ -560,6 +661,9 @@ async function getBranchByName(name) {
             }
             return branch;
         }
+        else {
+            return exports.store.branches[qName.name];
+        }
     }
     else {
         if (!qName.isOwn && new Date().getTime() - branch.lastUpdate > (1000 * 60 * 2)) {
@@ -632,6 +736,7 @@ async function createBranch(name, description, sourceBranches, creator) {
         return undefined;
     }
     else {
+        let kp = await utils.generateUserKeyPair();
         let branch = {
             name: name,
             description: description,
@@ -639,6 +744,9 @@ async function createBranch(name, description, sourceBranches, creator) {
             sourceBranches: sourceBranches,
             pinedThreads: [],
             banned: false,
+            icon: "",
+            publicKey: kp.publicKey,
+            privateKey: kp.privateKey,
             lastUpdate: 0 // only for remote branches
         };
         exports.store.branches[branch.name] = branch;
@@ -647,6 +755,11 @@ async function createBranch(name, description, sourceBranches, creator) {
     }
 }
 exports.createBranch = createBranch;
+async function setBranchIcon(branch, iconPath) {
+    branch.icon = iconPath;
+    saveStore();
+}
+exports.setBranchIcon = setBranchIcon;
 async function isBranchAdmin(user, branch) {
     if (!user)
         return false;
@@ -656,6 +769,7 @@ async function isBranchAdmin(user, branch) {
 exports.isBranchAdmin = isBranchAdmin;
 async function setBranchPinedThreads(branch, pinedThreads) {
     branch.pinedThreads = pinedThreads;
+    saveStore();
 }
 exports.setBranchPinedThreads = setBranchPinedThreads;
 async function unsafeBranchList() {
@@ -698,7 +812,7 @@ exports.getActivityById = getActivityById;
 async function createActivity(author, object) {
     let activity = {
         id: utils.urlForPath("activity/" + (Math.random() * 100000000000000000)),
-        published: new Date().toISOString(),
+        published: new Date().getTime(),
         author: author.name,
         to: ["https://www.w3.org/ns/activitystreams#Public"],
         objectId: object.id
@@ -735,6 +849,7 @@ async function createComment(author, content, inReplyTo) {
         author: author.name,
         to: ["https://www.w3.org/ns/activitystreams#Public"],
         inReplyTo: inReplyTo,
+        tags: [],
         adminDeleted: false
     };
     if (inReplyTo.split("/")[2] != utils.serverAddress) { // send comment to remote server
@@ -921,6 +1036,7 @@ async function createThread(author, title, content, branch) {
         inReplyTo: undefined,
         branch: branch,
         adminDeleted: false,
+        tags: [],
         lastUpdate: 0
     };
     utils.getUrlFromOpenGraph(content).then(media => {
@@ -1065,3 +1181,19 @@ async function setRemoteInstanceBlockedStatus(instance, blocked) {
     saveStore();
 }
 exports.setRemoteInstanceBlockedStatus = setRemoteInstanceBlockedStatus;
+async function createFollow(follower, target) {
+    let follow = {
+        follower: follower,
+        target: target,
+        id: Math.random() * 100000000000000000 + ""
+    };
+    exports.store.follows[follow.id] = follow;
+    indexFollow(follow);
+    saveStore();
+    return follow;
+}
+exports.createFollow = createFollow;
+async function getFollowersByActor(actor) {
+    return indexs.followActorsByTarget[actor] || [];
+}
+exports.getFollowersByActor = getFollowersByActor;

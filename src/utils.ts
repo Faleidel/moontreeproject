@@ -97,8 +97,22 @@ import * as njk from "nunjucks";
 njk.configure("src", {autoescape: true});
 
 
-export function urlForPath(path: string): string{
+export function urlForPath(path: string): string {
     return baseUrl + "/" + path;
+}
+
+export function urlForUser(user: string | model.User): string {
+    if (typeof user == "string")
+        return urlForPath("user/" + user);
+    else
+        return urlForPath("user/" + user.name);
+}
+
+export function urlForBranch(branch: string | model.Branch): string {
+    if (typeof branch == "string")
+        return urlForPath("branch/" + branch + "@b@" + host);
+    else
+        return urlForPath("branch/" + branch.name + "@b@" + host)
 }
 
 export function last<A>(list: A[]): A {
@@ -107,7 +121,7 @@ export function last<A>(list: A[]): A {
 
 let logStream = createWriteStream("log.txt", {flags: "a"});
 
-export function log(...args: any[]){
+export function log(...args: any[]) {
     logStream.write( new Date().toISOString() + ": " );
     logStream.write( args.map(e => JSON.stringify(e)).join(" ") );
     logStream.write( "\n" );
@@ -351,21 +365,32 @@ export function isUrl(str: string): boolean {
     return !!str.match(regex);
 }
 
-export function parseQualifiedName(str: string): {name: string, host: string, isOwn: boolean} {
+export function parseQualifiedName(str: string): {name: string, host: string, isOwn: boolean, isBranch: boolean} {
     let parts = str.split("@");
     
     if (parts.length == 1) {
         return {
             name: str,
             host: host + (port ? ":"+port : ""),
-            isOwn: true
+            isOwn: true,
+            isBranch: false
         };
-    } else {
+    } else if (parts.length == 2) {
         return {
             name: parts[0],
             host: parts[1],
-            isOwn: parts[1] == serverAddress
+            isOwn: parts[1] == serverAddress,
+            isBranch: false
         };
+    } else if (parts.length == 3) {
+        return {
+            name: parts[0],
+            host: parts[2],
+            isOwn: parts[2] == serverAddress,
+            isBranch: parts[1] == "b"
+        };
+    } else {
+        throw(new Error('could not parse ' + str));
     }
 }
 

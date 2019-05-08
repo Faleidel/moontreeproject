@@ -1,16 +1,37 @@
 import * as utils from "../utils";
 import * as model from "../model";
+import * as protocol from "../protocol";
 const request = require("request");
 
-export function handleUserInboxPost(url: string[], query: any, req: any, res: any, body: string, cookies: any){
-    let user = url[1];
+export async function handleUserInboxPost(url: string[], query: any, req: any, res: any, body: string, cookies: any){
+    let userName = url[1];
     
     let streamObject = JSON.parse(body);
     
-    utils.log("STREAM OBJECT IN INBOX", "User", user, "Type", streamObject.type, "Content", streamObject.object.content);
-    
-    res.statusCode = 201;
-    res.end();
+    if (streamObject.type == "Follow" && streamObject.actor) {
+        let user: model.User | undefined = await model.getUserByName(userName);
+        
+        if (user) {
+            protocol.handleFollow(
+                streamObject,
+                utils.urlForUser(user),
+                utils.urlForUser(user) + "#main-key",
+                user.privateKey
+            );
+            
+            res.statusCode = 201;
+            res.end();
+            
+        } else {
+            res.statusCode = 404;
+            res.end("Invalid user");
+        }
+    } else {
+        utils.log("STREAM OBJECT IN INBOX", "User", userName, "Type", streamObject.type, "Content", streamObject.object.content, streamObject);
+        
+        res.statusCode = 500;
+        res.end("Action not supported");
+    }
 }
 
 export async function handleUserGet(url: string[], query: any, req: any, res: any, body: string, cookies: any) {
@@ -24,12 +45,12 @@ export async function handleUserGet(url: string[], query: any, req: any, res: an
     let asJson = !!query.json || (req.headers.accept.indexOf("json") != -1);
     
     if (asJson)
-        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Type', "application/ld+json");
     
     if (user) {
         let activitys: any = await model.getActivitysByAuthor(name) as any as model.Activity[];
         
-        if (url.length == 2) {
+        if (url.length == 2) { // url is `/user/someUserName` and nothing more
             if (asJson) {
                 res.end(JSON.stringify({
                     "@context": [

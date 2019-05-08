@@ -10,7 +10,7 @@ export interface User {
     passwordSalt: string,
     publicKey: string,
     privateKey: string,
-    banned: boolean
+    banned: boolean,
     
     local: boolean,
     lastUpdate: number,
@@ -35,17 +35,18 @@ export interface Session {
 export interface Activity {
     id: string,
     objectId: string,
-    published: string,
+    published: number,
     author: string,
     to: string[]
 }
 export async function activityToJSON(act: Activity): Promise<any | undefined> {
-    //let post = store.posts[act.object];
     let object: any = typeof (act as any).object == "object"
                       ? (act as any).object
                       : await getThreadById(act.objectId) || await getCommentById(act.objectId) as any as Comment;
     
-    if (object) {
+    let user = await getUserByName(act.author);
+    
+    if (object && user) {
         return {
             "@context": [
                 "https://www.w3.org/ns/activitystreams",
@@ -54,27 +55,25 @@ export async function activityToJSON(act: Activity): Promise<any | undefined> {
             id: act.id,
             type: "Create",
             to: act.to,
-            cc: [object.inReplyTo],
-            published: act.published,
-            actor: act.author,
+            cc: await getFollowersByActor(utils.urlForPath('user/' + user.name)),
+            published: new Date(act.published).toISOString(),
+            actor: utils.urlForPath("user/" + act.author),
             object: {
+                type: "Note",
                 id: object.id,
+                url: object.id,
                 attachment: [],
                 attributedTo: act.author,
-                cc: [object.inReplyTo],
+                actor: utils.urlForPath("user/" + act.author),
+                to: object.to,
+                cc: await getFollowersByActor(utils.urlForPath('user/' + user.name)),
+                inReplyTo: object.inReplyTo,
                 title: object.title,
                 content: object.content,
                 published: new Date(object.published).toISOString(),
                 sensitive: false,
                 summary: null,
-                tag: [{
-                    type: "Mention",
-                    href: object.inReplyTo,
-                    name: "@faleidel@mastodon.social"
-                }],
-                to: object.to,
-                type: "Note",
-                url: object.id
+                tag: object.tags
             }
         };
     }
@@ -82,14 +81,37 @@ export async function activityToJSON(act: Activity): Promise<any | undefined> {
         return undefined;
 }
 
+export async function createAnnounce(actorUrl: string, objectUrl: string): Promise<any> {
+    return {
+        "@context": [
+            "https://www.w3.org/ns/activitystreams",
+            "https://w3id.org/security/v1"
+        ],
+        id: utils.urlForPath("announce") + "/" + Math.random()*1000000000000,
+        type: "Announce",
+        actor: actorUrl,
+        published: new Date().toISOString(),
+        to: ["https://www.w3.org/ns/activitystreams#Public"],
+        cc: await getFollowersByActor(actorUrl),
+        object: objectUrl
+    };
+}
+
+export interface CommentTag {
+    type: string,
+    href: string,
+    name: string,
+}
+
 export interface Comment {
     id: string,
     content: string,
     published: number,
     author: string,
-    to: string[],
+    to: string[], // activitypub "to" field. Mostly just the special value for public posts
     adminDeleted: boolean,
-    inReplyTo: string | undefined // complete URL of the object. Can be an other comment or a thread
+    inReplyTo: string | undefined, // complete URL of the object. Can be an other comment or a thread
+    tags: CommentTag[]
 }
 export async function commentToJSON(comment: Comment): Promise<any> {
     return {
@@ -98,13 +120,20 @@ export async function commentToJSON(comment: Comment): Promise<any> {
             "https://w3id.org/security/v1"
         ],
         id: comment.id,
+        url: comment.id,
         type: "Note",
         to: comment.to,
-        published: comment.published,
-        attributedTo: comment.author,
+        cc: [],
+        published: new Date(comment.published).toISOString(),
+        attributedTo: utils.urlForUser(comment.author),
+        actor: utils.urlForUser(comment.author),
         inReplyTo: comment.inReplyTo,
         content: comment.content,
-        likes: await getRemoteLikesAmount(comment) + (await getLikesByObject(comment)).length
+        attachment: [],
+        sensitive: false,
+        summary: null,
+        likes: await getRemoteLikesAmount(comment) + (await getLikesByObject(comment)).length,
+        tag: comment.tags
     };
 }
 export async function commentFromJSON(json: any): Promise<Comment | undefined> {
@@ -115,6 +144,7 @@ export async function commentFromJSON(json: any): Promise<Comment | undefined> {
         author: json.attributedTo,
         to: json.to,
         inReplyTo: json.inReplyTo,
+        tags: json.tag,
         adminDeleted: false
     };
 }
@@ -140,8 +170,8 @@ export async function threadToJSON(thread: Thread): Promise<any> {
         
         "@context": [
             "https://www.w3.org/ns/activitystreams",
-            "https://w3id.org/security/v1",
-            "ironTreeThread"
+            "https://w3id.org/security/v1"//,
+            //"ironTreeThread"
         ],
         
         title: thread.title,
@@ -186,6 +216,10 @@ export interface Branch {
     sourceBranches: string[],
     pinedThreads: string[],
     banned: boolean,
+    icon: string,
+     
+    publicKey: string,
+    privateKey: string,
     
     lastUpdate: number
 }
@@ -195,10 +229,35 @@ export async function branchToJSON(branch: Branch): Promise<any> {
             "https://www.w3.org/ns/activitystreams",
             "https://w3id.org/security/v1"
         ],
+        
+        id: utils.urlForBranch(branch),
+        type: "Person",
+        preferredUsername: branch.name + "@b@" + utils.host,
+        inbox: utils.urlForBranch(branch) + "/inbox",
+        outbox: utils.urlForBranch(branch) + "/outbox",
+        icon: {
+            type: "Image",
+            mediaType: "image/png",
+            url: branch.icon
+        },
+        
+        publicKey: {
+            id: utils.urlForBranch(branch) + "#main-key",
+            owner: utils.urlForBranch(branch),
+            publicKeyPem: branch.publicKey
+        }
+    };
+}
+export async function branchPostsToJSON(branch: Branch): Promise<any> {
+    return {
+        "@context": [
+            "https://www.w3.org/ns/activitystreams",
+            "https://w3id.org/security/v1"
+        ],
         type: "OrderedCollection",
-        first: utils.urlForPath("branch/" + branch.name + "?page=0"),
-        last: utils.urlForPath("branch/" + branch.name + "?page=10000"), // TODO
-        id: utils.urlForPath("branch/" + branch.name),
+        first: utils.urlForBranch(branch) + "/outbox/?page=0",
+        last: utils.urlForBranch(branch) + "/outbox/?page=10000", // TODO
+        id: utils.urlForBranch(branch),
         totalItems: 1000, // TODO
         
         name: utils.renderQualifiedName(utils.parseQualifiedName(branch.name)),
@@ -215,6 +274,11 @@ export async function branchFromJSON(obj: any): Promise<Branch | undefined> {
         sourceBranches: [],
         pinedThreads: obj.pinedThreads,
         lastUpdate: new Date().getTime(),
+        icon: "",
+        
+        publicKey: "",
+        privateKey: "",
+        
         banned: false
     };
 }
@@ -237,6 +301,12 @@ export interface LikeBundle {
     amount: number
 }
 
+export interface Follow {
+    follower: string,
+    target: string,
+    id: string
+}
+
 export let store = {
     users: {} as {[name: string]: User},
     sessions: {} as {[id: string]: Session},
@@ -247,7 +317,8 @@ export let store = {
     likes: {} as {[id: string]: Like},
     likeBundles: {} as {[id: string]: LikeBundle}, // id is object.id + server name
     remoteInstances: {} as {[host: string]: RemoteInstance},
-    notifications: {} as {[id: string]: Notification}
+    notifications: {} as {[id: string]: Notification},
+    follows: {} as {[id: string]: Follow}
 };
 
 let indexs = {
@@ -259,7 +330,8 @@ let indexs = {
     likeOfActorOnObject: {} as {[id: string]: Like},
     likeBundlesByObject: {} as {[object: string]: string[]},
     branchesBySource: {} as {[name: string]: Branch[]},
-    notificationsByUser: {} as {[name: string]: string[]}
+    notificationsByUser: {} as {[name: string]: string[]},
+    followActorsByTarget: {} as {[target: string]: string[]}
 };
 function addToIndex(indexName: string, key: string, value: string) {
     let list = (indexs as any)[indexName][key];
@@ -277,6 +349,9 @@ function indexComment(comment: Comment): void {
     
     if (comment.inReplyTo && (!indexs.commentChildrens[comment.inReplyTo] || !indexs.commentChildrens[comment.inReplyTo].find(c => c == comment.id)))
         addToIndex("commentChildrens", comment.inReplyTo, comment.id);
+}
+function indexFollow(follow: Follow): void {
+    addToIndex("followActorsByTarget", follow.target, follow.follower);
 }
 function indexThread(thread: Thread): void {
     if (!indexs.hotThreadsByBranch[thread.branch] || !indexs.hotThreadsByBranch[thread.branch].find(c => c == thread.id))
@@ -320,10 +395,66 @@ async function testLikeOn(comment: Comment, amount: number): Promise<void> {
 }
 
 export function loadStore(cb: any): void {
-    fs.readFile("store.json", "utf-8", (err, data) => {
+    fs.readFile("store.json", "utf-8", async (err, data) => {
         if (data) {
-            console.log("Got store");
+            console.log("Loading JSON store...");
             store = JSON.parse(data);
+            
+            if (utils.migrationNumber == 1) {
+                utils.log("Migration is 1, migrating to 2");
+                
+                // change activitys publish date from string format to timestamp
+                Object.values(store.activitys).map(act => {
+                    act.published = new Date(act.published).getTime();
+                });
+                Object.values(store.comments).map(act => {
+                    act.published = new Date(act.published).getTime();
+                });
+                Object.values(store.threads).map(act => {
+                    act.published = new Date(act.published).getTime();
+                });
+                
+                saveStore();
+                
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            
+            if (utils.migrationNumber == 2) {
+                saveStore();
+                
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            
+            if (utils.migrationNumber == 3) {
+                store.follows = {};
+                
+                saveStore();
+                
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            
+            if (utils.migrationNumber == 4) {
+                await Promise.all(Object.values(store.branches).map(async (branch) => {
+                    let kp = await utils.generateUserKeyPair();
+                    
+                    branch.privateKey = kp.privateKey;
+                    branch.publicKey = kp.publicKey;
+                }));
+                
+                saveStore();
+                
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            
+            if (utils.migrationNumber == 5) {
+                Object.values(store.branches).map(branch => {
+                    branch.icon = "";
+                });
+                
+                saveStore();
+                
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
             
             Object.values(store.comments).map(c => indexComment(c));
             Object.values(store.threads).map(t => indexComment(t));
@@ -331,7 +462,10 @@ export function loadStore(cb: any): void {
             Object.values(store.activitys).map(t => indexActivity(t));
             Object.values(store.likes).map(t => indexLike(t));
             Object.values(store.likeBundles).map(t => indexLikeBundle(t));
+            Object.values(store.follows).map(t => indexFollow(t));
             Object.values(store.notifications).map(t => indexNotification(t));
+            
+            console.log("Finised loading, migrating and indexing JSON store");
         } else {
             console.log("Got no store");
             (async () => {
@@ -355,7 +489,7 @@ export function loadStore(cb: any): void {
                     
                     for (let i = 0 ; i < 200 ; i++) {
                         let thread = await createThread(admin, "test thread" + i, "With no content", randomBranch());
-                        thread.published -= 1000 * 60 * 60 * 24 * 5 * Math.random();
+                        thread.published -= Math.floor(1000 * 60 * 60 * 24 * 5 * Math.random());
                     }
                     
                     await (async () => {
@@ -480,8 +614,12 @@ export async function getUserByName(name: string): Promise<User | undefined> {
         }
     } else {
         if (name.indexOf("@" + utils.serverAddress) == -1) {
-            console.log("GET NEW FOREIGN USER");
-            return await getForeignUser(name);
+            if (name.indexOf("@") == -1)
+                return await getUserByName(name + "@" + utils.serverAddress);
+            else {
+                console.log("GET NEW FOREIGN USER");
+                return await getForeignUser(name);
+            }
         }
         else
             return undefined;
@@ -570,17 +708,18 @@ export async function importForeignUserData(name: string) {
                 let comment: Comment = {
                     id: act.object.id,
                     content: act.object.content,
-                    published: act.object.published,
+                    published: new Date(act.object.published).getTime(),
                     author: name,
                     to: act.object.to,
                     inReplyTo: act.object.inReplyTo,
+                    tags: act.object.tag,
                     adminDeleted: false
                 };
                 
                 let activity: Activity = {
                     id: act.id,
                     objectId: act.object.id,
-                    published: act.published,
+                    published: new Date(act.published).getTime(),
                     author: name,
                     to: act.to
                 };
@@ -712,6 +851,8 @@ export async function getBranchByName(name: string): Promise<Branch | undefined>
             }
             
             return branch;
+        } else {
+            return store.branches[qName.name];
         }
     }
     else {
@@ -791,6 +932,8 @@ export async function createBranch(name: string, description: string, sourceBran
     if (exists) {
         return undefined;
     } else {
+        let kp = await utils.generateUserKeyPair();
+        
         let branch: Branch = {
             name: name,
             description: description,
@@ -798,6 +941,10 @@ export async function createBranch(name: string, description: string, sourceBran
             sourceBranches: sourceBranches,
             pinedThreads: [],
             banned: false,
+            icon: "",
+            
+            publicKey: kp.publicKey,
+            privateKey: kp.privateKey,
             
             lastUpdate: 0 // only for remote branches
         };
@@ -808,6 +955,11 @@ export async function createBranch(name: string, description: string, sourceBran
         return branch;
     }
 }
+export async function setBranchIcon(branch: Branch, iconPath: string): Promise<void> {
+    branch.icon = iconPath;
+    
+    saveStore();
+}
 export async function isBranchAdmin(user: User | undefined, branch: Branch): Promise<boolean> {
     if (!user)
         return false;
@@ -816,6 +968,8 @@ export async function isBranchAdmin(user: User | undefined, branch: Branch): Pro
 }
 export async function setBranchPinedThreads(branch: Branch, pinedThreads: string[]): Promise<void> {
     branch.pinedThreads = pinedThreads;
+    
+    saveStore();
 }
 export async function unsafeBranchList(): Promise<Branch[]> {
     return Object.values(store.branches).filter(b => !b.banned);
@@ -855,7 +1009,7 @@ export async function getActivityById(id: string): Promise<Activity | undefined>
 export async function createActivity(author: User, object: Comment): Promise<Activity> {
     let activity: Activity = {
         id: utils.urlForPath("activity/" + (Math.random() * 100000000000000000)),
-        published: new Date().toISOString(),
+        published: new Date().getTime(),
         author: author.name,
         to: ["https://www.w3.org/ns/activitystreams#Public"],
         objectId: object.id
@@ -893,6 +1047,7 @@ export async function createComment(author: User, content: string, inReplyTo: st
         author: author.name,
         to: ["https://www.w3.org/ns/activitystreams#Public"],
         inReplyTo: inReplyTo,
+        tags: [],
         adminDeleted: false
     }
     
@@ -1095,6 +1250,7 @@ export async function createThread(author: User, title: string, content: string,
         inReplyTo: undefined,
         branch: branch,
         adminDeleted: false,
+        tags: [],
         
         lastUpdate: 0
     }
@@ -1272,4 +1428,21 @@ export async function getRemoteInstances(): Promise<RemoteInstance[]> {
 export async function setRemoteInstanceBlockedStatus(instance: RemoteInstance, blocked: boolean) {
     instance.blocked = blocked;
     saveStore();
+}
+export async function createFollow(follower: string, target: string): Promise<Follow> {
+    let follow = {
+        follower: follower,
+        target: target,
+        id: Math.random() * 100000000000000000 + ""
+    };
+    
+    store.follows[follow.id] = follow;
+    indexFollow(follow);
+    
+    saveStore();
+    
+    return follow;
+}
+export async function getFollowersByActor(actor: string): Promise<string[]> {
+    return indexs.followActorsByTarget[actor] || [];
 }

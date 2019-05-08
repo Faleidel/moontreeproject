@@ -9,7 +9,30 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils = __importStar(require("../utils"));
 const model = __importStar(require("../model"));
+const protocol = __importStar(require("../protocol"));
 const request = require("request");
+async function handleBranchInboxPost(url, query, req, res, body, cookies) {
+    let branchName = url[1];
+    let streamObject = JSON.parse(body);
+    if (streamObject.type == "Follow" && streamObject.actor) {
+        let branch = await model.getBranchByName(branchName);
+        if (branch) {
+            protocol.handleFollow(streamObject, utils.urlForBranch(branch), utils.urlForBranch(branch) + "#main-key", branch.privateKey);
+            res.statusCode = 201;
+            res.end();
+        }
+        else {
+            res.statusCode = 404;
+            res.end("Invalid branch");
+        }
+    }
+    else {
+        utils.log("STREAM OBJECT IN INBOX", "User", branchName, "Type", streamObject.type, "Content", streamObject.object.content, streamObject);
+        res.statusCode = 500;
+        res.end("Action not supported");
+    }
+}
+exports.handleBranchInboxPost = handleBranchInboxPost;
 async function handleBranch(url, query, req, res, body, cookies) {
     let branchName = url[1];
     let branch = await model.getBranchByName(branchName);
@@ -18,14 +41,19 @@ async function handleBranch(url, query, req, res, body, cookies) {
         if (branch) {
             let pageS = query.page;
             res.setHeader('Content-Type', 'application/json');
-            if (!pageS)
-                res.end(JSON.stringify(await model.branchToJSON(branch)));
+            if (url[2] == 'outbox') {
+                if (!pageS)
+                    res.end(JSON.stringify(await model.branchPostsToJSON(branch)));
+                else {
+                    let page = parseInt(pageS, 10);
+                    if (typeof page == "number")
+                        res.end(JSON.stringify(await branchJsonForPage(branch, page)));
+                    else
+                        res.end("Error with branch page number");
+                }
+            }
             else {
-                let page = parseInt(pageS, 10);
-                if (typeof page == "number")
-                    res.end(JSON.stringify(await branchJsonForPage(branch, page)));
-                else
-                    res.end("Error with branch page number");
+                res.end(JSON.stringify(await model.branchToJSON(branch)));
             }
         }
         else {
@@ -63,10 +91,10 @@ async function branchJsonForPage(branch, page) {
             "https://www.w3.org/ns/activitystreams"
         ],
         type: "OrderedCollectionPage",
-        id: utils.urlForPath("branch/" + branch.name),
-        prev: utils.urlForPath("branch/" + branch.name + "?page=" + (page - 1)),
-        next: utils.urlForPath("branch/" + branch.name + "?page=" + (page + 1)),
-        partOf: utils.urlForPath("branch/" + branch.name),
+        id: utils.urlForBranch(branch),
+        prev: utils.urlForBranch(branch) + "/outbox?page=" + (page - 1),
+        next: utils.urlForBranch(branch) + "/outbox?page=" + (page + 1),
+        partOf: utils.urlForBranch(branch) + "/outbox",
         totalItems: 100000,
         orderedItems: items
     };
