@@ -4,6 +4,7 @@
   "description": "Mastodon compatible link agregator",
   "main": "dist/main.js",
   "dependencies": {
+    "@sendgrid/mail": "^6.4.0",
     "@types/formidable": "^1.0.31",
     "@types/node": "^10.12.11",
     "@types/nunjucks": "^3.1.0",

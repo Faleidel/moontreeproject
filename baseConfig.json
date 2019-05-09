@@ -15,5 +15,7 @@
     "customCSS": "",
     "generateTestData": false,
     "migrationNumber": 1,
-    "footerHTML": ""
+    "footerHTML": "",
+    "sendGridKey": "",
+    "adminEmail": ""
 }
