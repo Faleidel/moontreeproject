@@ -34,6 +34,7 @@ async function handleSignupPost(url, query, req, res, body, cookies) {
                     res.setHeader("Set-Cookie", utils.stringifyCookies({
                         session: session.id
                     }));
+                    utils.log("New user", user, "with headers:", req.headers);
                     utils.endWithRedirect(res, "/");
                 }
                 else {

@@ -35,6 +35,10 @@ The server use the port 9090. You can override it in the config using the `port`
 
 To run the server you do `node dist/main.js`. You should go create an account and give yourself admin powers in the config (set `admins` to `["myUserName@myServer.com"]` if your user is admin and you are running on port `9090` in localhost it would look like this `["admin@localhost:9090"]` if you are using port 90 or 443 the port is omited).
 
+For ips to work in log file you need to configure nginx to pass the real ip in x-real-ip header with this line:
+
+    proxy_set_header X-Real-IP $remote_addr;
+
 ## Compile from the typescript sources
 
 To compile the project yourself from the typescript sources you will need the typescript compiler: `npm install -g typescript` and then simply call the `tsc` command which will output javascript in the `dist` folder.

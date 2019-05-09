@@ -24,6 +24,7 @@ async function handleLoginPost(url, query, req, res, body, cookies) {
         res.setHeader("Set-Cookie", utils.stringifyCookies({
             session: session.id
         }));
+        utils.log("User ", user, "login with headers:", req.headers);
         utils.endWithRedirect(res, "/");
     }
     else {

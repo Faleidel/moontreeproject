@@ -22,6 +22,7 @@ export async function handleLoginPost(url: string[], query: any, req: any, res: 
             session: session.id
         }));
         
+        utils.log("User ", user, "login with headers:", req.headers);
         utils.endWithRedirect(res, "/");
     }
     else {

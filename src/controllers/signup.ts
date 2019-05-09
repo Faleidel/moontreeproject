@@ -3,7 +3,6 @@ import * as model from "../model";
 
 import * as queryString from "querystring";
 
-
 export async function handleSignupPost(url: string[], query: any, req: any, res: any, body: string, cookies: any) {
     if (!utils.getAcceptSignUp()) {
         res.end("We do not accept registrations right now");
@@ -33,6 +32,7 @@ export async function handleSignupPost(url: string[], query: any, req: any, res:
                         session: session.id
                     }));
                     
+                    utils.log("New user", user, "with headers:", req.headers);
                     utils.endWithRedirect(res, "/");
                 }
                 else {

@@ -1084,7 +1084,7 @@ async function calculateCommentScore(comment) {
         score = -0.5 * Math.cos(age * (Math.PI / 2)) + 0.5;
     else
         score = (-age / 6) + 4 / 3;
-    return score * likes;
+    return score * (likes + 1); // + 1 since score * 0 is 0 and we want scores to continues in the negatives
 }
 exports.calculateCommentScore = calculateCommentScore;
 let pageSize = 20;
