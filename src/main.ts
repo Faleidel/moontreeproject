@@ -264,7 +264,7 @@ http.createServer(async function (req: any, res) {
                         errors.push("Branch description is too long");
                     
                     if (errors.length == 0) {
-                        let branch = model.createBranch(name, description, [], user);
+                        let branch = await model.createBranch(name, description, [], user);
                         
                         if (branch) {
                             utils.endWithRedirect(res, "/branch/" + name);
