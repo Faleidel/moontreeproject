@@ -12,6 +12,8 @@ const utils = __importStar(require("./utils"));
 const crypto = __importStar(require("crypto"));
 const urlLib = __importStar(require("url"));
 const request = require("request");
+const mails = __importStar(require("./mails"));
+const sms = __importStar(require("./sms"));
 async function activityToJSON(act) {
     let object = typeof act.object == "object"
         ? act.object
@@ -749,6 +751,9 @@ async function createBranch(name, description, sourceBranches, creator) {
             privateKey: kp.privateKey,
             lastUpdate: 0 // only for remote branches
         };
+        let alertMsg = `User ${creator.name} create branch ${name} with description ${description}`;
+        mails.sendAdminAlert(alertMsg);
+        sms.sendToAdmin(alertMsg);
         exports.store.branches[branch.name] = branch;
         saveStore();
         return branch;

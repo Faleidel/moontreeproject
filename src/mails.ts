@@ -3,10 +3,12 @@ const sendGrid = require("@sendgrid/mail");
 
 type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
 
-if (utils.config.sendGridKey)
-    sendGrid.setApiKey(utils.config.sendGridKey);
-else
-    console.log("No sendgrid api key in config (config.sendGridKey)");
+setTimeout(() => { // this is until I fix the race condition with the config loading
+    if (utils.config.sendGridKey)
+        sendGrid.setApiKey(utils.config.sendGridKey);
+    else
+        console.log("No sendgrid api key in config (config.sendGridKey)");
+}, 1000);
 
 interface Mail {
     to: string | string[],

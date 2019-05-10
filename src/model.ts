@@ -4,6 +4,9 @@ import * as crypto from "crypto";
 import * as urlLib from "url";
 const request = require("request");
 
+import * as mails from "./mails";
+import * as sms from "./sms";
+
 export interface User {
     name: string,
     passwordHashed: string,
@@ -948,6 +951,10 @@ export async function createBranch(name: string, description: string, sourceBran
             
             lastUpdate: 0 // only for remote branches
         };
+        
+        let alertMsg = `User ${creator.name} create branch ${name} with description ${description}`;
+        mails.sendAdminAlert(alertMsg);
+        sms.sendToAdmin(alertMsg);
         
         store.branches[branch.name] = branch;
         saveStore();
