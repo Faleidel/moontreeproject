@@ -756,11 +756,13 @@ http.createServer(async function (req: any, res) {
                         
                         if (thread) {
                             utils.endWithRedirect(res, thread.id);
+                            break;
                         } else {
                             comment = await model.getCommentById(comment.inReplyTo);
                         }
                     } else {
                         res.end("Error, finding comment thread");
+                        break;
                     }
                 }
             } else {

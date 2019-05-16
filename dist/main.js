@@ -643,6 +643,7 @@ http.createServer(async function (req, res) {
                         let thread = await model.getThreadById(comment.inReplyTo);
                         if (thread) {
                             utils.endWithRedirect(res, thread.id);
+                            break;
                         }
                         else {
                             comment = await model.getCommentById(comment.inReplyTo);
@@ -650,6 +651,7 @@ http.createServer(async function (req, res) {
                     }
                     else {
                         res.end("Error, finding comment thread");
+                        break;
                     }
                 }
             }
