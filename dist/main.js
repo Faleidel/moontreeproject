@@ -306,7 +306,7 @@ http.createServer(async function (req, res) {
                     let errors = [];
                     if (content.length > 10000)
                         errors.push("Error, comment is too long");
-                    if (content.length > 0)
+                    if (content.length == 0)
                         errors.push("Error, comment is empty");
                     if (id) {
                         let comment = await model.getCommentById(id);

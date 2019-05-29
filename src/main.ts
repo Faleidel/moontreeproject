@@ -348,7 +348,7 @@ http.createServer(async function (req: any, res) {
                     
                     if (content.length > 10000)
                         errors.push("Error, comment is too long");
-                    if (content.length > 0)
+                    if (content.length == 0)
                         errors.push("Error, comment is empty");
                     
                     if (id) {
