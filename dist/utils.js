@@ -119,9 +119,9 @@ function urlForUser(user) {
 exports.urlForUser = urlForUser;
 function urlForBranch(branch) {
     if (typeof branch == "string")
-        return urlForPath("branch/" + branch + "@b@" + exports.host);
+        return urlForPath("branch/" + branch + "@" + exports.host);
     else
-        return urlForPath("branch/" + branch.name + "@b@" + exports.host);
+        return urlForPath("branch/" + branch.name + "@" + exports.host);
 }
 exports.urlForBranch = urlForBranch;
 function last(list) {

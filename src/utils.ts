@@ -110,9 +110,9 @@ export function urlForUser(user: string | model.User): string {
 
 export function urlForBranch(branch: string | model.Branch): string {
     if (typeof branch == "string")
-        return urlForPath("branch/" + branch + "@b@" + host);
+        return urlForPath("branch/" + branch + "@" + host);
     else
-        return urlForPath("branch/" + branch.name + "@b@" + host)
+        return urlForPath("branch/" + branch.name + "@" + host)
 }
 
 export function last<A>(list: A[]): A {

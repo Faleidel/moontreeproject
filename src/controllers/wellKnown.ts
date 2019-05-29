@@ -35,7 +35,7 @@ export async function handleWellKnownGet(url: string[], query: any, req: any, re
                         "links": [{
                             "rel": "self",
                             "type": "application/activity+json",
-                            "href": utils.urlForPath("branch/" + userName + "@b@" + utils.host)
+                            "href": utils.urlForPath("branch/" + userName + "@" + utils.host)
                         }]
                     }));
                 } else {

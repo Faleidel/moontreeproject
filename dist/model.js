@@ -131,7 +131,7 @@ async function branchToJSON(branch) {
         ],
         id: utils.urlForBranch(branch),
         type: "Person",
-        preferredUsername: branch.name + "@b@" + utils.host,
+        preferredUsername: branch.name + "@" + utils.host,
         inbox: utils.urlForBranch(branch) + "/inbox",
         outbox: utils.urlForBranch(branch) + "/outbox",
         icon: {
@@ -560,8 +560,9 @@ exports.importForeignUserData = importForeignUserData;
 async function createUser(name, password) {
     name = name + "@" + utils.serverAddress;
     let user = await getUserByName(name);
-    // Can't create the user if it already exists
-    if (!user) {
+    let branch = await getBranchByName(name);
+    // Can't create the user if it already exists (same namespace as branches)
+    if (!user && !branch) {
         let passwordSalt = await (new Promise((resolve, reject) => {
             crypto.randomBytes(512, (err, buf) => {
                 if (err)
@@ -734,7 +735,8 @@ async function fetchRemoteBranchThreads(name) {
 exports.fetchRemoteBranchThreads = fetchRemoteBranchThreads;
 async function createBranch(name, description, sourceBranches, creator) {
     let exists = await getBranchByName(name);
-    if (exists) {
+    let existsUser = await getUserByName(name);
+    if (exists || existsUser) {
         return undefined;
     }
     else {

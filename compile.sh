@@ -1,1 +1,1 @@
-tsc
+npm run compile

@@ -235,7 +235,7 @@ export async function branchToJSON(branch: Branch): Promise<any> {
         
         id: utils.urlForBranch(branch),
         type: "Person",
-        preferredUsername: branch.name + "@b@" + utils.host,
+        preferredUsername: branch.name + "@" + utils.host,
         inbox: utils.urlForBranch(branch) + "/inbox",
         outbox: utils.urlForBranch(branch) + "/outbox",
         icon: {
@@ -742,9 +742,10 @@ export async function createUser(name: string, password: string): Promise<User |
     name = name + "@" + utils.serverAddress;
     
     let user = await getUserByName(name);
+    let branch = await getBranchByName(name);
     
-    // Can't create the user if it already exists
-    if (!user) {
+    // Can't create the user if it already exists (same namespace as branches)
+    if (!user && !branch) {
         let passwordSalt: string = await (new Promise((resolve, reject) => {
             crypto.randomBytes(512, (err, buf) => {
                 if (err)
@@ -931,8 +932,9 @@ export async function fetchRemoteBranchThreads(name: string): Promise<void> {
 }
 export async function createBranch(name: string, description: string, sourceBranches: string[], creator: User): Promise<Branch | undefined> {
     let exists = await getBranchByName(name);
+    let existsUser = await getUserByName(name);
     
-    if (exists) {
+    if (exists || existsUser) {
         return undefined;
     } else {
         let kp = await utils.generateUserKeyPair();
