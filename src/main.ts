@@ -348,7 +348,7 @@ http.createServer(async function (req: any, res) {
                     
                     if (content.length > 10000)
                         errors.push("Error, comment is too long");
-                    if (content.length > 0)
+                    if (content.length == 0)
                         errors.push("Error, comment is empty");
                     
                     if (id) {
@@ -756,11 +756,13 @@ http.createServer(async function (req: any, res) {
                         
                         if (thread) {
                             utils.endWithRedirect(res, thread.id);
+                            break;
                         } else {
                             comment = await model.getCommentById(comment.inReplyTo);
                         }
                     } else {
                         res.end("Error, finding comment thread");
+                        break;
                     }
                 }
             } else {
