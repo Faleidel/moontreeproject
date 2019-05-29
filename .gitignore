@@ -5,3 +5,4 @@ store.json
 urlStats.json
 .DS_Store
 static/uploads/*
+dist/tsconfig.tsbuildinfo
