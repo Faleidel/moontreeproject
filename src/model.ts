@@ -49,6 +49,8 @@ export async function activityToJSON(act: Activity): Promise<any | undefined> {
     
     let user = await getUserByName(act.author);
     
+    let media: utils.ExternalMedia | undefined = (object as Thread).media;
+    
     if (object && user) {
         return {
             "@context": [
@@ -65,7 +67,7 @@ export async function activityToJSON(act: Activity): Promise<any | undefined> {
                 type: "Note",
                 id: object.id,
                 url: object.id,
-                attachment: [],
+                attachment: !media ? [] : [utils.externalMediaToAttachment(media)],
                 attributedTo: act.author,
                 actor: utils.urlForPath("user/" + act.author),
                 to: object.to,
@@ -117,6 +119,8 @@ export interface Comment {
     tags: CommentTag[]
 }
 export async function commentToJSON(comment: Comment): Promise<any> {
+    let media: utils.ExternalMedia | undefined = (comment as Thread).media;
+    
     return {
         "@context": [
             "https://www.w3.org/ns/activitystreams",
@@ -132,7 +136,7 @@ export async function commentToJSON(comment: Comment): Promise<any> {
         actor: utils.urlForUser(comment.author),
         inReplyTo: comment.inReplyTo,
         content: comment.content,
-        attachment: [],
+        attachment: !media ? [] : [utils.externalMediaToAttachment(media)],
         sensitive: false,
         summary: null,
         likes: await getRemoteLikesAmount(comment) + (await getLikesByObject(comment)).length,
@@ -168,7 +172,7 @@ export interface Thread extends Comment {
     lastUpdate: number
 }
 export async function threadToJSON(thread: Thread): Promise<any> {
-    return {
+    let result = {
         ... await commentToJSON(thread),
         
         "@context": [
@@ -183,6 +187,10 @@ export async function threadToJSON(thread: Thread): Promise<any> {
         media: thread.media,
         likes: await getRemoteLikesAmount(thread) + (await getLikesByObject(thread)).length
     };
+    
+    result.content = utils.renderMarkdown("# " + result.title + "\n" + result.content);
+    
+    return result;
 }
 export async function threadFromJSON(json: any): Promise<Thread | undefined> {
     let comment = await commentFromJSON(json);
@@ -491,7 +499,7 @@ export function loadStore(cb: any): void {
                     let randomBranch = () => ["gold", "silver", "iron"][Math.floor(Math.random()*3)];
                     
                     for (let i = 0 ; i < 200 ; i++) {
-                        let thread = await createThread(admin, "test thread" + i, "With no content", randomBranch());
+                        let { thread } = await createThread(admin, "test thread" + i, "With no content", randomBranch());
                         thread.published -= Math.floor(1000 * 60 * 60 * 24 * 5 * Math.random());
                     }
                     
@@ -1246,7 +1254,7 @@ export async function getThreadFlatComments(thread: Thread): Promise<Comment[]> 
         throw("Could not find own thread? " + JSON.stringify(thread));
     }
 }
-export async function createThread(author: User, title: string, content: string, branch: string): Promise<Thread> {
+export async function createThread(author: User, title: string, content: string, branch: string): Promise<{ thread: Thread, gotMedia: Promise<void> }> {
     let thread: Thread = {
         id: utils.urlForPath("thread/" + utils.intToBase64(Math.random() * 100000000000000000)),
         isLink: utils.isUrl(content),
@@ -1264,10 +1272,11 @@ export async function createThread(author: User, title: string, content: string,
         lastUpdate: 0
     }
     
-    utils.getUrlFromOpenGraph(content).then(media => {
+    let gotMedia = utils.getUrlFromOpenGraph(content).then(media => {
         thread.media = media;
         saveStore();
-    }).catch(() => {});
+        console.log("OVER MEDIA");
+    }).catch(() => {console.log("ERROR MEDIA")});
     
     await createActivity(author, thread);
     
@@ -1290,7 +1299,10 @@ export async function createThread(author: User, title: string, content: string,
     indexComment(thread);
     indexThread(thread);
     
-    return thread;
+    return {
+        thread: thread,
+        gotMedia: gotMedia
+    };
 }
 export async function updateThread(thread: Thread, content: string): Promise<void> {
    thread.content = content;

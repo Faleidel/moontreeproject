@@ -288,6 +288,16 @@ export interface ExternalMedia {
     url: string
 }
 
+export function externalMediaToAttachment(media: ExternalMedia): any {
+    return {
+        "type": "Document",
+        "mediaType": "image/jpeg",
+        "url": media.url,
+        "name": null //,
+        //"blurhash": "U66@vUtR0KMx0JRP?H%MJ8nPi_S}?HxuIoMx"
+    }
+}
+
 export function getUrlFromOpenGraph(url: string): Promise<ExternalMedia | undefined> {
     return new Promise((resolve, reject) => {
         requestLib.get(url, (err: any, resp: any, data: string) => {

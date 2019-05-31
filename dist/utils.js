@@ -271,6 +271,16 @@ var MediaType;
     MediaType["video"] = "video";
     MediaType["iframe"] = "iframe";
 })(MediaType = exports.MediaType || (exports.MediaType = {}));
+function externalMediaToAttachment(media) {
+    return {
+        "type": "Document",
+        "mediaType": "image/jpeg",
+        "url": media.url,
+        "name": null //,
+        //"blurhash": "U66@vUtR0KMx0JRP?H%MJ8nPi_S}?HxuIoMx"
+    };
+}
+exports.externalMediaToAttachment = externalMediaToAttachment;
 function getUrlFromOpenGraph(url) {
     return new Promise((resolve, reject) => {
         requestLib.get(url, (err, resp, data) => {
@@ -405,7 +415,6 @@ function renderMarkdown(str) {
         .replace(/'/g, '&apos;');
     let converter = new showdown.Converter();
     let html = converter.makeHtml(str);
-    console.log(html);
     return sanitizeHtml(html, {
         allowedTags: ["h1", "h2", "h3", "h4", "p", "a", "img", "b", "i", "strong", "hr"]
     });

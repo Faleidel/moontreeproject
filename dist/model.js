@@ -19,6 +19,7 @@ async function activityToJSON(act) {
         ? act.object
         : await getThreadById(act.objectId) || await getCommentById(act.objectId);
     let user = await getUserByName(act.author);
+    let media = object.media;
     if (object && user) {
         return {
             "@context": [
@@ -35,7 +36,7 @@ async function activityToJSON(act) {
                 type: "Note",
                 id: object.id,
                 url: object.id,
-                attachment: [],
+                attachment: !media ? [] : [utils.externalMediaToAttachment(media)],
                 attributedTo: act.author,
                 actor: utils.urlForPath("user/" + act.author),
                 to: object.to,
@@ -71,6 +72,7 @@ async function createAnnounce(actorUrl, objectUrl) {
 }
 exports.createAnnounce = createAnnounce;
 async function commentToJSON(comment) {
+    let media = comment.media;
     return {
         "@context": [
             "https://www.w3.org/ns/activitystreams",
@@ -86,7 +88,7 @@ async function commentToJSON(comment) {
         actor: utils.urlForUser(comment.author),
         inReplyTo: comment.inReplyTo,
         content: comment.content,
-        attachment: [],
+        attachment: !media ? [] : [utils.externalMediaToAttachment(media)],
         sensitive: false,
         summary: null,
         likes: await getRemoteLikesAmount(comment) + (await getLikesByObject(comment)).length,
@@ -108,11 +110,13 @@ async function commentFromJSON(json) {
 }
 exports.commentFromJSON = commentFromJSON;
 async function threadToJSON(thread) {
-    return Object.assign({}, await commentToJSON(thread), { "@context": [
+    let result = Object.assign({}, await commentToJSON(thread), { "@context": [
             "https://www.w3.org/ns/activitystreams",
             "https://w3id.org/security/v1" //,
             //"ironTreeThread"
         ], title: thread.title, branch: thread.branch.indexOf("@") == -1 ? thread.branch + "@" + utils.serverAddress : thread.branch.split("@")[0], isLink: thread.isLink, media: thread.media, likes: await getRemoteLikesAmount(thread) + (await getLikesByObject(thread)).length });
+    result.content = utils.renderMarkdown("# " + result.title + "\n" + result.content);
+    return result;
 }
 exports.threadToJSON = threadToJSON;
 async function threadFromJSON(json) {
@@ -331,7 +335,7 @@ function loadStore(cb) {
                     await createBranch("test", "This is the test branch", [], admin);
                     let randomBranch = () => ["gold", "silver", "iron"][Math.floor(Math.random() * 3)];
                     for (let i = 0; i < 200; i++) {
-                        let thread = await createThread(admin, "test thread" + i, "With no content", randomBranch());
+                        let { thread } = await createThread(admin, "test thread" + i, "With no content", randomBranch());
                         thread.published -= Math.floor(1000 * 60 * 60 * 24 * 5 * Math.random());
                     }
                     await (async () => {
@@ -1046,10 +1050,11 @@ async function createThread(author, title, content, branch) {
         tags: [],
         lastUpdate: 0
     };
-    utils.getUrlFromOpenGraph(content).then(media => {
+    let gotMedia = utils.getUrlFromOpenGraph(content).then(media => {
         thread.media = media;
         saveStore();
-    }).catch(() => { });
+        console.log("OVER MEDIA");
+    }).catch(() => { console.log("ERROR MEDIA"); });
     await createActivity(author, thread);
     let qName = utils.parseQualifiedName(branch);
     if (!qName.isOwn) {
@@ -1066,7 +1071,10 @@ async function createThread(author, title, content, branch) {
     saveStore();
     indexComment(thread);
     indexThread(thread);
-    return thread;
+    return {
+        thread: thread,
+        gotMedia: gotMedia
+    };
 }
 exports.createThread = createThread;
 async function updateThread(thread, content) {

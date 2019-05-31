@@ -299,8 +299,11 @@ http.createServer(async function (req: any, res) {
                         if (!id) {
                             let branchModel = await model.getBranchByName(branch as string);
                             if (branchModel) {
-                                let thread = await model.createThread(user, title as string, content as string, branch as string);
+                                let { thread, gotMedia } = await model.createThread(user, title as string, content as string, branch as string);
                                 let activity = await model.createActivity(user, thread);
+                                
+                                await gotMedia;
+                                
                                 protocol.postToRemoteForUsers(
                                     await model.getFollowersByActor(utils.urlForPath('user/' + user.name)),
                                     JSON.stringify(await model.activityToJSON(activity)),
