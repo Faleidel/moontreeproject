@@ -422,7 +422,9 @@ export function renderMarkdown(str: string): string {
     
     let converter = new showdown.Converter()
     let html = converter.makeHtml(str);
-    return sanitizeHtml(html);
+    return sanitizeHtml(html, {
+        allowedTags: ["h1", "h2", "h3", "h4", "p", "a", "img", "b", "i", "strong", "hr"]
+    });
 }
 let digits64 = //   0       8       16      24      32      40      48      56     63
                //   v       v       v       v       v       v       v       v      v

@@ -264,13 +264,18 @@ http.createServer(async function (req, res) {
                     if (content.length == 0)
                         errors.push("Error, content is empty");
                     if (errors.length == 0) {
-                        let branchModel = await model.getBranchByName(branch);
-                        if (!id && branchModel) {
-                            let thread = await model.createThread(user, title, content, branch);
-                            let activity = await model.createActivity(user, thread);
-                            protocol.postToRemoteForUsers(await model.getFollowersByActor(utils.urlForPath('user/' + user.name)), JSON.stringify(await model.activityToJSON(activity)), utils.urlForUser(user), user.privateKey);
-                            protocol.postToRemoteForUsers(await model.getFollowersByActor(utils.urlForBranch(branch)), JSON.stringify(await model.createAnnounce(utils.urlForBranch(branch), thread.id)), utils.urlForBranch(branch), branchModel.privateKey);
-                            utils.endWithRedirect(res, thread.id);
+                        if (!id) {
+                            let branchModel = await model.getBranchByName(branch);
+                            if (branchModel) {
+                                let thread = await model.createThread(user, title, content, branch);
+                                let activity = await model.createActivity(user, thread);
+                                protocol.postToRemoteForUsers(await model.getFollowersByActor(utils.urlForPath('user/' + user.name)), JSON.stringify(await model.activityToJSON(activity)), utils.urlForUser(user), user.privateKey);
+                                protocol.postToRemoteForUsers(await model.getFollowersByActor(utils.urlForBranch(branch)), JSON.stringify(await model.createAnnounce(utils.urlForBranch(branch), thread.id)), utils.urlForBranch(branch), branchModel.privateKey);
+                                utils.endWithRedirect(res, thread.id);
+                            }
+                            else {
+                                res.end("Error fetching branch, can't create post");
+                            }
                         }
                         else {
                             let thread = await model.getThreadById(id);

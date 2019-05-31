@@ -296,23 +296,27 @@ http.createServer(async function (req: any, res) {
                         errors.push("Error, content is empty");
                     
                     if (errors.length == 0) {
-                        let branchModel = await model.getBranchByName(branch as string);
-                        if (!id && branchModel) {
-                            let thread = await model.createThread(user, title as string, content as string, branch as string);
-                            let activity = await model.createActivity(user, thread);
-                            protocol.postToRemoteForUsers(
-                                await model.getFollowersByActor(utils.urlForPath('user/' + user.name)),
-                                JSON.stringify(await model.activityToJSON(activity)),
-                                utils.urlForUser(user),
-                                user.privateKey
-                            );
-                            protocol.postToRemoteForUsers(
-                                await model.getFollowersByActor(utils.urlForBranch(branch as string)),
-                                JSON.stringify(await model.createAnnounce(utils.urlForBranch(branch as string), thread.id)),
-                                utils.urlForBranch(branch as string),
-                                branchModel.privateKey
-                            );
-                            utils.endWithRedirect(res, thread.id);
+                        if (!id) {
+                            let branchModel = await model.getBranchByName(branch as string);
+                            if (branchModel) {
+                                let thread = await model.createThread(user, title as string, content as string, branch as string);
+                                let activity = await model.createActivity(user, thread);
+                                protocol.postToRemoteForUsers(
+                                    await model.getFollowersByActor(utils.urlForPath('user/' + user.name)),
+                                    JSON.stringify(await model.activityToJSON(activity)),
+                                    utils.urlForUser(user),
+                                    user.privateKey
+                                );
+                                protocol.postToRemoteForUsers(
+                                    await model.getFollowersByActor(utils.urlForBranch(branch as string)),
+                                    JSON.stringify(await model.createAnnounce(utils.urlForBranch(branch as string), thread.id)),
+                                    utils.urlForBranch(branch as string),
+                                    branchModel.privateKey
+                                );
+                                utils.endWithRedirect(res, thread.id);
+                            } else {
+                                res.end("Error fetching branch, can't create post");
+                            }
                         } else {
                             let thread = await model.getThreadById(id);
                             
