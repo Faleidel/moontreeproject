@@ -4,9 +4,6 @@ import * as crypto from "crypto";
 import * as urlLib from "url";
 const request = require("request");
 
-import * as mails from "./mails";
-import * as sms from "./sms";
-
 export interface User {
     name: string,
     passwordHashed: string,
@@ -752,6 +749,8 @@ export async function createUser(name: string, password: string): Promise<User |
     let user = await getUserByName(name);
     let branch = await getBranchByName(name);
     
+    utils.alertLog("userCreation", `Creating User ${name}`);
+    
     // Can't create the user if it already exists (same namespace as branches)
     if (!user && !branch) {
         let passwordSalt: string = await (new Promise((resolve, reject) => {
@@ -962,9 +961,7 @@ export async function createBranch(name: string, description: string, sourceBran
             lastUpdate: 0 // only for remote branches
         };
         
-        let alertMsg = `User ${creator.name} create branch ${name} with description ${description}`;
-        mails.sendAdminAlert(alertMsg);
-        sms.sendToAdmin(alertMsg);
+        utils.alertLog("branchCreation", `User ${creator.name} create branch ${name} with description ${description}`);
         
         store.branches[branch.name] = branch;
         saveStore();

@@ -17,5 +17,13 @@
     "migrationNumber": 1,
     "footerHTML": "",
     "sendGridKey": "",
-    "adminEmail": ""
+    "adminEmail": "",
+    "logs": {
+        "branchCreation": {
+            "email": false,
+            "sms": false
+        },
+        "userCreation": {
+        }
+    }
 }

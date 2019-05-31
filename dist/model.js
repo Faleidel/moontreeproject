@@ -12,8 +12,6 @@ const utils = __importStar(require("./utils"));
 const crypto = __importStar(require("crypto"));
 const urlLib = __importStar(require("url"));
 const request = require("request");
-const mails = __importStar(require("./mails"));
-const sms = __importStar(require("./sms"));
 async function activityToJSON(act) {
     let object = typeof act.object == "object"
         ? act.object
@@ -565,6 +563,7 @@ async function createUser(name, password) {
     name = name + "@" + utils.serverAddress;
     let user = await getUserByName(name);
     let branch = await getBranchByName(name);
+    utils.alertLog("userCreation", `Creating User ${name}`);
     // Can't create the user if it already exists (same namespace as branches)
     if (!user && !branch) {
         let passwordSalt = await (new Promise((resolve, reject) => {
@@ -757,9 +756,7 @@ async function createBranch(name, description, sourceBranches, creator) {
             privateKey: kp.privateKey,
             lastUpdate: 0 // only for remote branches
         };
-        let alertMsg = `User ${creator.name} create branch ${name} with description ${description}`;
-        mails.sendAdminAlert(alertMsg);
-        sms.sendToAdmin(alertMsg);
+        utils.alertLog("branchCreation", `User ${creator.name} create branch ${name} with description ${description}`);
         exports.store.branches[branch.name] = branch;
         saveStore();
         return branch;

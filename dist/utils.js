@@ -20,6 +20,8 @@ const sanitizeHtml = require('sanitize-html');
 console.log("Reading config file");
 exports.config = JSON.parse(fs_1.readFileSync("config.json", "UTF-8"));
 console.log("Got config file");
+const mails = __importStar(require("./mails"));
+const sms = __importStar(require("./sms"));
 exports.port = exports.config.port == undefined ? 9090 : exports.config.port == "" ? "" : exports.config.port;
 exports.realPort = exports.config.realPort == undefined ? 9090 : exports.config.realPort == "" ? "" : exports.config.realPort;
 exports.protocol = exports.config.protocol || "http";
@@ -31,6 +33,15 @@ function saveConfig() {
         fs_1.writeFile("config.json", JSON.stringify(exports.config, undefined, 4), "UTF-8", () => { });
     }, 0);
 }
+function alertLog(logType, content) {
+    if (exports.config.logs[logType]) {
+        if (exports.config.logs[logType].email)
+            mails.sendAdminAlert(content);
+        if (exports.config.logs[logType].sms)
+            sms.sendToAdmin(content);
+    }
+}
+exports.alertLog = alertLog;
 function getServerName() { return exports.config.serverName || "default server name"; }
 exports.getServerName = getServerName;
 function setServerName(name) {

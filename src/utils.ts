@@ -13,6 +13,9 @@ console.log("Reading config file");
 export let config = JSON.parse(readFileSync("config.json", "UTF-8") as string);
 console.log("Got config file");
 
+import * as mails from "./mails";
+import * as sms from "./sms";
+
 export const port = config.port == undefined ? 9090 : config.port == "" ? "" : config.port;
 export const realPort = config.realPort == undefined ? 9090 : config.realPort == "" ? "" : config.realPort;
 export let protocol = config.protocol || "http";
@@ -25,6 +28,16 @@ function saveConfig(){
         writeFile("config.json", JSON.stringify(config, undefined, 4), "UTF-8", () => {});
     }, 0);
 }
+
+export function alertLog(logType: "branchCreation" | "userCreation", content: string) {
+    if (config.logs[logType]) {
+        if (config.logs[logType].email)
+            mails.sendAdminAlert(content);
+        if (config.logs[logType].sms)
+            sms.sendToAdmin(content);
+    }
+}
+
 export function getServerName(): string { return config.serverName || "default server name" }
 export function setServerName(name: string) {
     config.serverName = name;
