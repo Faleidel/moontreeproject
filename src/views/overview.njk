@@ -1,0 +1,12 @@
+{% macro renderOverview(overview) %}
+    <div class="lightSection" style="margin-bottom: 10px;">
+    {% for section in overview %}
+        <div class="lightSection" style="{% if not loop.last %}margin-bottom: 10px;{% endif %}">
+            <div>{{section.name}}:</div>
+            {% for br in section.branchs %}
+                <a href="/branch/{{br}}">{{br}}</a>
+            {% endfor %}
+        </div>
+    {% endfor %}
+    </div>
+{% endmacro %}

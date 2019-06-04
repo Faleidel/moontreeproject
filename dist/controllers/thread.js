@@ -26,7 +26,7 @@ async function handleThread(url, query, req, res, body, cookies) {
                 let branch = await model.getBranchByName(thread.branch);
                 let user = await utils.getLoggedUser(cookies);
                 if (branch) {
-                    let viewData = Object.assign({}, await utils.createViewData(cookies), { thread: thread, branch: branch, isBranchAdmin: await model.isBranchAdmin(user, branch), commentTree: await model.getThreadCommentsForClient(user, thread.id) });
+                    let viewData = Object.assign({}, await utils.createViewData(cookies), { thread: thread, branch: branch, isBranchAdmin: await model.isBranchAdmin(user, branch), overview: utils.getOverviewBranches(), commentTree: await model.getThreadCommentsForClient(user, thread.id) });
                     let theme = query.theme || "";
                     if (theme)
                         theme = theme + "-";
