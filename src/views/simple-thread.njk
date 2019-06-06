@@ -19,11 +19,15 @@
         @media (max-width: 1000px) {
             body {
                 width: 100%;
-                padding: 20px;
                 
                 margin-top: 0px;
                 margin-bottom: 0px;
                 border-radius: 0px;
+            }
+            
+            .pageContent {
+                margin-left: 0;
+                margin-right: 0;
             }
         }
         
@@ -42,7 +46,9 @@
             box-sizing: border-box;
             font-size: 19px;
             
-            width: 1000px;
+            width: 100%;
+            max-width: 1000px;
+            
             margin: auto;
             margin-top: 100px;
             margin-bottom: 50px;
@@ -57,8 +63,8 @@
         }
         
         @media (max-width: 1000px) {
-            .pageContent {
-                padding: 20px;
+            body {
+                padding: 0px;
             }
         }
         
