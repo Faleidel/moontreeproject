@@ -32,6 +32,7 @@ export async function handleThread(url: string[], query: any, req: any, res: any
                         thread: thread,
                         branch: branch,
                         isBranchAdmin: await model.isBranchAdmin(user, branch),
+                        overview: utils.getOverviewBranches(),
                         commentTree: await model.getThreadCommentsForClient(user, thread.id)
                     };
                     
