@@ -22,15 +22,20 @@ function setDbPool() {
 }
 exports.setDbPool = setDbPool;
 function getObjectByField(tableName, fieldName) {
+    let gets = getObjectsByField(tableName, fieldName);
     return async function (value) {
-        let objectQ = await exports.dbPool.query(`SELECT * FROM ${tableName} WHERE ${utils.camelToSnakeCase(fieldName)} = $1`, [value]);
-        if (objectQ.rows[0] != undefined)
-            return utils.fromDBObject(objectQ.rows[0]);
-        else
-            return undefined;
+        let objects = await gets(value);
+        return objects[0];
     };
 }
 exports.getObjectByField = getObjectByField;
+function getObjectsByField(tableName, fieldName) {
+    return async function (value) {
+        let objectQ = await exports.dbPool.query(`SELECT * FROM ${tableName} WHERE ${utils.camelToSnakeCase(fieldName)} = $1`, [value]);
+        return objectQ.rows.map((a) => utils.fromDBObject(a));
+    };
+}
+exports.getObjectsByField = getObjectsByField;
 function getAllFrom(tableName) {
     return async function () {
         return (await exports.dbPool.query(`SELECT * FROM ${tableName};`)).rows.map((obj) => utils.fromDBObject(obj));
@@ -41,11 +46,11 @@ function insertForType(tableName, typeDefinition) {
     const keys = Object.keys(typeDefinition).map(k => utils.camelToSnakeCase(k)).join(", ");
     const valuesInserts = Object.keys(typeDefinition).map((_, i) => "$" + (i + 1)).join(", ");
     const sql = `
-        INSERT INTO users (${keys})
+        INSERT INTO ${tableName} (${keys})
         VALUES (${valuesInserts});
     `;
     return async function (a) {
-        await exports.dbPool.query(sql, [Object.values(a)]);
+        await exports.dbPool.query(sql, Object.values(a));
     };
 }
 exports.insertForType = insertForType;

@@ -194,7 +194,6 @@ exports.store = {
     likes: {},
     likeBundles: {},
     remoteInstances: {},
-    notifications: {},
     follows: {}
 };
 let indexs = {
@@ -248,9 +247,6 @@ function unindexLike(like) {
 }
 function indexLikeBundle(likeBundle) {
     addToIndex("likeBundlesByObject", likeBundle.object, likeBundle.object + likeBundle.server);
-}
-function indexNotification(notification) {
-    addToIndex("notificationsByUser", notification.recipient, notification.id);
 }
 async function testLikeOn(comment, amount) {
     for (let i = 0; i < amount; i++) {
@@ -343,6 +339,25 @@ function loadStore(cb) {
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
+            if (utils.migrationNumber == 7) {
+                let result = await db.dbPool.query(`
+                    CREATE TABLE notifications (
+                       id VARCHAR (50) PRIMARY KEY NOT NULL,
+                       recipient TEXT NOT NULL,
+                       title TEXT NOT NULL,
+                       content TEXT NOT NULL,
+                       date bigint,
+                       read BOOL NOT NULL
+                    );
+                `).catch((e) => console.log("Error create users table", e));
+                console.log(result);
+                await Promise.all(Object.keys(exports.store.notifications).map(async (notifId) => {
+                    let notif = exports.store.notifications[notifId];
+                    insertNotification(notif)
+                        .catch((e) => console.log("Error adding notification to table", e));
+                }));
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
             Object.values(exports.store.comments).map(c => indexComment(c));
             Object.values(exports.store.threads).map(t => indexComment(t));
             Object.values(exports.store.threads).map(t => indexThread(t));
@@ -350,7 +365,6 @@ function loadStore(cb) {
             Object.values(exports.store.likes).map(t => indexLike(t));
             Object.values(exports.store.likeBundles).map(t => indexLikeBundle(t));
             Object.values(exports.store.follows).map(t => indexFollow(t));
-            Object.values(exports.store.notifications).map(t => indexNotification(t));
             console.log("Finised loading, migrating and indexing JSON store");
         }
         else {
@@ -641,6 +655,7 @@ async function createUser(name, password) {
 }
 exports.createUser = createUser;
 // NOTIFICATION
+const insertNotification = db.insertForType("notifications", modelInterfaces_1.NotificationDefinition);
 async function createNotification(recipient, title, content) {
     let notif = {
         id: Math.random() * 100000000000000000 + "",
@@ -650,29 +665,21 @@ async function createNotification(recipient, title, content) {
         date: new Date().getTime(),
         read: false
     };
-    exports.store.notifications[notif.id] = notif;
-    indexNotification(notif);
-    saveStore();
+    insertNotification(notif);
     return notif;
 }
 exports.createNotification = createNotification;
-async function getNotificationsById(id) {
-    return exports.store.notifications[id];
-}
-exports.getNotificationsById = getNotificationsById;
-async function getNotificationsByUser(recipient) {
-    let ids = indexs.notificationsByUser[recipient.name] || [];
-    let notifs = (await Promise.all(ids.map(id => getNotificationsById(id)))).filter(n => !!n);
-    return notifs.sort((n1, n2) => n2.date - n1.date);
-}
-exports.getNotificationsByUser = getNotificationsByUser;
+exports.getNotificationById = db.getObjectByField("notifications", "id");
+const getNotificationsByUserId = db.getObjectsByField("notifications", "recipient");
+exports.getNotificationsByUser = function (user) {
+    return getNotificationsByUserId(user.name);
+};
 async function getNotificationCountByUser(recipient) {
-    return (await getNotificationsByUser(recipient)).filter(n => !n.read).length;
+    return (await exports.getNotificationsByUser(recipient)).filter(n => !n.read).length;
 }
 exports.getNotificationCountByUser = getNotificationCountByUser;
 async function setNotificationRead(notification) {
-    notification.read = true;
-    saveStore();
+    await db.updateFieldsWhere("notifications", { id: notification.id }, { read: true });
 }
 exports.setNotificationRead = setNotificationRead;
 // BRANCH

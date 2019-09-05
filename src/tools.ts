@@ -8,7 +8,6 @@ async function changeSiteUrl(from: string, to: string) {
         let acts: model.Activity[] = Object.values(model.store.activitys);
         let branches: model.Branch[] = Object.values(model.store.branches);
         let likes: model.Like[] = Object.values(model.store.likes);
-        let notifications: model.Notification[] = Object.values(model.store.notifications);
         
         model.store.sessions = {};
         
@@ -17,7 +16,6 @@ async function changeSiteUrl(from: string, to: string) {
         model.store.activitys = {};
         model.store.branches = {};
         model.store.likes = {};
-        model.store.notifications = {};
         
         threads.map(t => {
             t.id = t.id.replace(from, to);
@@ -64,6 +62,26 @@ async function changeSiteUrl(from: string, to: string) {
             });
         });
         
+        let notificationQ = await db.dbPool.query(`SELECT name FROM notifications;`);
+        let notifications = userQ.rows;
+        notifications.map((t: { recipient: string, id: string }) => {
+            db.dbPool.connect(async (err: any, client: any, done: any) => {
+                try {
+                    await client.query(`BEGIN`, []);
+                    await client.query(`
+                        UPDATE notifications
+                        SET recipient = $1
+                        WHERE id = $2;
+                    `, [t.recipient.replace(from, to), t.id]);
+                    await client.query(`COMMIT`);
+                    done();
+                } catch (e) {
+                    await client.query('ROLLBACK');
+                    done();
+                }
+            });
+        });
+        
         branches.map(t => {
             t.creator = t.creator.replace(from, to);
             model.store.branches[t.name] = t;
@@ -73,11 +91,6 @@ async function changeSiteUrl(from: string, to: string) {
             t.author = t.author.replace(from, to);
             t.object = t.object.replace(from, to);
             model.store.likes[t.id] = t;
-        });
-        
-        notifications.map(t => {
-            t.recipient = t.recipient.replace(from, to);
-            model.store.notifications[t.id] = t;
         });
         
         model.saveStore();

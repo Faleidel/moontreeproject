@@ -214,7 +214,7 @@ utils.configLoaded.then(() => {
             else if (url[0] == "readNotification") {
                 withStringBody(async (body) => {
                     let id = body;
-                    let notification = await model.getNotificationsById(id);
+                    let notification = await model.getNotificationById(id);
                     if (notification) {
                         model.setNotificationRead(notification);
                     }

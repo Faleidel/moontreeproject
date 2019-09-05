@@ -13,3 +13,12 @@ let UserDefinition = {
     "foreignUrl": "string"
 };
 exports.UserDefinition = UserDefinition;
+let NotificationDefinition = {
+    "id": "string",
+    "recipient": "string",
+    "title": "string",
+    "content": "string",
+    "date": "number",
+    "read": "boolean"
+};
+exports.NotificationDefinition = NotificationDefinition;

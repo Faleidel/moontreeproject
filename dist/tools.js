@@ -16,14 +16,12 @@ async function changeSiteUrl(from, to) {
         let acts = Object.values(model.store.activitys);
         let branches = Object.values(model.store.branches);
         let likes = Object.values(model.store.likes);
-        let notifications = Object.values(model.store.notifications);
         model.store.sessions = {};
         model.store.threads = {};
         model.store.comments = {};
         model.store.activitys = {};
         model.store.branches = {};
         model.store.likes = {};
-        model.store.notifications = {};
         threads.map(t => {
             t.id = t.id.replace(from, to);
             t.author = t.author.replace(from, to);
@@ -62,6 +60,26 @@ async function changeSiteUrl(from, to) {
                 }
             });
         });
+        let notificationQ = await db.dbPool.query(`SELECT name FROM notifications;`);
+        let notifications = userQ.rows;
+        notifications.map((t) => {
+            db.dbPool.connect(async (err, client, done) => {
+                try {
+                    await client.query(`BEGIN`, []);
+                    await client.query(`
+                        UPDATE notifications
+                        SET recipient = $1
+                        WHERE id = $2;
+                    `, [t.recipient.replace(from, to), t.id]);
+                    await client.query(`COMMIT`);
+                    done();
+                }
+                catch (e) {
+                    await client.query('ROLLBACK');
+                    done();
+                }
+            });
+        });
         branches.map(t => {
             t.creator = t.creator.replace(from, to);
             model.store.branches[t.name] = t;
@@ -70,10 +88,6 @@ async function changeSiteUrl(from, to) {
             t.author = t.author.replace(from, to);
             t.object = t.object.replace(from, to);
             model.store.likes[t.id] = t;
-        });
-        notifications.map(t => {
-            t.recipient = t.recipient.replace(from, to);
-            model.store.notifications[t.id] = t;
         });
         model.saveStore();
     });

@@ -16,13 +16,20 @@ export function setDbPool() {
 }
 
 export function getObjectByField<A>(tableName: string, fieldName: string): (value: any) => Promise<A | undefined> {
+    let gets = getObjectsByField<A>(tableName, fieldName);
+    
+    return async function(value: any) {
+        let objects = await gets(value);
+        
+        return objects[0];
+    }
+}
+
+export function getObjectsByField<A>(tableName: string, fieldName: string): (value: any) => Promise<A[]> {
     return async function(value: any) {
         let objectQ = await dbPool.query(`SELECT * FROM ${tableName} WHERE ${utils.camelToSnakeCase(fieldName)} = $1`, [value]);
         
-        if (objectQ.rows[0] != undefined)
-            return utils.fromDBObject(objectQ.rows[0]);
-        else
-            return undefined;
+        return objectQ.rows.map((a: A) => utils.fromDBObject(a));
     }
 }
 
@@ -37,12 +44,12 @@ export function insertForType<A>(tableName: string, typeDefinition: any): (a: A)
     const valuesInserts = Object.keys(typeDefinition).map((_, i) => "$"+(i+1)).join(", ");
     
     const sql = `
-        INSERT INTO users (${keys})
+        INSERT INTO ${tableName} (${keys})
         VALUES (${valuesInserts});
     `;
     
     return async function(a: A) {
-        await dbPool.query(sql ,[Object.values(a)]);
+        await dbPool.query(sql ,Object.values(a));
     }
 }
 

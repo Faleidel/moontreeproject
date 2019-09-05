@@ -4,20 +4,11 @@ import * as crypto from "crypto";
 import * as urlLib from "url";
 const request = require("request");
 const { Pool } = require('pg')
-import {User, UserDefinition} from "./modelInterfaces";
+import {User, UserDefinition, Notification, NotificationDefinition} from "./modelInterfaces";
 
-export {User};
+export {User, Notification};
 
 import * as db from "./db";
-
-export interface Notification {
-    id: string,
-    recipient: string,
-    title: string,
-    content: string,
-    date: number,
-    read: boolean
-}
 
 export interface Session {
     id: string,
@@ -317,7 +308,6 @@ export let store = {
     likes: {} as {[id: string]: Like},
     likeBundles: {} as {[id: string]: LikeBundle}, // id is object.id + server name
     remoteInstances: {} as {[host: string]: RemoteInstance},
-    notifications: {} as {[id: string]: Notification},
     follows: {} as {[id: string]: Follow}
 };
 
@@ -376,9 +366,6 @@ function unindexLike(like: Like): void {
 }
 function indexLikeBundle(likeBundle: LikeBundle): void {
     addToIndex("likeBundlesByObject", likeBundle.object, likeBundle.object + likeBundle.server);
-}
-function indexNotification(notification: Notification): void {
-    addToIndex("notificationsByUser", notification.recipient, notification.id);
 }
 
 async function testLikeOn(comment: Comment, amount: number): Promise<void> {
@@ -499,6 +486,30 @@ export function loadStore(cb: any): void {
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
             
+            if (utils.migrationNumber == 7) {
+                let result = await db.dbPool.query(`
+                    CREATE TABLE notifications (
+                       id VARCHAR (50) PRIMARY KEY NOT NULL,
+                       recipient TEXT NOT NULL,
+                       title TEXT NOT NULL,
+                       content TEXT NOT NULL,
+                       date bigint,
+                       read BOOL NOT NULL
+                    );
+                `).catch((e: any) => console.log("Error create users table", e));
+                
+                console.log(result);
+                
+                await Promise.all(Object.keys((store as any).notifications).map(async notifId => {
+                    let notif = (store as any).notifications[notifId];
+                    
+                    insertNotification(notif)
+                    .catch((e: any) => console.log("Error adding notification to table", e));
+                }));
+                
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            
             Object.values(store.comments).map(c => indexComment(c));
             Object.values(store.threads).map(t => indexComment(t));
             Object.values(store.threads).map(t => indexThread(t));
@@ -506,7 +517,6 @@ export function loadStore(cb: any): void {
             Object.values(store.likes).map(t => indexLike(t));
             Object.values(store.likeBundles).map(t => indexLikeBundle(t));
             Object.values(store.follows).map(t => indexFollow(t));
-            Object.values(store.notifications).map(t => indexNotification(t));
             
             console.log("Finised loading, migrating and indexing JSON store");
         } else {
@@ -837,6 +847,8 @@ export async function createUser(name: string, password: string): Promise<User |
 }
 
 // NOTIFICATION
+const insertNotification: (notif: Notification) => Promise<void> = db.insertForType("notifications", NotificationDefinition);
+
 export async function createNotification(recipient: User, title: string, content: string): Promise<Notification> {
     let notif = {
         id: Math.random() * 100000000000000000 + "",
@@ -847,26 +859,23 @@ export async function createNotification(recipient: User, title: string, content
         read: false
     }
     
-    store.notifications[notif.id] = notif;
-    indexNotification(notif);
-    saveStore();
+    insertNotification(notif);
     
     return notif;
 }
-export async function getNotificationsById(id: string): Promise<Notification | undefined> {
-    return store.notifications[id];
+
+export const getNotificationById: (id: string) => Promise<Notification | undefined> = db.getObjectByField<Notification>("notifications", "id");
+
+const getNotificationsByUserId: (recipient: string) => Promise<Notification[]> = db.getObjectsByField<Notification>("notifications", "recipient");
+export const getNotificationsByUser: (recipient: User) => Promise<Notification[]> = function(user: User) {
+    return getNotificationsByUserId(user.name);
 }
-export async function getNotificationsByUser(recipient: User): Promise<Notification[]> {
-    let ids = indexs.notificationsByUser[recipient.name] || [];
-    let notifs = (await Promise.all(ids.map(id => getNotificationsById(id)))).filter(n => !!n) as Notification[];
-    return notifs.sort((n1, n2) => n2.date - n1.date);
-}
+
 export async function getNotificationCountByUser(recipient: User): Promise<number> {
     return (await getNotificationsByUser(recipient)).filter(n => !n.read).length;
 }
 export async function setNotificationRead(notification: Notification): Promise<void> {
-    notification.read = true;
-    saveStore();
+    await db.updateFieldsWhere("notifications", {id: notification.id}, {read: true});
 }
 
 // BRANCH

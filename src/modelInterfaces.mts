@@ -10,5 +10,14 @@ meta interface User {
     lastUpdate: "number",
     foreignUrl: "string"
 } end meta interface
-
 export {User, UserDefinition};
+
+meta interface Notification {
+    id: "string",
+    recipient: "string",
+    title: "string",
+    content: "string",
+    date: "number",
+    read: "boolean"
+} end meta interface
+export {Notification, NotificationDefinition};

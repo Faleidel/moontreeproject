@@ -25,5 +25,26 @@ interface User {
 }
 
 
-
 export {User, UserDefinition};
+
+
+let NotificationDefinition = {
+    "id": "string",
+    "recipient": "string",
+    "title": "string",
+    "content": "string",
+    "date": "number",
+    "read": "boolean"
+};
+
+interface Notification {
+    id: string,
+    recipient: string,
+    title: string,
+    content: string,
+    date: number,
+    read: boolean
+}
+
+
+export {Notification, NotificationDefinition};
