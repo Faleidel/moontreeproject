@@ -8,7 +8,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const fs_1 = require("fs");
-const model = __importStar(require("./model"));
 const { createHash } = require("crypto");
 const crypto = __importStar(require("crypto"));
 const { generateKeyPair } = require("crypto");
@@ -17,15 +16,33 @@ const createVerify = require("crypto").createVerify;
 const requestLib = require("request");
 const showdown = __importStar(require("showdown"));
 const sanitizeHtml = require('sanitize-html');
-console.log("Reading config file");
-exports.config = JSON.parse(fs_1.readFileSync("config.json", "UTF-8"));
-console.log("Got config file");
+exports.config = {};
+exports.configLoaded = new Promise((resolve, reject) => {
+    fs_1.readFile("config.json", "UTF-8", (err, data) => {
+        exports.config = JSON.parse(data);
+        exports.generateTestData = !!exports.config.generateTestData;
+        exports.migrationNumber = exports.config.migrationNumber || 0;
+        resolve();
+    });
+});
 const mails = __importStar(require("./mails"));
 const sms = __importStar(require("./sms"));
-exports.port = exports.config.port == undefined ? 9090 : exports.config.port == "" ? "" : exports.config.port;
-exports.realPort = exports.config.realPort == undefined ? 9090 : exports.config.realPort == "" ? "" : exports.config.realPort;
-exports.protocol = exports.config.protocol || "http";
-exports.host = exports.config.host || "0.0.0.0";
+function port() {
+    return exports.config.port == undefined ? 9090 : exports.config.port == "" ? "" : exports.config.port;
+}
+exports.port = port;
+function realPort() {
+    return exports.config.realPort == undefined ? 9090 : exports.config.realPort == "" ? "" : exports.config.realPort;
+}
+exports.realPort = realPort;
+function protocol() {
+    return exports.config.protocol || "http";
+}
+exports.protocol = protocol;
+function host() {
+    return exports.config.host || "0.0.0.0";
+}
+exports.host = host;
 exports.generateTestData = !!exports.config.generateTestData;
 exports.migrationNumber = exports.config.migrationNumber || 0;
 function saveConfig() {
@@ -34,7 +51,7 @@ function saveConfig() {
     }, 0);
 }
 function alertLog(logType, content) {
-    if (exports.config.logs[logType]) {
+    if (exports.config.logs && exports.config.logs[logType]) {
         if (exports.config.logs[logType].email)
             mails.sendAdminAlert(content);
         if (exports.config.logs[logType].sms)
@@ -113,28 +130,20 @@ function setOverviewHasThreads(accept) {
     saveConfig();
 }
 exports.setOverviewHasThreads = setOverviewHasThreads;
-exports.serverAddress = exports.host + (exports.port ? (":" + exports.port) : "");
-exports.baseUrl = exports.protocol + "://" + exports.serverAddress;
+function serverAddress() {
+    return host() + (port() ? (":" + port()) : "");
+}
+exports.serverAddress = serverAddress;
+function baseUrl() {
+    return protocol() + "://" + serverAddress();
+}
+exports.baseUrl = baseUrl;
 const njk = __importStar(require("nunjucks"));
 njk.configure("src", { autoescape: true });
 function urlForPath(path) {
-    return exports.baseUrl + "/" + path;
+    return baseUrl() + "/" + path;
 }
 exports.urlForPath = urlForPath;
-function urlForUser(user) {
-    if (typeof user == "string")
-        return urlForPath("user/" + user);
-    else
-        return urlForPath("user/" + user.name);
-}
-exports.urlForUser = urlForUser;
-function urlForBranch(branch) {
-    if (typeof branch == "string")
-        return urlForPath("branch/" + branch + "@" + exports.host);
-    else
-        return urlForPath("branch/" + branch.name + "@" + exports.host);
-}
-exports.urlForBranch = urlForBranch;
 function last(list) {
     return list[list.length - 1];
 }
@@ -189,19 +198,6 @@ function endWithRedirect(res, url) {
     res.end();
 }
 exports.endWithRedirect = endWithRedirect;
-async function getLoggedUser(cookies) {
-    if (cookies.session) {
-        let session = await model.getSessionById(cookies.session);
-        if (session && session.userName) {
-            let user = await model.getUserByName(session.userName);
-            if (user) {
-                return user;
-            }
-        }
-    }
-    return undefined;
-}
-exports.getLoggedUser = getLoggedUser;
 function parseCookies(cookie) {
     return cookie.split(';').reduce(function (prev, curr) {
         var m = / *([^=]+)=(.*)/.exec(curr);
@@ -224,17 +220,17 @@ function renderTemplate(templatePath, viewData) {
     return njk.render(templatePath, Object.assign({ serverName: getServerName(), acceptSignUp: getAcceptSignUp(), headHTML: getHeadHTML(), footerHTML: getFooterHTML(), customCSS: getCustomCSS(), utils: {
             encodeURIComponent: encodeURIComponent,
             threadLink: (id) => {
-                if (id.split("/")[2] == exports.serverAddress)
+                if (id.split("/")[2] == serverAddress())
                     return id;
                 else
                     return "/thread/" + encodeURIComponent(id);
             },
             renderMarkdown: renderMarkdown,
             renderUserName: (name) => {
-                if (name.indexOf("@" + exports.serverAddress) == -1)
+                if (name.indexOf("@" + serverAddress()) == -1)
                     return name;
                 else
-                    return name.substr(0, name.indexOf("@" + exports.host));
+                    return name.substr(0, name.indexOf("@" + host()));
             },
             renderRelativeTime: (date) => {
                 let days = (new Date().getTime() - date) / (1000 * 60 * 60 * 24);
@@ -248,23 +244,6 @@ function renderTemplate(templatePath, viewData) {
         } }, viewData));
 }
 exports.renderTemplate = renderTemplate;
-async function createViewData(cookies) {
-    let viewData = {};
-    if (cookies.session) {
-        let session = await model.getSessionById(cookies.session);
-        if (session && session.userName) {
-            let user = await model.getUserByName(session.userName);
-            if (user) {
-                viewData.userName = user.name;
-                viewData.user = user;
-                viewData.isAdmin = isAdmin(user.name);
-                viewData.notifCount = await model.getNotificationCountByUser(user);
-            }
-        }
-    }
-    return viewData;
-}
-exports.createViewData = createViewData;
 function request(options) {
     return new Promise((resolve, reject) => {
         requestLib(options, (err, resp, body) => {
@@ -373,7 +352,7 @@ function parseQualifiedName(str) {
     if (parts.length == 1) {
         return {
             name: str,
-            host: exports.host + (exports.port ? ":" + exports.port : ""),
+            host: host + (port() ? ":" + port() : ""),
             isOwn: true,
             isBranch: false
         };
@@ -382,7 +361,7 @@ function parseQualifiedName(str) {
         return {
             name: parts[0],
             host: parts[1],
-            isOwn: parts[1] == exports.serverAddress,
+            isOwn: parts[1] == serverAddress(),
             isBranch: false
         };
     }
@@ -390,7 +369,7 @@ function parseQualifiedName(str) {
         return {
             name: parts[0],
             host: parts[2],
-            isOwn: parts[2] == exports.serverAddress,
+            isOwn: parts[2] == serverAddress(),
             isBranch: parts[1] == "b"
         };
     }
@@ -463,3 +442,68 @@ function base64ToInt(digitsStr) {
     return result;
 }
 exports.base64ToInt = base64ToInt;
+function snakeToCamelCase(str) {
+    return str.replace(/_\w/g, (m) => m[1].toUpperCase());
+}
+exports.snakeToCamelCase = snakeToCamelCase;
+function camelToSnakeCase(input) {
+    return input.replace(/[\w]([A-Z])/g, function (m) {
+        return m[0] + "_" + m[1];
+    }).toLowerCase();
+}
+exports.camelToSnakeCase = camelToSnakeCase;
+function fromDBObject(obj) {
+    if (!obj)
+        return obj;
+    let r = {};
+    Object.keys(obj).map(key => {
+        r[snakeToCamelCase(key)] = obj[key];
+    });
+    return r;
+}
+exports.fromDBObject = fromDBObject;
+const model = __importStar(require("./model"));
+function urlForUser(user) {
+    if (typeof user == "string")
+        return urlForPath("user/" + user);
+    else
+        return urlForPath("user/" + user.name);
+}
+exports.urlForUser = urlForUser;
+function urlForBranch(branch) {
+    if (typeof branch == "string")
+        return urlForPath("branch/" + branch + "@" + host());
+    else
+        return urlForPath("branch/" + branch.name + "@" + host());
+}
+exports.urlForBranch = urlForBranch;
+async function getLoggedUser(cookies) {
+    if (cookies.session) {
+        let session = await model.getSessionById(cookies.session);
+        if (session && session.userName) {
+            let user = await model.getUserByName(session.userName);
+            if (user) {
+                return user;
+            }
+        }
+    }
+    return undefined;
+}
+exports.getLoggedUser = getLoggedUser;
+async function createViewData(cookies) {
+    let viewData = {};
+    if (cookies.session) {
+        let session = await model.getSessionById(cookies.session);
+        if (session && session.userName) {
+            let user = await model.getUserByName(session.userName);
+            if (user) {
+                viewData.userName = user.name;
+                viewData.user = user;
+                viewData.isAdmin = isAdmin(user.name);
+                viewData.notifCount = await model.getNotificationCountByUser(user);
+            }
+        }
+    }
+    return viewData;
+}
+exports.createViewData = createViewData;

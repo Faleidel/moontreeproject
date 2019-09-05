@@ -7,9 +7,10 @@ import * as queryString from "querystring";
 export async function handleLoginPost(url: string[], query: any, req: any, res: any, body: string, cookies: any) {
     let {user, password} = queryString.parse(body) as any;
     
-    user = user + "@" + utils.serverAddress;
+    user = user + "@" + utils.serverAddress();
     
     let userObject = await model.getUserByName(user);
+    console.log("GET USER", userObject, utils.serverAddress());
     if (   userObject
         && !userObject.banned
         && userObject.local

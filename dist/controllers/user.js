@@ -36,7 +36,7 @@ exports.handleUserInboxPost = handleUserInboxPost;
 async function handleUserGet(url, query, req, res, body, cookies) {
     let name = url[1];
     if (name.indexOf("@") == -1)
-        name += "@" + utils.serverAddress;
+        name += "@" + utils.serverAddress();
     let user = await model.getUserByName(name);
     let asJson = !!query.json || (req.headers.accept.indexOf("json") != -1);
     if (asJson)

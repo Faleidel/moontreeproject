@@ -37,7 +37,7 @@ async function handleThread(url, query, req, res, body, cookies) {
             }
         }
         else
-            res.end("404 thread not found");
+            res.end("404 thread not found, " + threadId);
     }
     else {
         res.end("404 no thread id");

@@ -1,5 +1,4 @@
-import { readFileSync, createWriteStream, writeFile } from "fs";
-import * as model from "./model";
+import { readFileSync, readFile, createWriteStream, writeFile } from "fs";
 const { createHash } = require("crypto");
 import * as crypto from "crypto";
 const { generateKeyPair } = require("crypto");
@@ -9,18 +8,37 @@ const requestLib = require("request");
 import * as showdown from "showdown";
 const sanitizeHtml = require('sanitize-html');
 
-console.log("Reading config file");
-export let config = JSON.parse(readFileSync("config.json", "UTF-8") as string);
-console.log("Got config file");
+export let config = {} as any;
+
+export const configLoaded = new Promise((resolve, reject) => {
+    readFile("config.json", "UTF-8", (err, data) => {
+        config = JSON.parse(data);
+        
+        generateTestData = !!config.generateTestData;
+        migrationNumber = config.migrationNumber || 0;
+        
+        resolve();
+    });
+});
 
 import * as mails from "./mails";
 import * as sms from "./sms";
 
-export const port = config.port == undefined ? 9090 : config.port == "" ? "" : config.port;
-export const realPort = config.realPort == undefined ? 9090 : config.realPort == "" ? "" : config.realPort;
-export let protocol = config.protocol || "http";
-export const host = config.host || "0.0.0.0";
-export const generateTestData = !!config.generateTestData;
+export function port(): string {
+    return config.port == undefined ? 9090 : config.port == "" ? "" : config.port;
+}
+export function realPort(): string {
+    return config.realPort == undefined ? 9090 : config.realPort == "" ? "" : config.realPort;
+}
+export function protocol(): string {
+    return config.protocol || "http";
+}
+
+export function host(): string {
+    return config.host || "0.0.0.0";
+}
+
+export let generateTestData = !!config.generateTestData;
 export let migrationNumber = config.migrationNumber || 0;
 
 function saveConfig(){
@@ -30,7 +48,7 @@ function saveConfig(){
 }
 
 export function alertLog(logType: "branchCreation" | "userCreation", content: string) {
-    if (config.logs[logType]) {
+    if (config.logs && config.logs[logType]) {
         if (config.logs[logType].email)
             mails.sendAdminAlert(content);
         if (config.logs[logType].sms)
@@ -102,30 +120,20 @@ export function setOverviewHasThreads(accept: boolean) {
     saveConfig();
 }
 
-export const serverAddress = host + (port ? (":" + port) : "");
+export function serverAddress() {
+    return host() + (port() ? (":" + port()) : "");
+}
 
-export let baseUrl = protocol + "://" + serverAddress;
+export function baseUrl(): string {
+    return protocol() + "://" + serverAddress();
+}
 
 import * as njk from "nunjucks";
 njk.configure("src", {autoescape: true});
 
 
 export function urlForPath(path: string): string {
-    return baseUrl + "/" + path;
-}
-
-export function urlForUser(user: string | model.User): string {
-    if (typeof user == "string")
-        return urlForPath("user/" + user);
-    else
-        return urlForPath("user/" + user.name);
-}
-
-export function urlForBranch(branch: string | model.Branch): string {
-    if (typeof branch == "string")
-        return urlForPath("branch/" + branch + "@" + host);
-    else
-        return urlForPath("branch/" + branch.name + "@" + host)
+    return baseUrl() + "/" + path;
 }
 
 export function last<A>(list: A[]): A {
@@ -189,20 +197,6 @@ export function endWithRedirect(res: any, url: string): void{
     res.end();
 }
 
-export async function getLoggedUser(cookies: {[key: string]: string}): Promise<model.User | undefined> {
-    if (cookies.session) {
-        let session = await model.getSessionById(cookies.session);
-        if (session && session.userName) {
-            let user = await model.getUserByName(session.userName);
-            if (user) {
-                return user;
-            }
-        }
-    }
-    
-    return undefined;
-}
-
 export function parseCookies(cookie: string): {[key: string]: string} {
     return cookie.split(';').reduce(
         function(prev: any, curr: any) {
@@ -235,17 +229,17 @@ export function renderTemplate(templatePath: string, viewData: any): string {
         utils: {
             encodeURIComponent: encodeURIComponent,
             threadLink: (id: string) => {
-                if (id.split("/")[2] == serverAddress)
+                if (id.split("/")[2] == serverAddress())
                     return id;
                 else
                     return "/thread/" + encodeURIComponent(id);
             },
             renderMarkdown: renderMarkdown,
             renderUserName: (name: string) => {
-                if (name.indexOf("@"+serverAddress) == -1)
+                if (name.indexOf("@"+serverAddress()) == -1)
                     return name;
                 else
-                    return name.substr(0, name.indexOf("@"+host));
+                    return name.substr(0, name.indexOf("@"+host()));
             },
             renderRelativeTime: (date: number) => {
                 let days = (new Date().getTime() - date) / (1000 * 60 * 60 * 24);
@@ -260,25 +254,6 @@ export function renderTemplate(templatePath: string, viewData: any): string {
         },
         ...viewData
     });
-}
-
-export async function createViewData(cookies: any): Promise<any> {
-    let viewData: any = {};
-    
-    if (cookies.session) {
-        let session = await model.getSessionById(cookies.session);
-        if (session && session.userName) {
-            let user = await model.getUserByName(session.userName);
-            if (user) {
-                viewData.userName = user.name;
-                viewData.user = user;
-                viewData.isAdmin = isAdmin(user.name);
-                viewData.notifCount = await model.getNotificationCountByUser(user)
-            }
-        }
-    }
-    
-    return viewData;
 }
 
 export function request(options: any): Promise<{resp: any, body: string}> {
@@ -394,7 +369,7 @@ export function parseQualifiedName(str: string): {name: string, host: string, is
     if (parts.length == 1) {
         return {
             name: str,
-            host: host + (port ? ":"+port : ""),
+            host: host + (port() ? ":"+port() : ""),
             isOwn: true,
             isBranch: false
         };
@@ -402,14 +377,14 @@ export function parseQualifiedName(str: string): {name: string, host: string, is
         return {
             name: parts[0],
             host: parts[1],
-            isOwn: parts[1] == serverAddress,
+            isOwn: parts[1] == serverAddress(),
             isBranch: false
         };
     } else if (parts.length == 3) {
         return {
             name: parts[0],
             host: parts[2],
-            isOwn: parts[2] == serverAddress,
+            isOwn: parts[2] == serverAddress(),
             isBranch: parts[1] == "b"
         };
     } else {
@@ -485,4 +460,71 @@ export function base64ToInt(digitsStr: string): number {
     }
     
     return result;
+}
+export function snakeToCamelCase(str: string): string {
+    return str.replace(/_\w/g, (m) => m[1].toUpperCase());
+}
+export function camelToSnakeCase(input: string): string {
+    return input.replace(/[\w]([A-Z])/g, function(m) {
+        return m[0] + "_" + m[1];
+    }).toLowerCase();
+}
+export function fromDBObject<A>(obj: A): A {
+    if (!obj)
+        return obj;
+    
+    let r: any = {};
+    
+    Object.keys(obj).map(key => {
+        r[snakeToCamelCase(key)] = (obj as any)[key];
+    });
+    
+    return r as A;
+}
+
+import * as model from "./model";
+export function urlForUser(user: string | model.User): string {
+    if (typeof user == "string")
+        return urlForPath("user/" + user);
+    else
+        return urlForPath("user/" + user.name);
+}
+
+export function urlForBranch(branch: string | model.Branch): string {
+    if (typeof branch == "string")
+        return urlForPath("branch/" + branch + "@" + host());
+    else
+        return urlForPath("branch/" + branch.name + "@" + host())
+}
+
+export async function getLoggedUser(cookies: {[key: string]: string}): Promise<model.User | undefined> {
+    if (cookies.session) {
+        let session = await model.getSessionById(cookies.session);
+        if (session && session.userName) {
+            let user = await model.getUserByName(session.userName);
+            if (user) {
+                return user;
+            }
+        }
+    }
+    
+    return undefined;
+}
+export async function createViewData(cookies: any): Promise<any> {
+    let viewData: any = {};
+    
+    if (cookies.session) {
+        let session = await model.getSessionById(cookies.session);
+        if (session && session.userName) {
+            let user = await model.getUserByName(session.userName);
+            if (user) {
+                viewData.userName = user.name;
+                viewData.user = user;
+                viewData.isAdmin = isAdmin(user.name);
+                viewData.notifCount = await model.getNotificationCountByUser(user)
+            }
+        }
+    }
+    
+    return viewData;
 }

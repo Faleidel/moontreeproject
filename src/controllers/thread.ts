@@ -48,7 +48,7 @@ export async function handleThread(url: string[], query: any, req: any, res: any
             }
         }
         else
-            res.end("404 thread not found");
+            res.end("404 thread not found, " + threadId);
     } else {
         res.end("404 no thread id");
     }

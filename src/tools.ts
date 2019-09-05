@@ -1,11 +1,11 @@
 import * as model from "./model";
+import * as db from "./db";
 
-function changeSiteUrl(from: string, to: string) {
-    model.loadStore(() => {
+async function changeSiteUrl(from: string, to: string) {
+    model.loadStore(async () => {
         let threads: model.Thread[] = Object.values(model.store.threads);
         let comments: model.Comment[] = Object.values(model.store.comments);
         let acts: model.Activity[] = Object.values(model.store.activitys);
-        let users: model.User[] = Object.values(model.store.users);
         let branches: model.Branch[] = Object.values(model.store.branches);
         let likes: model.Like[] = Object.values(model.store.likes);
         let notifications: model.Notification[] = Object.values(model.store.notifications);
@@ -15,7 +15,6 @@ function changeSiteUrl(from: string, to: string) {
         model.store.threads = {};
         model.store.comments = {};
         model.store.activitys = {};
-        model.store.users = {};
         model.store.branches = {};
         model.store.likes = {};
         model.store.notifications = {};
@@ -45,9 +44,24 @@ function changeSiteUrl(from: string, to: string) {
             model.store.activitys[t.id] = t;
         });
         
-        users.map(t => {
-            t.name = t.name.replace(from, to);
-            model.store.users[t.name] = t;
+        let userQ = await db.dbPool.query(`SELECT name FROM users;`);
+        let users = userQ.rows;
+        users.map((t: { name: string }) => {
+            db.dbPool.connect(async (err: any, client: any, done: any) => {
+                try {
+                    await client.query(`BEGIN`, []);
+                    await client.query(`
+                        UPDATE users
+                        SET name = $1
+                        WHERE name = $2;
+                    `, [t.name.replace(from, to), t.name]);
+                    await client.query(`COMMIT`);
+                    done();
+                } catch (e) {
+                    await client.query('ROLLBACK');
+                    done();
+                }
+            });
         });
         
         branches.map(t => {

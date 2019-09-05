@@ -9,12 +9,12 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils = __importStar(require("./utils"));
 const sendGrid = require("@sendgrid/mail");
-setTimeout(() => {
+utils.configLoaded.then(_ => {
     if (utils.config.sendGridKey)
         sendGrid.setApiKey(utils.config.sendGridKey);
     else
         console.log("No sendgrid api key in config (config.sendGridKey)");
-}, 1000);
+});
 ;
 function sendMail(mail) {
     sendGrid.send(Object.assign({}, mail, { from: "admin@" + utils.host }));

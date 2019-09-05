@@ -3,19 +3,12 @@ import * as utils from "./utils";
 import * as crypto from "crypto";
 import * as urlLib from "url";
 const request = require("request");
+const { Pool } = require('pg')
+import {User, UserDefinition} from "./modelInterfaces";
 
-export interface User {
-    name: string,
-    passwordHashed: string,
-    passwordSalt: string,
-    publicKey: string,
-    privateKey: string,
-    banned: boolean,
-    
-    local: boolean,
-    lastUpdate: number,
-    foreignUrl: string
-}
+export {User};
+
+import * as db from "./db";
 
 export interface Notification {
     id: string,
@@ -179,7 +172,7 @@ export async function threadToJSON(thread: Thread): Promise<any> {
         ],
         
         title: thread.title,
-        branch: thread.branch.indexOf("@") == -1 ? thread.branch + "@" + utils.serverAddress : thread.branch.split("@")[0],
+        branch: thread.branch.indexOf("@") == -1 ? thread.branch + "@" + utils.serverAddress() : thread.branch.split("@")[0],
         isLink: thread.isLink,
         media: thread.media,
         likes: await getRemoteLikesAmount(thread) + (await getLikesByObject(thread)).length
@@ -316,7 +309,6 @@ export interface Follow {
 }
 
 export let store = {
-    users: {} as {[name: string]: User},
     sessions: {} as {[id: string]: Session},
     activitys: {} as {[id: string]: Activity},
     comments: {} as {[id: string]: Comment},
@@ -391,7 +383,7 @@ function indexNotification(notification: Notification): void {
 
 async function testLikeOn(comment: Comment, amount: number): Promise<void> {
     for (let i = 0 ; i < amount ; i++) {
-        let user = await getUserByName("test"+i+"@"+utils.serverAddress);
+        let user = await getUserByName("test"+i+"@"+utils.serverAddress());
         
         if (user) {
             let l = await createLike(user, comment);
@@ -464,6 +456,49 @@ export function loadStore(cb: any): void {
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
             
+            if (utils.migrationNumber == 6) {
+                const dbPoolPG = new Pool({
+                    user: utils.config.database.user,
+                    host: utils.config.database.host,
+                    database: "postgres",
+                    password: utils.config.database.password,
+                    port: utils.config.database.port
+                });
+                
+                await dbPoolPG.query(`CREATE DATABASE ${utils.config.database.database};`)
+                .then(() => utils.log("Created database " + utils.config.database.database))
+                .catch(() => utils.log("Database " + utils.config.database.database + " already existed"));
+                
+                dbPoolPG.end();
+                
+                db.setDbPool();
+                
+                let result = await db.dbPool.query(`
+                    CREATE TABLE users (
+                       name VARCHAR (50) PRIMARY KEY NOT NULL,
+                       password_hashed TEXT NOT NULL,
+                       password_salt TEXT NOT NULL,
+                       public_key TEXT NOT NULL,
+                       private_key TEXT NOT NULL,
+                       banned BOOL NOT NULL,
+                       local BOOL NOT NULL,
+                       last_update bigint,
+                       foreign_url TEXT NOT NULL
+                    );
+                `).catch((e: any) => console.log("Error create users table", e));
+                
+                console.log(result);
+                
+                await Promise.all(Object.keys((store as any).users).map(async userName => {
+                    let user = (store as any).users[userName];
+                    
+                    insertUser(user)
+                    .catch((e: any) => console.log("Error adding user to userse table", e));
+                }));
+                
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            
             Object.values(store.comments).map(c => indexComment(c));
             Object.values(store.threads).map(t => indexComment(t));
             Object.values(store.threads).map(t => indexThread(t));
@@ -483,19 +518,19 @@ export function loadStore(cb: any): void {
                     let admin = await createUser("admin", "admin") as any;
                     let admin2  = await createUser("admin2", "admin2") as any;
                     
-                    utils.setAdmins(["admin@"+utils.serverAddress, "admin2@"+utils.serverAddress]);
+                    utils.setAdmins(["admin@"+utils.serverAddress(), "admin2@"+utils.serverAddress()]);
                     
                     for (let i = 0 ; i < 20 ; i++)
                         await createUser("test" + i, "test" + i);
                     
                     await createBranch("gold", "This is the gold branch", [], admin);
                     await createBranch("silver", "This is the silver branch", [], admin2);
-                    await createBranch("iron", "This is the iron branch", [], await getUserByName("test1@"+utils.serverAddress) as any);
+                    await createBranch("iron", "This is the iron branch", [], await getUserByName("test1@"+utils.serverAddress()) as any);
                     await createBranch("test", "This is the test branch", [], admin);
                     
                     let randomBranch = () => ["gold", "silver", "iron"][Math.floor(Math.random()*3)];
                     
-                    for (let i = 0 ; i < 200 ; i++) {
+                    for (let i = 0 ; i < 20 ; i++) {
                         let { thread } = await createThread(admin, "test thread" + i, "With no content", randomBranch());
                         thread.published -= Math.floor(1000 * 60 * 60 * 24 * 5 * Math.random());
                     }
@@ -504,7 +539,7 @@ export function loadStore(cb: any): void {
                         for (let tid in store.threads) {
                             let c = await getThreadById(tid);
                             if (c)
-                                await testLikeOn(c, Math.floor(Math.random()*20));
+                                await testLikeOn(c, Math.floor(Math.random()*5));
                             else
                                 console.log("Bad thread", c);
                         }
@@ -605,8 +640,18 @@ export async function getRemoteLikesAmount(object: Comment): Promise<number> {
 }
 
 // USER
+const queryUserByName: (name: string) => Promise<User | undefined> = db.getObjectByField<User>("users", "name");
+
+export const getUserList: () => Promise<User[]> = db.getAllFrom("users");
+
+const insertUser: (user: User) => Promise<void> = db.insertForType("users", UserDefinition);
+
+export async function banUser(name: string): Promise<void> {
+    await db.updateFieldsWhere("users", {name: name}, {banned: true});
+}
+
 export async function getUserByName(name: string): Promise<User | undefined> {
-    let user = store.users[name];
+    let user = await queryUserByName(name);
     
     if (user) {
         if (user.local)
@@ -621,9 +666,9 @@ export async function getUserByName(name: string): Promise<User | undefined> {
             return user;
         }
     } else {
-        if (name.indexOf("@" + utils.serverAddress) == -1) {
+        if (name.indexOf("@" + utils.serverAddress()) == -1) {
             if (name.indexOf("@") == -1)
-                return await getUserByName(name + "@" + utils.serverAddress);
+                return await getUserByName(name + "@" + utils.serverAddress());
             else {
                 console.log("GET NEW FOREIGN USER");
                 return await getForeignUser(name);
@@ -633,9 +678,6 @@ export async function getUserByName(name: string): Promise<User | undefined> {
             return undefined;
     }
 }
-export async function getUserList(): Promise<User[]> {
-    return Object.values(store.users);
-}
 export async function getForeignUser(name: string): Promise<User | undefined> {
     let domain = name.split("@")[1];
     
@@ -644,7 +686,7 @@ export async function getForeignUser(name: string): Promise<User | undefined> {
     if (remoteInstance && !remoteInstance.blocked) {
         let userLink: string = await utils.request({
             methode: "GET",
-            url: utils.protocol + "://" + domain + "/.well-known/webfinger?resource=acct:" + name,
+            url: utils.protocol() + "://" + domain + "/.well-known/webfinger?resource=acct:" + name,
             headers: { "Accept": "application/json" }
         }).then(datas => {
             let json = JSON.parse(datas.body);
@@ -668,7 +710,7 @@ export async function getForeignUser(name: string): Promise<User | undefined> {
             banned: false
         };
         
-        store.users[name] = newUser;
+        insertUser(newUser);
         saveStore();
         
         await importForeignUserData(name);
@@ -744,7 +786,7 @@ export async function importForeignUserData(name: string) {
     }
 }
 export async function createUser(name: string, password: string): Promise<User | undefined> {
-    name = name + "@" + utils.serverAddress;
+    name = name + "@" + utils.serverAddress();
     
     let user = await getUserByName(name);
     let branch = await getBranchByName(name);
@@ -776,7 +818,7 @@ export async function createUser(name: string, password: string): Promise<User |
                 banned: false
             };
             
-            store.users[name] = user;
+            insertUser(user);
             saveStore();
             
             console.log("MADE USER");
@@ -791,19 +833,6 @@ export async function createUser(name: string, password: string): Promise<User |
     else {
         console.log("USER EXISTS");
         return Promise.resolve(undefined);
-    }
-}
-export async function banUser(name: string): Promise<void> {
-    let user = await getUserByName(name);
-    
-    if (user) {
-        user.banned = true;
-        Object.values(store.sessions).map(session => {
-            if (session.userName == name) {
-                session.userName = undefined;
-            }
-        });
-        saveStore();
     }
 }
 
@@ -895,7 +924,7 @@ export async function getRemoteBranchJSON(name: string): Promise<any | undefined
     if (remoteInstance && !remoteInstance.blocked) {
         return await utils.request({
             method: "GET",
-            url: utils.protocol + "://" + qName.host + "/branch/" + qName.name,
+            url: utils.protocol() + "://" + qName.host + "/branch/" + qName.name,
             headers: { "Accept": "application/json" }
         }).then(datas => {
             let json = JSON.parse(datas.body);
@@ -1065,8 +1094,8 @@ export async function createComment(author: User, content: string, inReplyTo: st
         adminDeleted: false
     }
     
-    if (inReplyTo.split("/")[2] != utils.serverAddress) { // send comment to remote server
-        let remoteHost = utils.protocol + "://" + inReplyTo.split("/")[2] + "/inbox";
+    if (inReplyTo.split("/")[2] != utils.serverAddress()) { // send comment to remote server
+        let remoteHost = utils.protocol() + "://" + inReplyTo.split("/")[2] + "/inbox";
         
         let jsonComment = JSON.stringify(await commentToJSON(comment));
         
@@ -1135,10 +1164,13 @@ export async function isLocalComment(id: string): Promise<boolean> {
     return !!store.comments[id];
 }
 // THREAD
+export function isOwnThread(thread: Thread): boolean {
+    return true;
+}
 export async function getThreadById(id: string): Promise<Thread | undefined> {
     let thread: Thread | undefined = store.threads[id];
     
-    if ((!thread || thread && new Date().getTime()-thread.lastUpdate > 1000*60*10) && !id.startsWith(utils.baseUrl)) {
+    if ((!thread || (thread && !isOwnThread(thread) && new Date().getTime()-thread.lastUpdate > 1000*60*10)) && !id.startsWith(utils.baseUrl())) {
         thread = await ((async () => {
             let threadUrl = id;
             
@@ -1172,7 +1204,7 @@ export async function getThreadById(id: string): Promise<Thread | undefined> {
                 
                 return await getThreadById(threadUrl);
             }
-        })().catch(() => undefined));
+        })().catch((e) => { console.log(e) ; return undefined }));
     }
     
     if (thread && ((thread.branch && await isBranchBanned(thread.branch)) || thread.adminDeleted))
@@ -1279,7 +1311,7 @@ export async function createThread(author: User, title: string, content: string,
     
     let qName = utils.parseQualifiedName(branch);
     if (!qName.isOwn) {
-        let remoteHost = utils.protocol + "://" + qName.host + "/inbox";
+        let remoteHost = utils.protocol() + "://" + qName.host + "/inbox";
         
         let jsonComment = JSON.stringify(await threadToJSON(thread));
         
@@ -1404,7 +1436,7 @@ export async function getNewThreadsByBranch(branch: string | undefined, user: Us
 export async function createRemoteInstance(host: string, name: string, blocked: boolean): Promise<RemoteInstance | undefined> {
     let {body} = await utils.request({
         method: "GET",
-        url: utils.protocol + "://" + host + "/api/v1/instance",
+        url: utils.protocol() + "://" + host + "/api/v1/instance",
         headers: { "Accept": "application/json" }
     });
     
@@ -1429,7 +1461,7 @@ export async function getRemoteInstanceByHost(host: string): Promise<RemoteInsta
     else {
         let name = await utils.request({
             method: "GET",
-            url: utils.protocol + "://" + host + "/api/v1/instance",
+            url: utils.protocol() + "://" + host + "/api/v1/instance",
             headers: { "Accept": "application/json" }
         }).then(datas => {
             return JSON.parse(datas.body).title;

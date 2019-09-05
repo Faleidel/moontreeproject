@@ -8,12 +8,12 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const model = __importStar(require("./model"));
-function changeSiteUrl(from, to) {
-    model.loadStore(() => {
+const db = __importStar(require("./db"));
+async function changeSiteUrl(from, to) {
+    model.loadStore(async () => {
         let threads = Object.values(model.store.threads);
         let comments = Object.values(model.store.comments);
         let acts = Object.values(model.store.activitys);
-        let users = Object.values(model.store.users);
         let branches = Object.values(model.store.branches);
         let likes = Object.values(model.store.likes);
         let notifications = Object.values(model.store.notifications);
@@ -21,7 +21,6 @@ function changeSiteUrl(from, to) {
         model.store.threads = {};
         model.store.comments = {};
         model.store.activitys = {};
-        model.store.users = {};
         model.store.branches = {};
         model.store.likes = {};
         model.store.notifications = {};
@@ -43,9 +42,25 @@ function changeSiteUrl(from, to) {
             t.objectId = t.objectId.replace(from, to);
             model.store.activitys[t.id] = t;
         });
-        users.map(t => {
-            t.name = t.name.replace(from, to);
-            model.store.users[t.name] = t;
+        let userQ = await db.dbPool.query(`SELECT name FROM users;`);
+        let users = userQ.rows;
+        users.map((t) => {
+            db.dbPool.connect(async (err, client, done) => {
+                try {
+                    await client.query(`BEGIN`, []);
+                    await client.query(`
+                        UPDATE users
+                        SET name = $1
+                        WHERE name = $2;
+                    `, [t.name.replace(from, to), t.name]);
+                    await client.query(`COMMIT`);
+                    done();
+                }
+                catch (e) {
+                    await client.query('ROLLBACK');
+                    done();
+                }
+            });
         });
         branches.map(t => {
             t.creator = t.creator.replace(from, to);

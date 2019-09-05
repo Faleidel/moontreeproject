@@ -38,7 +38,7 @@ export async function handleUserGet(url: string[], query: any, req: any, res: an
     let name = url[1];
     
     if (name.indexOf("@") == -1)
-        name += "@" + utils.serverAddress;
+        name += "@" + utils.serverAddress();
     
     let user: model.User | undefined = await model.getUserByName(name);
     

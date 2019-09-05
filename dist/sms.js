@@ -10,9 +10,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const utils = __importStar(require("./utils"));
 const twilio = require("twilio");
 let client = null;
-setTimeout(() => {
-    client = twilio(utils.config.twilioSID, utils.config.twilioToken);
-}, 1000);
+utils.configLoaded.then(_ => {
+    if (utils.config.twilioSID && utils.config.twilioToken)
+        client = twilio(utils.config.twilioSID, utils.config.twilioToken);
+    else {
+        console.log("Did not init twilio sms, lacking config 'twilioSID' and 'twilioToken'");
+    }
+});
 function sendToAdmin(msg) {
     client.messages.create({
         body: msg,
