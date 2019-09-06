@@ -28,3 +28,12 @@ meta interface Session {
     creationDate: "string"
 } end meta interface
 export {Session, SessionDefinition}
+
+meta interface Activity {
+    id: "string",
+    objectId: "string",
+    published: "number",
+    author: "string",
+    to: "string[]"
+} end meta interface
+export {Activity, ActivityDefinition};

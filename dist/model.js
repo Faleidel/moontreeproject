@@ -14,6 +14,10 @@ const urlLib = __importStar(require("url"));
 const request = require("request");
 const { Pool } = require('pg');
 const modelInterfaces_1 = require("./modelInterfaces");
+exports.UserDefinition = modelInterfaces_1.UserDefinition;
+exports.NotificationDefinition = modelInterfaces_1.NotificationDefinition;
+exports.SessionDefinition = modelInterfaces_1.SessionDefinition;
+exports.ActivityDefinition = modelInterfaces_1.ActivityDefinition;
 const db = __importStar(require("./db"));
 async function activityToJSON(act) {
     let object = typeof act.object == "object"
@@ -186,7 +190,6 @@ async function branchFromJSON(obj) {
 }
 exports.branchFromJSON = branchFromJSON;
 exports.store = {
-    activitys: {},
     comments: {},
     threads: {},
     branches: {},
@@ -228,9 +231,6 @@ function indexThread(thread) {
     if (!indexs.hotThreadsByBranch[thread.branch] || !indexs.hotThreadsByBranch[thread.branch].find(c => c == thread.id))
         addToIndex("hotThreadsByBranch", thread.branch, thread.id);
 }
-function indexActivity(activity) {
-    addToIndex("userActivitys", activity.author, activity.id);
-}
 function indexLike(like) {
     addToIndex("likesByObject", like.object, like.id);
     indexs.likeOfActorOnObject[like.author + like.object] = like;
@@ -267,7 +267,7 @@ function loadStore(cb) {
             if (utils.migrationNumber == 1) {
                 utils.log("Migration is 1, migrating to 2");
                 // change activitys publish date from string format to timestamp
-                Object.values(exports.store.activitys).map(act => {
+                Object.values(exports.store.activitys).map((act) => {
                     act.published = new Date(act.published).getTime();
                 });
                 Object.values(exports.store.comments).map(act => {
@@ -373,10 +373,27 @@ function loadStore(cb) {
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
+            if (utils.migrationNumber == 9) {
+                let result = await db.dbPool.query(`
+                    CREATE TABLE activitys (
+                       id TEXT PRIMARY KEY NOT NULL,
+                       object_id TEXT NOT NULL,
+                       published bigint NOT NULL,
+                       author TEXT NOT NULL,
+                       "to" TEXT[] NOT NULL
+                    );
+                `).catch((e) => console.log("Error create activitys table", e));
+                console.log(result);
+                await Promise.all(Object.keys(exports.store.activitys).map(async (actId) => {
+                    let activity = exports.store.activitys[actId];
+                    insertActivity(activity)
+                        .catch((e) => console.log("Error adding activity to table", e));
+                }));
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
             Object.values(exports.store.comments).map(c => indexComment(c));
             Object.values(exports.store.threads).map(t => indexComment(t));
             Object.values(exports.store.threads).map(t => indexThread(t));
-            Object.values(exports.store.activitys).map(t => indexActivity(t));
             Object.values(exports.store.likes).map(t => indexLike(t));
             Object.values(exports.store.likeBundles).map(t => indexLikeBundle(t));
             Object.values(exports.store.follows).map(t => indexFollow(t));
@@ -598,7 +615,7 @@ async function importForeignUserData(name) {
         let activitys = acts.orderedItems.filter((act) => typeof act.object != "string");
         activitys.map((act) => act.object.content = act.object.content.replace(/<(?:.|\n)*?>/gm, ''));
         activitys.map(async (act) => {
-            let exists = await getActivityById(act.id);
+            let exists = await exports.getActivityById(act.id);
             if (!exists) {
                 let comment = {
                     id: act.object.id,
@@ -618,9 +635,8 @@ async function importForeignUserData(name) {
                     to: act.to
                 };
                 exports.store.comments[comment.id] = comment;
-                exports.store.activitys[activity.id] = activity;
+                insertActivity(activity);
                 indexComment(comment);
-                indexActivity(activity);
                 saveStore();
             }
         });
@@ -855,10 +871,8 @@ async function loginSession(session, user) {
 }
 exports.loginSession = loginSession;
 // ACTIVITY
-async function getActivityById(id) {
-    return exports.store.activitys[id];
-}
-exports.getActivityById = getActivityById;
+exports.getActivityById = db.getObjectByField("activitys", "id");
+const insertActivity = db.insertForType("activitys", modelInterfaces_1.ActivityDefinition);
 async function createActivity(author, object) {
     let activity = {
         id: utils.urlForPath("activity/" + (Math.random() * 100000000000000000)),
@@ -867,21 +881,11 @@ async function createActivity(author, object) {
         to: ["https://www.w3.org/ns/activitystreams#Public"],
         objectId: object.id
     };
-    exports.store.activitys[activity.id] = activity;
-    saveStore();
-    indexActivity(activity);
+    insertActivity(activity);
     return activity;
 }
 exports.createActivity = createActivity;
-async function getActivitysByAuthor(userName) {
-    let user = await getUserByName(userName);
-    if (user) {
-        return (await Promise.all((indexs.userActivitys[userName] || []).map(getActivityById))).filter((x) => !!x);
-    }
-    else
-        return undefined;
-}
-exports.getActivitysByAuthor = getActivitysByAuthor;
+exports.getActivitysByAuthor = db.getObjectsByField("activitys", "author");
 // COMMENTS
 async function getCommentById(id) {
     let comment = exports.store.comments[id];

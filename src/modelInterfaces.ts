@@ -64,3 +64,23 @@ interface Session {
 
 
 export {Session, SessionDefinition}
+
+
+let ActivityDefinition = {
+    "id": "string",
+    "objectId": "string",
+    "published": "number",
+    "author": "string",
+    "to": "string[]"
+};
+
+interface Activity {
+    id: string,
+    objectId: string,
+    published: number,
+    author: string,
+    to: string[]
+}
+
+
+export {Activity, ActivityDefinition};

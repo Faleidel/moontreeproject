@@ -40,7 +40,7 @@ export function getAllFrom<A>(tableName: string): () => Promise<A[]> {
 }
 
 export function insertForType<A>(tableName: string, typeDefinition: any): (a: A) => Promise<void> {
-    const keys = Object.keys(typeDefinition).map(k => utils.camelToSnakeCase(k)).join(", ");
+    const keys = Object.keys(typeDefinition).map(k => '"'+utils.camelToSnakeCase(k)+'"').join(", ");
     const valuesInserts = Object.keys(typeDefinition).map((_, i) => "$"+(i+1)).join(", ");
     
     const sql = `

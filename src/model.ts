@@ -7,19 +7,17 @@ const { Pool } = require('pg')
 import { User, UserDefinition
        , Notification, NotificationDefinition
        , Session, SessionDefinition
+       , Activity, ActivityDefinition
        } from "./modelInterfaces";
 
-export {User, Notification};
+export { User, UserDefinition
+       , Notification, NotificationDefinition
+       , Session, SessionDefinition
+       , Activity, ActivityDefinition
+       };
 
 import * as db from "./db";
 
-export interface Activity {
-    id: string,
-    objectId: string,
-    published: number,
-    author: string,
-    to: string[]
-}
 export async function activityToJSON(act: Activity): Promise<any | undefined> {
     let object: any = typeof (act as any).object == "object"
                       ? (act as any).object
@@ -297,7 +295,6 @@ export interface Follow {
 }
 
 export let store = {
-    activitys: {} as {[id: string]: Activity},
     comments: {} as {[id: string]: Comment},
     threads: {} as {[id: string]: Thread},
     branches: {} as {[id: string]: Branch},
@@ -343,9 +340,6 @@ function indexThread(thread: Thread): void {
     if (!indexs.hotThreadsByBranch[thread.branch] || !indexs.hotThreadsByBranch[thread.branch].find(c => c == thread.id))
         addToIndex("hotThreadsByBranch", thread.branch, thread.id);
 }
-function indexActivity(activity: Activity): void {
-    addToIndex("userActivitys", activity.author, activity.id);
-}
 function indexLike(like: Like): void {
     addToIndex("likesByObject", like.object, like.id);
     indexs.likeOfActorOnObject[like.author + like.object] = like;
@@ -387,7 +381,7 @@ export function loadStore(cb: any): void {
                 utils.log("Migration is 1, migrating to 2");
                 
                 // change activitys publish date from string format to timestamp
-                Object.values(store.activitys).map(act => {
+                Object.values((store as any).activitys as Activity[]).map((act: Activity) => {
                     act.published = new Date(act.published).getTime();
                 });
                 Object.values(store.comments).map(act => {
@@ -527,10 +521,32 @@ export function loadStore(cb: any): void {
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
             
+            if (utils.migrationNumber == 9) {
+                let result = await db.dbPool.query(`
+                    CREATE TABLE activitys (
+                       id TEXT PRIMARY KEY NOT NULL,
+                       object_id TEXT NOT NULL,
+                       published bigint NOT NULL,
+                       author TEXT NOT NULL,
+                       "to" TEXT[] NOT NULL
+                    );
+                `).catch((e: any) => console.log("Error create activitys table", e));
+                
+                console.log(result);
+                
+                await Promise.all(Object.keys((store as any).activitys).map(async actId => {
+                    let activity = (store as any).activitys[actId];
+                    
+                    insertActivity(activity)
+                    .catch((e: any) => console.log("Error adding activity to table", e));
+                }));
+                
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            
             Object.values(store.comments).map(c => indexComment(c));
             Object.values(store.threads).map(t => indexComment(t));
             Object.values(store.threads).map(t => indexThread(t));
-            Object.values(store.activitys).map(t => indexActivity(t));
             Object.values(store.likes).map(t => indexLike(t));
             Object.values(store.likeBundles).map(t => indexLikeBundle(t));
             Object.values(store.follows).map(t => indexFollow(t));
@@ -802,10 +818,9 @@ export async function importForeignUserData(name: string) {
                 };
                 
                 store.comments[comment.id] = comment;
-                store.activitys[activity.id] = activity;
+                insertActivity(activity);
                 
                 indexComment(comment);
-                indexActivity(activity);
                 
                 saveStore();
             }
@@ -1067,9 +1082,8 @@ export async function loginSession(session: Session, user: User): Promise<void> 
 }
 
 // ACTIVITY
-export async function getActivityById(id: string): Promise<Activity | undefined> {
-    return store.activitys[id];
-}
+export const getActivityById: (id: string) => Promise<Activity | undefined> = db.getObjectByField<Activity>("activitys", "id");
+const insertActivity: (activity: Activity) => Promise<void> = db.insertForType("activitys", ActivityDefinition);
 export async function createActivity(author: User, object: Comment): Promise<Activity> {
     let activity: Activity = {
         id: utils.urlForPath("activity/" + (Math.random() * 100000000000000000)),
@@ -1079,21 +1093,11 @@ export async function createActivity(author: User, object: Comment): Promise<Act
         objectId: object.id
     }
     
-    store.activitys[activity.id] = activity;
-    saveStore();
-    indexActivity(activity);
+    insertActivity(activity);
     
     return activity;
 }
-export async function getActivitysByAuthor(userName: string): Promise<Activity[] | undefined> {
-    let user = await getUserByName(userName);
-    
-    if (user) {
-        return (await Promise.all((indexs.userActivitys[userName] || []).map(getActivityById))).filter((x): x is Activity => !!x);
-    }
-    else
-        return undefined;
-}
+export const getActivitysByAuthor: (id: string) => Promise<Activity[]> = db.getObjectsByField<Activity>("activitys", "author");
 
 // COMMENTS
 export async function getCommentById(id: string): Promise<Comment | undefined> {

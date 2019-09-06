@@ -28,3 +28,11 @@ let SessionDefinition = {
     "creationDate": "string"
 };
 exports.SessionDefinition = SessionDefinition;
+let ActivityDefinition = {
+    "id": "string",
+    "objectId": "string",
+    "published": "number",
+    "author": "string",
+    "to": "string[]"
+};
+exports.ActivityDefinition = ActivityDefinition;

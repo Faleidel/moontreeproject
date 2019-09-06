@@ -5,13 +5,11 @@ async function changeSiteUrl(from: string, to: string) {
     model.loadStore(async () => {
         let threads: model.Thread[] = Object.values(model.store.threads);
         let comments: model.Comment[] = Object.values(model.store.comments);
-        let acts: model.Activity[] = Object.values(model.store.activitys);
         let branches: model.Branch[] = Object.values(model.store.branches);
         let likes: model.Like[] = Object.values(model.store.likes);
         
         model.store.threads = {};
         model.store.comments = {};
-        model.store.activitys = {};
         model.store.branches = {};
         model.store.likes = {};
         
@@ -32,12 +30,24 @@ async function changeSiteUrl(from: string, to: string) {
             model.store.comments[t.id] = t;
         });
         
-        acts.map(t => {
-            t.id = t.id.replace(from, to);
-            t.author = t.author.replace(from, to);
-            t.objectId = t.objectId.replace(from, to);
-            
-            model.store.activitys[t.id] = t;
+        let actsQ = await db.dbPool.query(`SELECT * FROM activitys;`);
+        let acts = actsQ.rows;
+        acts.map((t: any) => {
+            db.dbPool.connect(async (err: any, client: any, done: any) => {
+                try {
+                    await client.query(`BEGIN`, []);
+                    await client.query(`
+                        UPDATE activitys
+                        SET author = $2, object_id = $3
+                        WHERE id = $1;
+                    `, [t.id, t.author.replace(from, to), t.object_id.replace(from, to)]);
+                    await client.query(`COMMIT`);
+                    done();
+                } catch (e) {
+                    await client.query('ROLLBACK');
+                    done();
+                }
+            });
         });
         
         let userQ = await db.dbPool.query(`SELECT name FROM users;`);

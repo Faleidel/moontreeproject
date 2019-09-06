@@ -43,7 +43,7 @@ function getAllFrom(tableName) {
 }
 exports.getAllFrom = getAllFrom;
 function insertForType(tableName, typeDefinition) {
-    const keys = Object.keys(typeDefinition).map(k => utils.camelToSnakeCase(k)).join(", ");
+    const keys = Object.keys(typeDefinition).map(k => '"' + utils.camelToSnakeCase(k) + '"').join(", ");
     const valuesInserts = Object.keys(typeDefinition).map((_, i) => "$" + (i + 1)).join(", ");
     const sql = `
         INSERT INTO ${tableName} (${keys})

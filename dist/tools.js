@@ -13,12 +13,10 @@ async function changeSiteUrl(from, to) {
     model.loadStore(async () => {
         let threads = Object.values(model.store.threads);
         let comments = Object.values(model.store.comments);
-        let acts = Object.values(model.store.activitys);
         let branches = Object.values(model.store.branches);
         let likes = Object.values(model.store.likes);
         model.store.threads = {};
         model.store.comments = {};
-        model.store.activitys = {};
         model.store.branches = {};
         model.store.likes = {};
         threads.map(t => {
@@ -33,11 +31,25 @@ async function changeSiteUrl(from, to) {
                 t.inReplyTo = t.inReplyTo.replace(from, to);
             model.store.comments[t.id] = t;
         });
-        acts.map(t => {
-            t.id = t.id.replace(from, to);
-            t.author = t.author.replace(from, to);
-            t.objectId = t.objectId.replace(from, to);
-            model.store.activitys[t.id] = t;
+        let actsQ = await db.dbPool.query(`SELECT * FROM activitys;`);
+        let acts = actsQ.rows;
+        acts.map((t) => {
+            db.dbPool.connect(async (err, client, done) => {
+                try {
+                    await client.query(`BEGIN`, []);
+                    await client.query(`
+                        UPDATE activitys
+                        SET author = $2, object_id = $3
+                        WHERE id = $1;
+                    `, [t.id, t.author.replace(from, to), t.object_id.replace(from, to)]);
+                    await client.query(`COMMIT`);
+                    done();
+                }
+                catch (e) {
+                    await client.query('ROLLBACK');
+                    done();
+                }
+            });
         });
         let userQ = await db.dbPool.query(`SELECT name FROM users;`);
         let users = userQ.rows;
