@@ -8,12 +8,14 @@ import { User, UserDefinition
        , Notification, NotificationDefinition
        , Session, SessionDefinition
        , Activity, ActivityDefinition
+       , Branch, BranchDefinition
        } from "./modelInterfaces";
 
 export { User, UserDefinition
        , Notification, NotificationDefinition
        , Session, SessionDefinition
        , Activity, ActivityDefinition
+       , Branch, BranchDefinition
        };
 
 import * as db from "./db";
@@ -196,20 +198,6 @@ export interface ThreadForUI extends Thread {
     liked: boolean
 }
 
-export interface Branch {
-    name: string,
-    creator: string,
-    description: string,
-    sourceBranches: string[],
-    pinedThreads: string[],
-    banned: boolean,
-    icon: string,
-     
-    publicKey: string,
-    privateKey: string,
-    
-    lastUpdate: number
-}
 export async function branchToJSON(branch: Branch): Promise<any> {
     return {
         "@context": [
@@ -297,7 +285,6 @@ export interface Follow {
 export let store = {
     comments: {} as {[id: string]: Comment},
     threads: {} as {[id: string]: Thread},
-    branches: {} as {[id: string]: Branch},
     likes: {} as {[id: string]: Like},
     likeBundles: {} as {[id: string]: LikeBundle}, // id is object.id + server name
     remoteInstances: {} as {[host: string]: RemoteInstance},
@@ -312,7 +299,6 @@ let indexs = {
     likesByObject: {} as {[id: string]: string[]},
     likeOfActorOnObject: {} as {[id: string]: Like},
     likeBundlesByObject: {} as {[object: string]: string[]},
-    branchesBySource: {} as {[name: string]: Branch[]},
     notificationsByUser: {} as {[name: string]: string[]},
     followActorsByTarget: {} as {[target: string]: string[]}
 };
@@ -411,7 +397,7 @@ export function loadStore(cb: any): void {
             }
             
             if (utils.migrationNumber == 4) {
-                await Promise.all(Object.values(store.branches).map(async (branch) => {
+                await Promise.all(Object.values((store as any).branches as Branch[]).map(async (branch) => {
                     let kp = await utils.generateUserKeyPair();
                     
                     branch.privateKey = kp.privateKey;
@@ -424,7 +410,7 @@ export function loadStore(cb: any): void {
             }
             
             if (utils.migrationNumber == 5) {
-                Object.values(store.branches).map(branch => {
+                Object.values((store as any).branches as Branch[]).map(branch => {
                     branch.icon = "";
                 });
                 
@@ -539,6 +525,34 @@ export function loadStore(cb: any): void {
                     
                     insertActivity(activity)
                     .catch((e: any) => console.log("Error adding activity to table", e));
+                }));
+                
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            
+            if (utils.migrationNumber == 10) {
+                let result = await db.dbPool.query(`
+                    CREATE TABLE branches (
+                       name TEXT PRIMARY KEY NOT NULL,
+                       creator TEXT NOT NULL,
+                       description TEXT NOT NULL,
+                       source_branches TEXT[] NOT NULL,
+                       pined_threads TEXT[] NOT NULL,
+                       banned BOOL NOT NULL,
+                       icon TEXT NOT NULL,
+                       public_key TEXT NOT NULL,
+                       private_key TEXT NOT NULL,
+                       last_update BIGINT NOT NULL
+                    );
+                `).catch((e: any) => console.log("Error create branches table", e));
+                
+                console.log(result);
+                
+                await Promise.all(Object.keys((store as any).branches).map(async branchId => {
+                    let branch = (store as any).branches[branchId];
+                    
+                    insertBranch(branch)
+                    .catch((e: any) => console.log("Error adding branch to table", e));
                 }));
                 
                 utils.setMigrationNumber(utils.migrationNumber + 1);
@@ -911,8 +925,10 @@ export async function setNotificationRead(notification: Notification): Promise<v
 }
 
 // BRANCH
+export const queryBranchByName: (name: string) => Promise<Branch | undefined> = db.getObjectByField<Branch>("branches", "name");
+const insertBranch: (branch: Branch) => Promise<void> = db.insertForType("branches", BranchDefinition);
 export async function getBranchByName(name: string): Promise<Branch | undefined> {
-    let branch = store.branches[name];
+    let branch = await queryBranchByName(name);
     let qName = utils.parseQualifiedName(name);
     
     if (!branch) {
@@ -924,8 +940,7 @@ export async function getBranchByName(name: string): Promise<Branch | undefined>
                 
                 if (mBranch) {
                     branch = mBranch;
-                    store.branches[branch.name] = branch;
-                    saveStore();
+                    insertBranch(branch);
                     
                     await fetchRemoteBranchThreads(name);
                 }
@@ -933,7 +948,7 @@ export async function getBranchByName(name: string): Promise<Branch | undefined>
             
             return branch;
         } else {
-            return store.branches[qName.name];
+            return await queryBranchByName(qName.name);
         }
     }
     else {
@@ -952,10 +967,7 @@ export async function isBranchBanned(name: string): Promise<boolean> {
     return !(await getBranchByName(name));
 }
 export async function banBranch(name: string): Promise<void> {
-    let branch = await getBranchByName(name);
-    if (branch)
-        branch.banned = true;
-    saveStore();
+    await db.updateFieldsWhere("branches", {name: name}, {banned: true});
 }
 export async function getRemoteBranchJSON(name: string): Promise<any | undefined> {
     let qName = utils.parseQualifiedName(name);
@@ -1033,16 +1045,13 @@ export async function createBranch(name: string, description: string, sourceBran
         
         utils.alertLog("branchCreation", `User ${creator.name} create branch ${name} with description ${description}`);
         
-        store.branches[branch.name] = branch;
-        saveStore();
+        insertBranch(branch);
         
         return branch;
     }
 }
 export async function setBranchIcon(branch: Branch, iconPath: string): Promise<void> {
-    branch.icon = iconPath;
-    
-    saveStore();
+    await db.updateFieldsWhere("branches", {name: branch.name}, {icon: iconPath});
 }
 export async function isBranchAdmin(user: User | undefined, branch: Branch): Promise<boolean> {
     if (!user)
@@ -1051,12 +1060,10 @@ export async function isBranchAdmin(user: User | undefined, branch: Branch): Pro
         return branch.creator == user.name;
 }
 export async function setBranchPinedThreads(branch: Branch, pinedThreads: string[]): Promise<void> {
-    branch.pinedThreads = pinedThreads;
-    
-    saveStore();
+    await db.updateFieldsWhere("branches", {name: branch.name}, {pinedThreads: pinedThreads});
 }
 export async function unsafeBranchList(): Promise<Branch[]> {
-    return Object.values(store.branches).filter(b => !b.banned);
+    return (await db.getAllFrom<Branch>("branches")()).filter(b => !b.banned);
 }
 
 // SESSION

@@ -84,3 +84,33 @@ interface Activity {
 
 
 export {Activity, ActivityDefinition};
+
+
+let BranchDefinition = {
+    "name": "string",
+    "creator": "string",
+    "description": "string",
+    "sourceBranches": "string[]",
+    "pinedThreads": "string[]",
+    "banned": "boolean",
+    "icon": "string",
+    "publicKey": "string",
+    "privateKey": "string",
+    "lastUpdate": "number"
+};
+
+interface Branch {
+    name: string,
+    creator: string,
+    description: string,
+    sourceBranches: string[],
+    pinedThreads: string[],
+    banned: boolean,
+    icon: string,
+    publicKey: string,
+    privateKey: string,
+    lastUpdate: number
+}
+
+
+export {Branch, BranchDefinition};

@@ -18,6 +18,7 @@ exports.UserDefinition = modelInterfaces_1.UserDefinition;
 exports.NotificationDefinition = modelInterfaces_1.NotificationDefinition;
 exports.SessionDefinition = modelInterfaces_1.SessionDefinition;
 exports.ActivityDefinition = modelInterfaces_1.ActivityDefinition;
+exports.BranchDefinition = modelInterfaces_1.BranchDefinition;
 const db = __importStar(require("./db"));
 async function activityToJSON(act) {
     let object = typeof act.object == "object"
@@ -192,7 +193,6 @@ exports.branchFromJSON = branchFromJSON;
 exports.store = {
     comments: {},
     threads: {},
-    branches: {},
     likes: {},
     likeBundles: {},
     remoteInstances: {},
@@ -206,7 +206,6 @@ let indexs = {
     likesByObject: {},
     likeOfActorOnObject: {},
     likeBundlesByObject: {},
-    branchesBySource: {},
     notificationsByUser: {},
     followActorsByTarget: {}
 };
@@ -388,6 +387,29 @@ function loadStore(cb) {
                     let activity = exports.store.activitys[actId];
                     insertActivity(activity)
                         .catch((e) => console.log("Error adding activity to table", e));
+                }));
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            if (utils.migrationNumber == 10) {
+                let result = await db.dbPool.query(`
+                    CREATE TABLE branches (
+                       name TEXT PRIMARY KEY NOT NULL,
+                       creator TEXT NOT NULL,
+                       description TEXT NOT NULL,
+                       source_branches TEXT[] NOT NULL,
+                       pined_threads TEXT[] NOT NULL,
+                       banned BOOL NOT NULL,
+                       icon TEXT NOT NULL,
+                       public_key TEXT NOT NULL,
+                       private_key TEXT NOT NULL,
+                       last_update BIGINT NOT NULL
+                    );
+                `).catch((e) => console.log("Error create branches table", e));
+                console.log(result);
+                await Promise.all(Object.keys(exports.store.branches).map(async (branchId) => {
+                    let branch = exports.store.branches[branchId];
+                    insertBranch(branch)
+                        .catch((e) => console.log("Error adding branch to table", e));
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
@@ -714,8 +736,10 @@ async function setNotificationRead(notification) {
 }
 exports.setNotificationRead = setNotificationRead;
 // BRANCH
+exports.queryBranchByName = db.getObjectByField("branches", "name");
+const insertBranch = db.insertForType("branches", modelInterfaces_1.BranchDefinition);
 async function getBranchByName(name) {
-    let branch = exports.store.branches[name];
+    let branch = await exports.queryBranchByName(name);
     let qName = utils.parseQualifiedName(name);
     if (!branch) {
         if (!qName.isOwn) {
@@ -724,15 +748,14 @@ async function getBranchByName(name) {
                 let mBranch = await branchFromJSON(branchJson);
                 if (mBranch) {
                     branch = mBranch;
-                    exports.store.branches[branch.name] = branch;
-                    saveStore();
+                    insertBranch(branch);
                     await fetchRemoteBranchThreads(name);
                 }
             }
             return branch;
         }
         else {
-            return exports.store.branches[qName.name];
+            return await exports.queryBranchByName(qName.name);
         }
     }
     else {
@@ -752,10 +775,7 @@ async function isBranchBanned(name) {
 }
 exports.isBranchBanned = isBranchBanned;
 async function banBranch(name) {
-    let branch = await getBranchByName(name);
-    if (branch)
-        branch.banned = true;
-    saveStore();
+    await db.updateFieldsWhere("branches", { name: name }, { banned: true });
 }
 exports.banBranch = banBranch;
 async function getRemoteBranchJSON(name) {
@@ -821,15 +841,13 @@ async function createBranch(name, description, sourceBranches, creator) {
             lastUpdate: 0 // only for remote branches
         };
         utils.alertLog("branchCreation", `User ${creator.name} create branch ${name} with description ${description}`);
-        exports.store.branches[branch.name] = branch;
-        saveStore();
+        insertBranch(branch);
         return branch;
     }
 }
 exports.createBranch = createBranch;
 async function setBranchIcon(branch, iconPath) {
-    branch.icon = iconPath;
-    saveStore();
+    await db.updateFieldsWhere("branches", { name: branch.name }, { icon: iconPath });
 }
 exports.setBranchIcon = setBranchIcon;
 async function isBranchAdmin(user, branch) {
@@ -840,12 +858,11 @@ async function isBranchAdmin(user, branch) {
 }
 exports.isBranchAdmin = isBranchAdmin;
 async function setBranchPinedThreads(branch, pinedThreads) {
-    branch.pinedThreads = pinedThreads;
-    saveStore();
+    await db.updateFieldsWhere("branches", { name: branch.name }, { pinedThreads: pinedThreads });
 }
 exports.setBranchPinedThreads = setBranchPinedThreads;
 async function unsafeBranchList() {
-    return Object.values(exports.store.branches).filter(b => !b.banned);
+    return (await db.getAllFrom("branches")()).filter(b => !b.banned);
 }
 exports.unsafeBranchList = unsafeBranchList;
 // SESSION

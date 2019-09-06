@@ -37,3 +37,19 @@ meta interface Activity {
     to: "string[]"
 } end meta interface
 export {Activity, ActivityDefinition};
+
+meta interface Branch {
+    name: "string",
+    creator: "string",
+    description: "string",
+    sourceBranches: "string[]",
+    pinedThreads: "string[]",
+    banned: "boolean",
+    icon: "string",
+     
+    publicKey: "string",
+    privateKey: "string",
+    
+    lastUpdate: "number"
+} end meta interface
+export {Branch, BranchDefinition};

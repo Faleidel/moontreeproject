@@ -13,11 +13,9 @@ async function changeSiteUrl(from, to) {
     model.loadStore(async () => {
         let threads = Object.values(model.store.threads);
         let comments = Object.values(model.store.comments);
-        let branches = Object.values(model.store.branches);
         let likes = Object.values(model.store.likes);
         model.store.threads = {};
         model.store.comments = {};
-        model.store.branches = {};
         model.store.likes = {};
         threads.map(t => {
             t.id = t.id.replace(from, to);
@@ -113,9 +111,25 @@ async function changeSiteUrl(from, to) {
                 });
             }
         });
-        branches.map(t => {
-            t.creator = t.creator.replace(from, to);
-            model.store.branches[t.name] = t;
+        let branchesQ = await db.dbPool.query(`SELECT * FROM branches;`);
+        let branches = branchesQ.rows;
+        branches.map((t) => {
+            db.dbPool.connect(async (err, client, done) => {
+                try {
+                    await client.query(`BEGIN`, []);
+                    await client.query(`
+                        UPDATE branches
+                        SET creator = $1
+                        WHERE name = $2;
+                    `, [t.creator.replace(from, to), t.name]);
+                    await client.query(`COMMIT`);
+                    done();
+                }
+                catch (e) {
+                    await client.query('ROLLBACK');
+                    done();
+                }
+            });
         });
         likes.map(t => {
             t.author = t.author.replace(from, to);

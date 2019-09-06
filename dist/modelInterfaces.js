@@ -36,3 +36,16 @@ let ActivityDefinition = {
     "to": "string[]"
 };
 exports.ActivityDefinition = ActivityDefinition;
+let BranchDefinition = {
+    "name": "string",
+    "creator": "string",
+    "description": "string",
+    "sourceBranches": "string[]",
+    "pinedThreads": "string[]",
+    "banned": "boolean",
+    "icon": "string",
+    "publicKey": "string",
+    "privateKey": "string",
+    "lastUpdate": "number"
+};
+exports.BranchDefinition = BranchDefinition;

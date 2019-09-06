@@ -5,12 +5,10 @@ async function changeSiteUrl(from: string, to: string) {
     model.loadStore(async () => {
         let threads: model.Thread[] = Object.values(model.store.threads);
         let comments: model.Comment[] = Object.values(model.store.comments);
-        let branches: model.Branch[] = Object.values(model.store.branches);
         let likes: model.Like[] = Object.values(model.store.likes);
         
         model.store.threads = {};
         model.store.comments = {};
-        model.store.branches = {};
         model.store.likes = {};
         
         threads.map(t => {
@@ -112,9 +110,24 @@ async function changeSiteUrl(from: string, to: string) {
             }
         });
         
-        branches.map(t => {
-            t.creator = t.creator.replace(from, to);
-            model.store.branches[t.name] = t;
+        let branchesQ = await db.dbPool.query(`SELECT * FROM branches;`);
+        let branches = branchesQ.rows;
+        branches.map((t: { creator: string, name: string }) => {
+            db.dbPool.connect(async (err: any, client: any, done: any) => {
+                try {
+                    await client.query(`BEGIN`, []);
+                    await client.query(`
+                        UPDATE branches
+                        SET creator = $1
+                        WHERE name = $2;
+                    `, [t.creator.replace(from, to), t.name]);
+                    await client.query(`COMMIT`);
+                    done();
+                } catch (e) {
+                    await client.query('ROLLBACK');
+                    done();
+                }
+            });
         });
         
         likes.map(t => {
