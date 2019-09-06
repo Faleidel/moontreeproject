@@ -16,7 +16,6 @@ async function changeSiteUrl(from, to) {
         let acts = Object.values(model.store.activitys);
         let branches = Object.values(model.store.branches);
         let likes = Object.values(model.store.likes);
-        model.store.sessions = {};
         model.store.threads = {};
         model.store.comments = {};
         model.store.activitys = {};
@@ -60,7 +59,7 @@ async function changeSiteUrl(from, to) {
                 }
             });
         });
-        let notificationQ = await db.dbPool.query(`SELECT name FROM notifications;`);
+        let notificationQ = await db.dbPool.query(`SELECT * FROM notifications;`);
         let notifications = userQ.rows;
         notifications.map((t) => {
             db.dbPool.connect(async (err, client, done) => {
@@ -79,6 +78,28 @@ async function changeSiteUrl(from, to) {
                     done();
                 }
             });
+        });
+        let sessionsQ = await db.dbPool.query(`SELECT * FROM sessions;`);
+        let sessions = userQ.rows;
+        sessions.map((t) => {
+            if (t.userName) {
+                db.dbPool.connect(async (err, client, done) => {
+                    try {
+                        await client.query(`BEGIN`, []);
+                        await client.query(`
+                            UPDATE sessions
+                            SET userName = $1
+                            WHERE id = $2;
+                        `, [t.userName.replace(from, to), t.id]);
+                        await client.query(`COMMIT`);
+                        done();
+                    }
+                    catch (e) {
+                        await client.query('ROLLBACK');
+                        done();
+                    }
+                });
+            }
         });
         branches.map(t => {
             t.creator = t.creator.replace(from, to);

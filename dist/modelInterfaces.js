@@ -22,3 +22,9 @@ let NotificationDefinition = {
     "read": "boolean"
 };
 exports.NotificationDefinition = NotificationDefinition;
+let SessionDefinition = {
+    "id": "string",
+    "userName": "string | undefined",
+    "creationDate": "string"
+};
+exports.SessionDefinition = SessionDefinition;

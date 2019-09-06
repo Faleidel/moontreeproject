@@ -186,7 +186,6 @@ async function branchFromJSON(obj) {
 }
 exports.branchFromJSON = branchFromJSON;
 exports.store = {
-    sessions: {},
     activitys: {},
     comments: {},
     threads: {},
@@ -349,12 +348,28 @@ function loadStore(cb) {
                        date bigint,
                        read BOOL NOT NULL
                     );
-                `).catch((e) => console.log("Error create users table", e));
+                `).catch((e) => console.log("Error create notifications table", e));
                 console.log(result);
                 await Promise.all(Object.keys(exports.store.notifications).map(async (notifId) => {
                     let notif = exports.store.notifications[notifId];
                     insertNotification(notif)
                         .catch((e) => console.log("Error adding notification to table", e));
+                }));
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            if (utils.migrationNumber == 8) {
+                let result = await db.dbPool.query(`
+                    CREATE TABLE sessions (
+                       id VARCHAR (50) PRIMARY KEY NOT NULL,
+                       user_name TEXT,
+                       creation_date TEXT NOT NULL
+                    );
+                `).catch((e) => console.log("Error create notifications table", e));
+                console.log(result);
+                await Promise.all(Object.keys(exports.store.sessions).map(async (sessionId) => {
+                    let session = exports.store.sessions[sessionId];
+                    insertSession(session)
+                        .catch((e) => console.log("Error adding session to table", e));
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
@@ -818,31 +833,25 @@ async function unsafeBranchList() {
 }
 exports.unsafeBranchList = unsafeBranchList;
 // SESSION
-async function getSessionById(id) {
-    return exports.store.sessions[id];
-}
-exports.getSessionById = getSessionById;
+exports.getSessionById = db.getObjectByField("sessions", "id");
+const insertSession = db.insertForType("sessions", modelInterfaces_1.SessionDefinition);
 async function createSession() {
     let session = {
         id: Math.random() * 100000000000000000 + "",
         userName: undefined,
         creationDate: new Date().toUTCString()
     };
-    exports.store.sessions[session.id] = session;
-    saveStore();
+    insertSession(session);
     return session;
 }
 exports.createSession = createSession;
 async function deleteSession(session) {
-    delete exports.store.sessions[session.id];
-    saveStore();
+    // TODO
+    db.deleteWhere("sessions", { id: session.id });
 }
 exports.deleteSession = deleteSession;
 async function loginSession(session, user) {
-    if (user.local) {
-        session.userName = user.name;
-        saveStore();
-    }
+    await db.updateFieldsWhere("sessions", { id: session.id }, { userName: user.name });
 }
 exports.loginSession = loginSession;
 // ACTIVITY

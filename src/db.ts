@@ -49,7 +49,7 @@ export function insertForType<A>(tableName: string, typeDefinition: any): (a: A)
     `;
     
     return async function(a: A) {
-        await dbPool.query(sql ,Object.values(a));
+        await dbPool.query(sql, Object.keys(typeDefinition).map(k => (a as any)[k]));
     }
 }
 
@@ -69,4 +69,17 @@ export async function updateFieldsWhere(tableName: string, condition: any, set: 
     `;
     
     await dbPool.query(sql, ([] as any).concat(...Object.values(set), ...Object.values(condition)));
+}
+
+export async function deleteWhere(tableName: string, condition: any): Promise<void> {
+    const conds = Object.keys(condition).map((key, i) => {
+        return utils.camelToSnakeCase(key) + " = $" + (i+1);
+    });
+    
+    const sql = `
+        DELETE FROM ${tableName}
+        WHERE ${conds.join(" AND ")}
+    `;
+    
+    await dbPool.query(sql, Object.values(condition));
 }

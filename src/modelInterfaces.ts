@@ -48,3 +48,19 @@ interface Notification {
 
 
 export {Notification, NotificationDefinition};
+
+
+let SessionDefinition = {
+    "id": "string",
+    "userName": "string | undefined",
+    "creationDate": "string"
+};
+
+interface Session {
+    id: string,
+    userName: string | undefined,
+    creationDate: string
+}
+
+
+export {Session, SessionDefinition}

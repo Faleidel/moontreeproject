@@ -4,17 +4,14 @@ import * as crypto from "crypto";
 import * as urlLib from "url";
 const request = require("request");
 const { Pool } = require('pg')
-import {User, UserDefinition, Notification, NotificationDefinition} from "./modelInterfaces";
+import { User, UserDefinition
+       , Notification, NotificationDefinition
+       , Session, SessionDefinition
+       } from "./modelInterfaces";
 
 export {User, Notification};
 
 import * as db from "./db";
-
-export interface Session {
-    id: string,
-    userName: string | undefined,
-    creationDate: string
-}
 
 export interface Activity {
     id: string,
@@ -300,7 +297,6 @@ export interface Follow {
 }
 
 export let store = {
-    sessions: {} as {[id: string]: Session},
     activitys: {} as {[id: string]: Activity},
     comments: {} as {[id: string]: Comment},
     threads: {} as {[id: string]: Thread},
@@ -496,7 +492,7 @@ export function loadStore(cb: any): void {
                        date bigint,
                        read BOOL NOT NULL
                     );
-                `).catch((e: any) => console.log("Error create users table", e));
+                `).catch((e: any) => console.log("Error create notifications table", e));
                 
                 console.log(result);
                 
@@ -505,6 +501,27 @@ export function loadStore(cb: any): void {
                     
                     insertNotification(notif)
                     .catch((e: any) => console.log("Error adding notification to table", e));
+                }));
+                
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            
+            if (utils.migrationNumber == 8) {
+                let result = await db.dbPool.query(`
+                    CREATE TABLE sessions (
+                       id VARCHAR (50) PRIMARY KEY NOT NULL,
+                       user_name TEXT,
+                       creation_date TEXT NOT NULL
+                    );
+                `).catch((e: any) => console.log("Error create notifications table", e));
+                
+                console.log(result);
+                
+                await Promise.all(Object.keys((store as any).sessions).map(async sessionId => {
+                    let session = (store as any).sessions[sessionId];
+                    
+                    insertSession(session)
+                    .catch((e: any) => console.log("Error adding session to table", e));
                 }));
                 
                 utils.setMigrationNumber(utils.migrationNumber + 1);
@@ -1028,9 +1045,8 @@ export async function unsafeBranchList(): Promise<Branch[]> {
 }
 
 // SESSION
-export async function getSessionById(id: string): Promise<Session | undefined> {
-    return store.sessions[id];
-}
+export const getSessionById: (id: string) => Promise<Session | undefined> = db.getObjectByField<Session>("sessions", "id");
+const insertSession: (session: Session) => Promise<void> = db.insertForType("sessions", SessionDefinition);
 export async function createSession(): Promise<Session> {
     let session: Session = {
         id: Math.random() * 100000000000000000 + "",
@@ -1038,20 +1054,16 @@ export async function createSession(): Promise<Session> {
         creationDate: new Date().toUTCString()
     };
     
-    store.sessions[session.id] = session;
-    saveStore();
+    insertSession(session);
     
     return session;
 }
 export async function deleteSession(session: Session): Promise<void> {
-    delete store.sessions[session.id];
-    saveStore();
+    // TODO
+    db.deleteWhere("sessions", {id: session.id});
 }
 export async function loginSession(session: Session, user: User): Promise<void> {
-    if (user.local) {
-        session.userName = user.name;
-        saveStore();
-    }
+    await db.updateFieldsWhere("sessions", {id: session.id}, {userName: user.name});
 }
 
 // ACTIVITY

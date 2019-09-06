@@ -9,8 +9,6 @@ async function changeSiteUrl(from: string, to: string) {
         let branches: model.Branch[] = Object.values(model.store.branches);
         let likes: model.Like[] = Object.values(model.store.likes);
         
-        model.store.sessions = {};
-        
         model.store.threads = {};
         model.store.comments = {};
         model.store.activitys = {};
@@ -62,7 +60,7 @@ async function changeSiteUrl(from: string, to: string) {
             });
         });
         
-        let notificationQ = await db.dbPool.query(`SELECT name FROM notifications;`);
+        let notificationQ = await db.dbPool.query(`SELECT * FROM notifications;`);
         let notifications = userQ.rows;
         notifications.map((t: { recipient: string, id: string }) => {
             db.dbPool.connect(async (err: any, client: any, done: any) => {
@@ -80,6 +78,28 @@ async function changeSiteUrl(from: string, to: string) {
                     done();
                 }
             });
+        });
+        
+        let sessionsQ = await db.dbPool.query(`SELECT * FROM sessions;`);
+        let sessions = userQ.rows;
+        sessions.map((t: { id: string, userName: string | null }) => {
+            if (t.userName) {
+                db.dbPool.connect(async (err: any, client: any, done: any) => {
+                    try {
+                        await client.query(`BEGIN`, []);
+                        await client.query(`
+                            UPDATE sessions
+                            SET userName = $1
+                            WHERE id = $2;
+                        `, [t.userName!.replace(from, to), t.id]);
+                        await client.query(`COMMIT`);
+                        done();
+                    } catch (e) {
+                        await client.query('ROLLBACK');
+                        done();
+                    }
+                });
+            }
         });
         
         branches.map(t => {

@@ -21,3 +21,10 @@ meta interface Notification {
     read: "boolean"
 } end meta interface
 export {Notification, NotificationDefinition};
+
+meta interface Session {
+    id: "string",
+    userName: "string | undefined",
+    creationDate: "string"
+} end meta interface
+export {Session, SessionDefinition}
