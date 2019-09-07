@@ -55,3 +55,9 @@ let LikeDefinition = {
     "object": "string"
 };
 exports.LikeDefinition = LikeDefinition;
+let FollowDefinition = {
+    "follower": "string",
+    "target": "string",
+    "id": "string"
+};
+exports.FollowDefinition = FollowDefinition;

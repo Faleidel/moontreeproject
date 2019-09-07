@@ -20,6 +20,7 @@ exports.SessionDefinition = modelInterfaces_1.SessionDefinition;
 exports.ActivityDefinition = modelInterfaces_1.ActivityDefinition;
 exports.BranchDefinition = modelInterfaces_1.BranchDefinition;
 exports.LikeDefinition = modelInterfaces_1.LikeDefinition;
+exports.FollowDefinition = modelInterfaces_1.FollowDefinition;
 const db = __importStar(require("./db"));
 async function activityToJSON(act) {
     let object = typeof act.object == "object"
@@ -195,17 +196,13 @@ exports.store = {
     comments: {},
     threads: {},
     likeBundles: {},
-    remoteInstances: {},
-    follows: {}
+    remoteInstances: {}
 };
 let indexs = {
     commentChildrens: {},
     userComments: {},
-    userActivitys: {},
     hotThreadsByBranch: {},
-    notificationsByUser: {},
     likeBundlesByObject: {},
-    followActorsByTarget: {}
 };
 function addToIndex(indexName, key, value) {
     let list = indexs[indexName][key];
@@ -220,9 +217,6 @@ function indexComment(comment) {
         addToIndex("userComments", comment.author, comment.id);
     if (comment.inReplyTo && (!indexs.commentChildrens[comment.inReplyTo] || !indexs.commentChildrens[comment.inReplyTo].find(c => c == comment.id)))
         addToIndex("commentChildrens", comment.inReplyTo, comment.id);
-}
-function indexFollow(follow) {
-    addToIndex("followActorsByTarget", follow.target, follow.follower);
 }
 function indexThread(thread) {
     if (!indexs.hotThreadsByBranch[thread.branch] || !indexs.hotThreadsByBranch[thread.branch].find(c => c == thread.id))
@@ -414,11 +408,26 @@ function loadStore(cb) {
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
+            if (utils.migrationNumber == 12) {
+                let result = await db.dbPool.query(`
+                    CREATE TABLE follows (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        follower TEXT NOT NULL,
+                        target TEXT NOT NULL
+                    );
+                `).catch((e) => console.log("Error create follows table", e));
+                console.log(result);
+                await Promise.all(Object.keys(exports.store.follows).map(async (followId) => {
+                    let follow = exports.store.follows[followId];
+                    insertFollow(follow)
+                        .catch((e) => console.log("Error adding follow to table", e));
+                }));
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
             Object.values(exports.store.comments).map(c => indexComment(c));
             Object.values(exports.store.threads).map(t => indexComment(t));
             Object.values(exports.store.threads).map(t => indexThread(t));
             Object.values(exports.store.likeBundles).map(t => indexLikeBundle(t));
-            Object.values(exports.store.follows).map(t => indexFollow(t));
             console.log("Finised loading, migrating and indexing JSON store");
         }
         else {
@@ -1259,19 +1268,21 @@ async function setRemoteInstanceBlockedStatus(instance, blocked) {
     saveStore();
 }
 exports.setRemoteInstanceBlockedStatus = setRemoteInstanceBlockedStatus;
+// FOLLOWS
+const insertFollow = db.insertForType("follows", modelInterfaces_1.FollowDefinition);
 async function createFollow(follower, target) {
     let follow = {
         follower: follower,
         target: target,
         id: Math.random() * 100000000000000000 + ""
     };
-    exports.store.follows[follow.id] = follow;
-    indexFollow(follow);
-    saveStore();
+    await insertFollow(follow);
     return follow;
 }
 exports.createFollow = createFollow;
 async function getFollowersByActor(actor) {
-    return indexs.followActorsByTarget[actor] || [];
+    return (await db.getObjectsWhere("likes", {
+        target: actor
+    })).map(follow => follow.follower);
 }
 exports.getFollowersByActor = getFollowersByActor;

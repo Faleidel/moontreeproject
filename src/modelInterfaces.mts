@@ -60,3 +60,10 @@ meta interface Like {
     object: "string"
 } end meta interface
 export {Like, LikeDefinition};
+
+meta interface Follow {
+    follower: "string",
+    target: "string",
+    id: "string"
+} end meta interface
+export {Follow, FollowDefinition};

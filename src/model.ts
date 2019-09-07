@@ -10,6 +10,7 @@ import { User, UserDefinition
        , Activity, ActivityDefinition
        , Branch, BranchDefinition
        , Like, LikeDefinition
+       , Follow, FollowDefinition
        } from "./modelInterfaces";
 
 export { User, UserDefinition
@@ -18,6 +19,7 @@ export { User, UserDefinition
        , Activity, ActivityDefinition
        , Branch, BranchDefinition
        , Like, LikeDefinition
+       , Follow, FollowDefinition
        };
 
 import * as db from "./db";
@@ -272,28 +274,18 @@ export interface LikeBundle {
     amount: number
 }
 
-export interface Follow {
-    follower: string,
-    target: string,
-    id: string
-}
-
 export let store = {
     comments: {} as {[id: string]: Comment},
     threads: {} as {[id: string]: Thread},
     likeBundles: {} as {[id: string]: LikeBundle}, // id is object.id + server name
-    remoteInstances: {} as {[host: string]: RemoteInstance},
-    follows: {} as {[id: string]: Follow}
+    remoteInstances: {} as {[host: string]: RemoteInstance}
 };
 
 let indexs = {
     commentChildrens: {} as {[id: string]: string[]},
     userComments: {} as {[id: string]: string[]},
-    userActivitys: {} as {[id: string]: string[]},
     hotThreadsByBranch: {} as {[id: string]: string[]},
-    notificationsByUser: {} as {[name: string]: string[]},
     likeBundlesByObject: {} as {[object: string]: string[]},
-    followActorsByTarget: {} as {[target: string]: string[]}
 };
 function addToIndex(indexName: string, key: string, value: string) {
     let list = (indexs as any)[indexName][key];
@@ -311,9 +303,6 @@ function indexComment(comment: Comment): void {
     
     if (comment.inReplyTo && (!indexs.commentChildrens[comment.inReplyTo] || !indexs.commentChildrens[comment.inReplyTo].find(c => c == comment.id)))
         addToIndex("commentChildrens", comment.inReplyTo, comment.id);
-}
-function indexFollow(follow: Follow): void {
-    addToIndex("followActorsByTarget", follow.target, follow.follower);
 }
 function indexThread(thread: Thread): void {
     if (!indexs.hotThreadsByBranch[thread.branch] || !indexs.hotThreadsByBranch[thread.branch].find(c => c == thread.id))
@@ -368,7 +357,7 @@ export function loadStore(cb: any): void {
             }
             
             if (utils.migrationNumber == 3) {
-                store.follows = {};
+                (store as any).follows = {};
                 
                 saveStore();
                 
@@ -558,11 +547,31 @@ export function loadStore(cb: any): void {
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
             
+            if (utils.migrationNumber == 12) {
+                let result = await db.dbPool.query(`
+                    CREATE TABLE follows (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        follower TEXT NOT NULL,
+                        target TEXT NOT NULL
+                    );
+                `).catch((e: any) => console.log("Error create follows table", e));
+                
+                console.log(result);
+                
+                await Promise.all(Object.keys((store as any).follows).map(async followId => {
+                    let follow = (store as any).follows[followId];
+                    
+                    insertFollow(follow)
+                    .catch((e: any) => console.log("Error adding follow to table", e));
+                }));
+                
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            
             Object.values(store.comments).map(c => indexComment(c));
             Object.values(store.threads).map(t => indexComment(t));
             Object.values(store.threads).map(t => indexThread(t));
             Object.values(store.likeBundles).map(t => indexLikeBundle(t));
-            Object.values(store.follows).map(t => indexFollow(t));
             
             console.log("Finised loading, migrating and indexing JSON store");
         } else {
@@ -1506,6 +1515,8 @@ export async function setRemoteInstanceBlockedStatus(instance: RemoteInstance, b
     instance.blocked = blocked;
     saveStore();
 }
+// FOLLOWS
+const insertFollow: (follow: Follow) => Promise<void> = db.insertForType("follows", FollowDefinition);
 export async function createFollow(follower: string, target: string): Promise<Follow> {
     let follow = {
         follower: follower,
@@ -1513,13 +1524,12 @@ export async function createFollow(follower: string, target: string): Promise<Fo
         id: Math.random() * 100000000000000000 + ""
     };
     
-    store.follows[follow.id] = follow;
-    indexFollow(follow);
-    
-    saveStore();
+    await insertFollow(follow);
     
     return follow;
 }
 export async function getFollowersByActor(actor: string): Promise<string[]> {
-    return indexs.followActorsByTarget[actor] || [];
+    return (await db.getObjectsWhere<Follow>("likes", {
+        target: actor
+    })).map(follow => follow.follower);
 }

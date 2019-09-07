@@ -130,3 +130,19 @@ interface Like {
 
 
 export {Like, LikeDefinition};
+
+
+let FollowDefinition = {
+    "follower": "string",
+    "target": "string",
+    "id": "string"
+};
+
+interface Follow {
+    follower: string,
+    target: string,
+    id: string
+}
+
+
+export {Follow, FollowDefinition};
