@@ -49,3 +49,9 @@ let BranchDefinition = {
     "lastUpdate": "number"
 };
 exports.BranchDefinition = BranchDefinition;
+let LikeDefinition = {
+    "id": "string",
+    "author": "string",
+    "object": "string"
+};
+exports.LikeDefinition = LikeDefinition;

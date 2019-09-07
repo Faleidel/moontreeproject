@@ -33,6 +33,36 @@ export function getObjectsByField<A>(tableName: string, fieldName: string): (val
     }
 }
 
+export async function getObjectsWhere<A>(tableName: string, condition: any): Promise<A[]> {
+    const conds = Object.keys(condition).map((key, i) => {
+        return utils.camelToSnakeCase(key) + " = $" + (i+1);
+    });
+    
+    let objectQ = await dbPool.query(`
+        SELECT * FROM ${tableName}
+        WHERE ${conds.join(" AND ")}
+    `, Object.values(condition));
+    
+    return objectQ.rows.map((r: A) => utils.fromDBObject(r))
+}
+
+export async function getObjectWhere<A>(tableName: string, cond: any): Promise<A | undefined> {
+    return (await getObjectsWhere<A>(tableName, cond))[0];
+}
+
+export async function countObjectsWhere(tableName: string, condition: any): Promise<number> {
+    const conds = Object.keys(condition).map((key, i) => {
+        return utils.camelToSnakeCase(key) + " = $" + (i+1);
+    });
+    
+    let objectQ = await dbPool.query(`
+        SELECT count(*) FROM ${tableName}
+        WHERE ${conds.join(" AND ")}
+    `, Object.values(condition));
+    
+    return parseInt(objectQ.rows[0].count, 10);
+}
+
 export function getAllFrom<A>(tableName: string): () => Promise<A[]> {
     return async function() {
         return (await dbPool.query(`SELECT * FROM ${tableName};`)).rows.map((obj: A) => utils.fromDBObject(obj));

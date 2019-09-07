@@ -53,3 +53,10 @@ meta interface Branch {
     lastUpdate: "number"
 } end meta interface
 export {Branch, BranchDefinition};
+
+meta interface Like {
+    id: "string",
+    author: "string",
+    object: "string"
+} end meta interface
+export {Like, LikeDefinition};

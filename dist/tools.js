@@ -13,10 +13,8 @@ async function changeSiteUrl(from, to) {
     model.loadStore(async () => {
         let threads = Object.values(model.store.threads);
         let comments = Object.values(model.store.comments);
-        let likes = Object.values(model.store.likes);
         model.store.threads = {};
         model.store.comments = {};
-        model.store.likes = {};
         threads.map(t => {
             t.id = t.id.replace(from, to);
             t.author = t.author.replace(from, to);
@@ -131,10 +129,25 @@ async function changeSiteUrl(from, to) {
                 }
             });
         });
-        likes.map(t => {
-            t.author = t.author.replace(from, to);
-            t.object = t.object.replace(from, to);
-            model.store.likes[t.id] = t;
+        let likesQ = await db.dbPool.query(`SELECT * FROM likes;`);
+        let likes = likesQ.rows;
+        likes.map((t) => {
+            db.dbPool.connect(async (err, client, done) => {
+                try {
+                    await client.query(`BEGIN`, []);
+                    await client.query(`
+                        UPDATE likes
+                        SET author = $1, object = $2
+                        WHERE id = $3;
+                    `, [t.author.replace(from, to), t.object.replace(from, to), t.id]);
+                    await client.query(`COMMIT`);
+                    done();
+                }
+                catch (e) {
+                    await client.query('ROLLBACK');
+                    done();
+                }
+            });
         });
         model.saveStore();
     });

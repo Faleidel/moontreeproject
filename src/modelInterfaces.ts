@@ -114,3 +114,19 @@ interface Branch {
 
 
 export {Branch, BranchDefinition};
+
+
+let LikeDefinition = {
+    "id": "string",
+    "author": "string",
+    "object": "string"
+};
+
+interface Like {
+    id: string,
+    author: string,
+    object: string
+}
+
+
+export {Like, LikeDefinition};

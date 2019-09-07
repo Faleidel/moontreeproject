@@ -36,6 +36,32 @@ function getObjectsByField(tableName, fieldName) {
     };
 }
 exports.getObjectsByField = getObjectsByField;
+async function getObjectsWhere(tableName, condition) {
+    const conds = Object.keys(condition).map((key, i) => {
+        return utils.camelToSnakeCase(key) + " = $" + (i + 1);
+    });
+    let objectQ = await exports.dbPool.query(`
+        SELECT * FROM ${tableName}
+        WHERE ${conds.join(" AND ")}
+    `, Object.values(condition));
+    return objectQ.rows.map((r) => utils.fromDBObject(r));
+}
+exports.getObjectsWhere = getObjectsWhere;
+async function getObjectWhere(tableName, cond) {
+    return (await getObjectsWhere(tableName, cond))[0];
+}
+exports.getObjectWhere = getObjectWhere;
+async function countObjectsWhere(tableName, condition) {
+    const conds = Object.keys(condition).map((key, i) => {
+        return utils.camelToSnakeCase(key) + " = $" + (i + 1);
+    });
+    let objectQ = await exports.dbPool.query(`
+        SELECT count(*) FROM ${tableName}
+        WHERE ${conds.join(" AND ")}
+    `, Object.values(condition));
+    return parseInt(objectQ.rows[0].count, 10);
+}
+exports.countObjectsWhere = countObjectsWhere;
 function getAllFrom(tableName) {
     return async function () {
         return (await exports.dbPool.query(`SELECT * FROM ${tableName};`)).rows.map((obj) => utils.fromDBObject(obj));

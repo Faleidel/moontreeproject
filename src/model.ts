@@ -9,6 +9,7 @@ import { User, UserDefinition
        , Session, SessionDefinition
        , Activity, ActivityDefinition
        , Branch, BranchDefinition
+       , Like, LikeDefinition
        } from "./modelInterfaces";
 
 export { User, UserDefinition
@@ -16,6 +17,7 @@ export { User, UserDefinition
        , Session, SessionDefinition
        , Activity, ActivityDefinition
        , Branch, BranchDefinition
+       , Like, LikeDefinition
        };
 
 import * as db from "./db";
@@ -117,7 +119,7 @@ export async function commentToJSON(comment: Comment): Promise<any> {
         attachment: !media ? [] : [utils.externalMediaToAttachment(media)],
         sensitive: false,
         summary: null,
-        likes: await getRemoteLikesAmount(comment) + (await getLikesByObject(comment)).length,
+        likes: await getRemoteLikesAmount(comment) + (await getLikesByObject(comment)),
         tag: comment.tags
     };
 }
@@ -163,7 +165,7 @@ export async function threadToJSON(thread: Thread): Promise<any> {
         branch: thread.branch.indexOf("@") == -1 ? thread.branch + "@" + utils.serverAddress() : thread.branch.split("@")[0],
         isLink: thread.isLink,
         media: thread.media,
-        likes: await getRemoteLikesAmount(thread) + (await getLikesByObject(thread)).length
+        likes: await getRemoteLikesAmount(thread) + (await getLikesByObject(thread))
     };
     
     result.content = utils.renderMarkdown("# " + result.title + "\n" + result.content);
@@ -264,12 +266,6 @@ export interface RemoteInstance {
     blocked: boolean
 }
 
-export interface Like {
-    id: string,
-    author: string,
-    object: string
-}
-
 export interface LikeBundle {
     server: string,
     object: string,
@@ -285,7 +281,6 @@ export interface Follow {
 export let store = {
     comments: {} as {[id: string]: Comment},
     threads: {} as {[id: string]: Thread},
-    likes: {} as {[id: string]: Like},
     likeBundles: {} as {[id: string]: LikeBundle}, // id is object.id + server name
     remoteInstances: {} as {[host: string]: RemoteInstance},
     follows: {} as {[id: string]: Follow}
@@ -296,10 +291,8 @@ let indexs = {
     userComments: {} as {[id: string]: string[]},
     userActivitys: {} as {[id: string]: string[]},
     hotThreadsByBranch: {} as {[id: string]: string[]},
-    likesByObject: {} as {[id: string]: string[]},
-    likeOfActorOnObject: {} as {[id: string]: Like},
-    likeBundlesByObject: {} as {[object: string]: string[]},
     notificationsByUser: {} as {[name: string]: string[]},
+    likeBundlesByObject: {} as {[object: string]: string[]},
     followActorsByTarget: {} as {[target: string]: string[]}
 };
 function addToIndex(indexName: string, key: string, value: string) {
@@ -325,20 +318,6 @@ function indexFollow(follow: Follow): void {
 function indexThread(thread: Thread): void {
     if (!indexs.hotThreadsByBranch[thread.branch] || !indexs.hotThreadsByBranch[thread.branch].find(c => c == thread.id))
         addToIndex("hotThreadsByBranch", thread.branch, thread.id);
-}
-function indexLike(like: Like): void {
-    addToIndex("likesByObject", like.object, like.id);
-    indexs.likeOfActorOnObject[like.author + like.object] = like;
-}
-function unindexLike(like: Like): void {
-    let likeList = indexs.likesByObject[like.object];
-    for (let i = 0 ; i < likeList.length ; i++) {
-        if (likeList[i] == like.id) {
-            likeList.splice(i, 1);
-        }
-    }
-    
-    delete indexs.likeOfActorOnObject[like.author + like.object];
 }
 function indexLikeBundle(likeBundle: LikeBundle): void {
     addToIndex("likeBundlesByObject", likeBundle.object, likeBundle.object + likeBundle.server);
@@ -558,10 +537,30 @@ export function loadStore(cb: any): void {
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
             
+            if (utils.migrationNumber == 11) {
+                let result = await db.dbPool.query(`
+                    CREATE TABLE likes (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        author TEXT NOT NULL,
+                        object TEXT NOT NULL
+                    );
+                `).catch((e: any) => console.log("Error create likes table", e));
+                
+                console.log(result);
+                
+                await Promise.all(Object.keys((store as any).likes).map(async likeId => {
+                    let like = (store as any).likes[likeId];
+                    
+                    insertLike(like)
+                    .catch((e: any) => console.log("Error adding like to table", e));
+                }));
+                
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            
             Object.values(store.comments).map(c => indexComment(c));
             Object.values(store.threads).map(t => indexComment(t));
             Object.values(store.threads).map(t => indexThread(t));
-            Object.values(store.likes).map(t => indexLike(t));
             Object.values(store.likeBundles).map(t => indexLikeBundle(t));
             Object.values(store.follows).map(t => indexFollow(t));
             
@@ -622,10 +621,13 @@ export function saveStore(): void {
 }
 
 // LIKE
+const insertLike: (like: Like) => Promise<void> = db.insertForType("likes", LikeDefinition);
 export async function createLike(author: User, object: Comment): Promise<Like | undefined> {
-    let likesOfObject = await getLikesByObject(object);
-    
-    let alreadyLiked = likesOfObject.some(l => l.author == author.name);
+    // TODO
+    let alreadyLiked = !!(await db.getObjectWhere("likes", {
+        author: author.name,
+        object: object.id
+    }));
     
     if (alreadyLiked) {
         return undefined;
@@ -636,35 +638,28 @@ export async function createLike(author: User, object: Comment): Promise<Like | 
             object: object.id
         };
         
-        store.likes[like.id] = like;
-        
-        indexLike(like);
-        saveStore();
+        insertLike(like);
         
         return like;
     }
 }
 export async function deleteLikeOfOn(actor: User, object: Comment): Promise<void> {
-    let indexKey = actor.name + object.id;
-    
-    let like = indexs.likeOfActorOnObject[indexKey];
-    
-    if (like) {
-        delete store.likes[like.id];
-        unindexLike(like);
-    }
-    
-    saveStore();
+    db.deleteWhere("likes", {author: actor.name, object: object.id});
 }
-export async function getLikeById(id: string): Promise<Like | undefined> {
-    return store.likes[id];
-}
-export async function getLikesByObject(object: Comment): Promise<Like[]> {
-    return (await Promise.all((indexs.likesByObject[object.id] || []).map(getLikeById))).filter((x): x is Like => !!x);
+export const getLikeById: (id: string) => Promise<Like | undefined> = db.getObjectByField<Like>("likes", "id");
+export async function getLikesByObject(object: Comment): Promise<number> {
+    return db.countObjectsWhere("likes", {
+        object: object.id
+    });
 }
 export async function hasActorLiked(actor: User, object: Comment): Promise<boolean> {
-    return !!indexs.likeOfActorOnObject[actor.name + object.id];
+    return !!(await db.getObjectWhere("likes", {
+        author: actor.name,
+        object: object.id
+    }));
 }
+
+// LIKEBUNDLE
 export async function createOrUpdateLikeBundle(server: string, object: Comment, amount: number): Promise<LikeBundle | undefined> {
     let pastBundle = store.likeBundles[object.id + server];
     
@@ -1281,7 +1276,7 @@ export async function getThreadCommentsForClient(user: User | undefined, id: str
                 childrens: (comments ? comments.childrens : []).sort((c1, c2) => c2.score - c1.score),
                 score: await calculateCommentScore(c as Comment),
                 liked: user ? (await hasActorLiked(user, c as Comment)) : false,
-                likes: (await getLikesByObject(c as Comment)).length + await getRemoteLikesAmount(c as Comment)
+                likes: (await getLikesByObject(c as Comment)) + await getRemoteLikesAmount(c as Comment)
             }
         }));
         
@@ -1290,7 +1285,7 @@ export async function getThreadCommentsForClient(user: User | undefined, id: str
             childrens: childrens.sort((c1: any, c2: any) => c2.score - c1.score),
             score: await calculateCommentScore(thread),
             liked: user ? (await hasActorLiked(user, thread)) : false,
-            likes: (await getLikesByObject(thread)).length + await getRemoteLikesAmount(thread)
+            likes: (await getLikesByObject(thread)) + await getRemoteLikesAmount(thread)
         };
     }
     else
@@ -1378,7 +1373,7 @@ export async function saveThread(thread: Thread): Promise<void> {
 export async function calculateCommentScore(comment: Comment): Promise<number> {
     let now = new Date().getTime();
     let published = comment.published;
-    let likes = (await getLikesByObject(comment)).length + await getRemoteLikesAmount(comment);
+    let likes = (await getLikesByObject(comment)) + await getRemoteLikesAmount(comment);
     
     let age = (now - published) / 1000 / 60 / 60 / 24;
     
@@ -1395,7 +1390,7 @@ let pageSize = 20;
 async function threadToThreadForUI(user: User | undefined, thread: Thread): Promise<ThreadForUI> {
     return {
         ...thread,
-        likes: (await getLikesByObject(thread)).length + await getRemoteLikesAmount(thread),
+        likes: (await getLikesByObject(thread)) + await getRemoteLikesAmount(thread),
         score: await calculateCommentScore(thread),
         position: 0,
         liked: user ? (await hasActorLiked(user, thread)) : false,
