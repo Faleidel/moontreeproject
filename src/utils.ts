@@ -469,18 +469,6 @@ export function camelToSnakeCase(input: string): string {
         return m[0] + "_" + m[1];
     }).toLowerCase();
 }
-export function fromDBObject<A>(obj: A): A {
-    if (!obj)
-        return obj;
-    
-    let r: any = {};
-    
-    Object.keys(obj).map(key => {
-        r[snakeToCamelCase(key)] = (obj as any)[key];
-    });
-    
-    return r as A;
-}
 
 import * as model from "./model";
 export function urlForUser(user: string | model.User): string {

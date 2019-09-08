@@ -1,5 +1,6 @@
 const { Pool } = require('pg')
 import * as utils from "./utils";
+import { tableMap } from "./modelInterfaces";
 
 export let dbPool = undefined as any;
 
@@ -15,6 +16,35 @@ export function setDbPool() {
     });
 }
 
+export function query(sql: string, params: any[] = []): Promise<any> {
+    return dbPool.query(sql, params)
+    .catch((e: any) => {
+        console.log("Query error", e, sql, params);
+        throw(new Error("Query error"));
+    });
+}
+
+export function fromDBObject<A>(obj: A, definition: any): A {
+    if (!obj)
+        return obj;
+    
+    let r: any = {};
+    
+    Object.keys(obj).map(key => {
+        let value = (obj as any)[key];
+        
+        let realKey = utils.snakeToCamelCase(key);
+        
+        if (definition[realKey] == "number") {
+            value = parseInt(value, 10);
+        }
+        
+        r[realKey] = value;
+    });
+    
+    return r as A;
+}
+
 export function getObjectByField<A>(tableName: string, fieldName: string): (value: any) => Promise<A | undefined> {
     let gets = getObjectsByField<A>(tableName, fieldName);
     
@@ -27,9 +57,9 @@ export function getObjectByField<A>(tableName: string, fieldName: string): (valu
 
 export function getObjectsByField<A>(tableName: string, fieldName: string): (value: any) => Promise<A[]> {
     return async function(value: any) {
-        let objectQ = await dbPool.query(`SELECT * FROM ${tableName} WHERE ${utils.camelToSnakeCase(fieldName)} = $1`, [value]);
+        let objectQ = await query(`SELECT * FROM ${tableName} WHERE ${utils.camelToSnakeCase(fieldName)} = $1`, [value]);
         
-        return objectQ.rows.map((a: A) => utils.fromDBObject(a));
+        return objectQ.rows.map((a: A) => fromDBObject(a, tableMap[tableName].definition));
     }
 }
 
@@ -38,12 +68,12 @@ export async function getObjectsWhere<A>(tableName: string, condition: any): Pro
         return utils.camelToSnakeCase(key) + " = $" + (i+1);
     });
     
-    let objectQ = await dbPool.query(`
+    let objectQ = await query(`
         SELECT * FROM ${tableName}
         WHERE ${conds.join(" AND ")}
     `, Object.values(condition));
     
-    return objectQ.rows.map((r: A) => utils.fromDBObject(r))
+    return objectQ.rows.map((r: A) => fromDBObject(r, tableMap[tableName].definition))
 }
 
 export async function getObjectWhere<A>(tableName: string, cond: any): Promise<A | undefined> {
@@ -55,7 +85,7 @@ export async function countObjectsWhere(tableName: string, condition: any): Prom
         return utils.camelToSnakeCase(key) + " = $" + (i+1);
     });
     
-    let objectQ = await dbPool.query(`
+    let objectQ = await query(`
         SELECT count(*) FROM ${tableName}
         WHERE ${conds.join(" AND ")}
     `, Object.values(condition));
@@ -65,7 +95,7 @@ export async function countObjectsWhere(tableName: string, condition: any): Prom
 
 export function getAllFrom<A>(tableName: string): () => Promise<A[]> {
     return async function() {
-        return (await dbPool.query(`SELECT * FROM ${tableName};`)).rows.map((obj: A) => utils.fromDBObject(obj));
+        return (await query(`SELECT * FROM ${tableName};`)).rows.map((obj: A) => fromDBObject(obj, tableMap[tableName].definition));
     }
 }
 
@@ -79,7 +109,7 @@ export function insertForType<A>(tableName: string, typeDefinition: any): (a: A)
     `;
     
     return async function(a: A) {
-        await dbPool.query(sql, Object.keys(typeDefinition).map(k => (a as any)[k]));
+        await query(sql, Object.keys(typeDefinition).map(k => (a as any)[k]));
     }
 }
 
@@ -98,7 +128,7 @@ export async function updateFieldsWhere(tableName: string, condition: any, set: 
         WHERE ${conds.join(" AND ")}
     `;
     
-    await dbPool.query(sql, ([] as any).concat(...Object.values(set), ...Object.values(condition)));
+    await query(sql, ([] as any).concat(...Object.values(set), ...Object.values(condition)));
 }
 
 export async function deleteWhere(tableName: string, condition: any): Promise<void> {
@@ -111,5 +141,5 @@ export async function deleteWhere(tableName: string, condition: any): Promise<vo
         WHERE ${conds.join(" AND ")}
     `;
     
-    await dbPool.query(sql, Object.values(condition));
+    await query(sql, Object.values(condition));
 }

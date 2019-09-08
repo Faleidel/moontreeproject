@@ -9,6 +9,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const { Pool } = require('pg');
 const utils = __importStar(require("./utils"));
+const modelInterfaces_1 = require("./modelInterfaces");
 exports.dbPool = undefined;
 utils.configLoaded.then(setDbPool);
 function setDbPool() {
@@ -21,6 +22,29 @@ function setDbPool() {
     });
 }
 exports.setDbPool = setDbPool;
+function query(sql, params = []) {
+    return exports.dbPool.query(sql, params)
+        .catch((e) => {
+        console.log("Query error", e, sql, params);
+        throw (new Error("Query error"));
+    });
+}
+exports.query = query;
+function fromDBObject(obj, definition) {
+    if (!obj)
+        return obj;
+    let r = {};
+    Object.keys(obj).map(key => {
+        let value = obj[key];
+        let realKey = utils.snakeToCamelCase(key);
+        if (definition[realKey] == "number") {
+            value = parseInt(value, 10);
+        }
+        r[realKey] = value;
+    });
+    return r;
+}
+exports.fromDBObject = fromDBObject;
 function getObjectByField(tableName, fieldName) {
     let gets = getObjectsByField(tableName, fieldName);
     return async function (value) {
@@ -31,8 +55,8 @@ function getObjectByField(tableName, fieldName) {
 exports.getObjectByField = getObjectByField;
 function getObjectsByField(tableName, fieldName) {
     return async function (value) {
-        let objectQ = await exports.dbPool.query(`SELECT * FROM ${tableName} WHERE ${utils.camelToSnakeCase(fieldName)} = $1`, [value]);
-        return objectQ.rows.map((a) => utils.fromDBObject(a));
+        let objectQ = await query(`SELECT * FROM ${tableName} WHERE ${utils.camelToSnakeCase(fieldName)} = $1`, [value]);
+        return objectQ.rows.map((a) => fromDBObject(a, modelInterfaces_1.tableMap[tableName].definition));
     };
 }
 exports.getObjectsByField = getObjectsByField;
@@ -40,11 +64,11 @@ async function getObjectsWhere(tableName, condition) {
     const conds = Object.keys(condition).map((key, i) => {
         return utils.camelToSnakeCase(key) + " = $" + (i + 1);
     });
-    let objectQ = await exports.dbPool.query(`
+    let objectQ = await query(`
         SELECT * FROM ${tableName}
         WHERE ${conds.join(" AND ")}
     `, Object.values(condition));
-    return objectQ.rows.map((r) => utils.fromDBObject(r));
+    return objectQ.rows.map((r) => fromDBObject(r, modelInterfaces_1.tableMap[tableName].definition));
 }
 exports.getObjectsWhere = getObjectsWhere;
 async function getObjectWhere(tableName, cond) {
@@ -55,7 +79,7 @@ async function countObjectsWhere(tableName, condition) {
     const conds = Object.keys(condition).map((key, i) => {
         return utils.camelToSnakeCase(key) + " = $" + (i + 1);
     });
-    let objectQ = await exports.dbPool.query(`
+    let objectQ = await query(`
         SELECT count(*) FROM ${tableName}
         WHERE ${conds.join(" AND ")}
     `, Object.values(condition));
@@ -64,7 +88,7 @@ async function countObjectsWhere(tableName, condition) {
 exports.countObjectsWhere = countObjectsWhere;
 function getAllFrom(tableName) {
     return async function () {
-        return (await exports.dbPool.query(`SELECT * FROM ${tableName};`)).rows.map((obj) => utils.fromDBObject(obj));
+        return (await query(`SELECT * FROM ${tableName};`)).rows.map((obj) => fromDBObject(obj, modelInterfaces_1.tableMap[tableName].definition));
     };
 }
 exports.getAllFrom = getAllFrom;
@@ -76,7 +100,7 @@ function insertForType(tableName, typeDefinition) {
         VALUES (${valuesInserts});
     `;
     return async function (a) {
-        await exports.dbPool.query(sql, Object.keys(typeDefinition).map(k => a[k]));
+        await query(sql, Object.keys(typeDefinition).map(k => a[k]));
     };
 }
 exports.insertForType = insertForType;
@@ -92,7 +116,7 @@ async function updateFieldsWhere(tableName, condition, set) {
         SET ${sets.join(", ")}
         WHERE ${conds.join(" AND ")}
     `;
-    await exports.dbPool.query(sql, [].concat(...Object.values(set), ...Object.values(condition)));
+    await query(sql, [].concat(...Object.values(set), ...Object.values(condition)));
 }
 exports.updateFieldsWhere = updateFieldsWhere;
 async function deleteWhere(tableName, condition) {
@@ -103,6 +127,6 @@ async function deleteWhere(tableName, condition) {
         DELETE FROM ${tableName}
         WHERE ${conds.join(" AND ")}
     `;
-    await exports.dbPool.query(sql, Object.values(condition));
+    await query(sql, Object.values(condition));
 }
 exports.deleteWhere = deleteWhere;

@@ -11,7 +11,10 @@ import { User, UserDefinition
        , Branch, BranchDefinition
        , Like, LikeDefinition
        , Follow, FollowDefinition
+       , RemoteInstance, RemoteInstanceDefinition
        } from "./modelInterfaces";
+
+import * as modelInterfaces from "./modelInterfaces";
 
 export { User, UserDefinition
        , Notification, NotificationDefinition
@@ -20,6 +23,7 @@ export { User, UserDefinition
        , Branch, BranchDefinition
        , Like, LikeDefinition
        , Follow, FollowDefinition
+       , RemoteInstance, RemoteInstanceDefinition
        };
 
 import * as db from "./db";
@@ -34,35 +38,41 @@ export async function activityToJSON(act: Activity): Promise<any | undefined> {
     let media: utils.ExternalMedia | undefined = (object as Thread).media;
     
     if (object && user) {
-        return {
-            "@context": [
-                "https://www.w3.org/ns/activitystreams",
-                "https://w3id.org/security/v1"
-            ],
-            id: act.id,
-            type: "Create",
-            to: act.to,
-            cc: await getFollowersByActor(utils.urlForPath('user/' + user.name)),
-            published: new Date(act.published).toISOString(),
-            actor: utils.urlForPath("user/" + act.author),
-            object: {
-                type: "Note",
-                id: object.id,
-                url: object.id,
-                attachment: !media ? [] : [utils.externalMediaToAttachment(media)],
-                attributedTo: act.author,
-                actor: utils.urlForPath("user/" + act.author),
-                to: object.to,
+        try {
+            return {
+                "@context": [
+                    "https://www.w3.org/ns/activitystreams",
+                    "https://w3id.org/security/v1"
+                ],
+                id: act.id,
+                type: "Create",
+                to: act.to,
                 cc: await getFollowersByActor(utils.urlForPath('user/' + user.name)),
-                inReplyTo: object.inReplyTo,
-                title: object.title,
-                content: object.content,
-                published: new Date(object.published).toISOString(),
-                sensitive: false,
-                summary: null,
-                tag: object.tags
-            }
-        };
+                published: new Date(act.published).toISOString(),
+                actor: utils.urlForPath("user/" + act.author),
+                object: {
+                    type: "Note",
+                    id: object.id,
+                    url: object.id,
+                    attachment: !media ? [] : [utils.externalMediaToAttachment(media)],
+                    attributedTo: act.author,
+                    actor: utils.urlForPath("user/" + act.author),
+                    to: object.to,
+                    cc: await getFollowersByActor(utils.urlForPath('user/' + user.name)),
+                    inReplyTo: object.inReplyTo,
+                    title: object.title,
+                    content: object.content,
+                    published: new Date(object.published).toISOString(),
+                    sensitive: false,
+                    summary: null,
+                    tag: object.tags
+                }
+            };
+        }
+        catch (e) {
+            console.log("Error creating JSON from activity", act, e);
+            throw(new Error("Error creating JSON from activity"));
+        }
     }
     else
         return undefined;
@@ -262,12 +272,6 @@ export async function branchFromJSON(obj: any): Promise<Branch | undefined> {
     };
 }
 
-export interface RemoteInstance {
-    host: string,
-    name: string,
-    blocked: boolean
-}
-
 export interface LikeBundle {
     server: string,
     object: string,
@@ -277,8 +281,7 @@ export interface LikeBundle {
 export let store = {
     comments: {} as {[id: string]: Comment},
     threads: {} as {[id: string]: Thread},
-    likeBundles: {} as {[id: string]: LikeBundle}, // id is object.id + server name
-    remoteInstances: {} as {[host: string]: RemoteInstance}
+    likeBundles: {} as {[id: string]: LikeBundle} // id is object.id + server name
 };
 
 let indexs = {
@@ -404,22 +407,6 @@ export function loadStore(cb: any): void {
                 
                 db.setDbPool();
                 
-                let result = await db.dbPool.query(`
-                    CREATE TABLE users (
-                       name VARCHAR (50) PRIMARY KEY NOT NULL,
-                       password_hashed TEXT NOT NULL,
-                       password_salt TEXT NOT NULL,
-                       public_key TEXT NOT NULL,
-                       private_key TEXT NOT NULL,
-                       banned BOOL NOT NULL,
-                       local BOOL NOT NULL,
-                       last_update bigint,
-                       foreign_url TEXT NOT NULL
-                    );
-                `).catch((e: any) => console.log("Error create users table", e));
-                
-                console.log(result);
-                
                 await Promise.all(Object.keys((store as any).users).map(async userName => {
                     let user = (store as any).users[userName];
                     
@@ -430,20 +417,9 @@ export function loadStore(cb: any): void {
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
             
+            await modelInterfaces.createMissingTables();
+            
             if (utils.migrationNumber == 7) {
-                let result = await db.dbPool.query(`
-                    CREATE TABLE notifications (
-                       id VARCHAR (50) PRIMARY KEY NOT NULL,
-                       recipient TEXT NOT NULL,
-                       title TEXT NOT NULL,
-                       content TEXT NOT NULL,
-                       date bigint,
-                       read BOOL NOT NULL
-                    );
-                `).catch((e: any) => console.log("Error create notifications table", e));
-                
-                console.log(result);
-                
                 await Promise.all(Object.keys((store as any).notifications).map(async notifId => {
                     let notif = (store as any).notifications[notifId];
                     
@@ -455,16 +431,6 @@ export function loadStore(cb: any): void {
             }
             
             if (utils.migrationNumber == 8) {
-                let result = await db.dbPool.query(`
-                    CREATE TABLE sessions (
-                       id VARCHAR (50) PRIMARY KEY NOT NULL,
-                       user_name TEXT,
-                       creation_date TEXT NOT NULL
-                    );
-                `).catch((e: any) => console.log("Error create notifications table", e));
-                
-                console.log(result);
-                
                 await Promise.all(Object.keys((store as any).sessions).map(async sessionId => {
                     let session = (store as any).sessions[sessionId];
                     
@@ -476,18 +442,6 @@ export function loadStore(cb: any): void {
             }
             
             if (utils.migrationNumber == 9) {
-                let result = await db.dbPool.query(`
-                    CREATE TABLE activitys (
-                       id TEXT PRIMARY KEY NOT NULL,
-                       object_id TEXT NOT NULL,
-                       published bigint NOT NULL,
-                       author TEXT NOT NULL,
-                       "to" TEXT[] NOT NULL
-                    );
-                `).catch((e: any) => console.log("Error create activitys table", e));
-                
-                console.log(result);
-                
                 await Promise.all(Object.keys((store as any).activitys).map(async actId => {
                     let activity = (store as any).activitys[actId];
                     
@@ -499,23 +453,6 @@ export function loadStore(cb: any): void {
             }
             
             if (utils.migrationNumber == 10) {
-                let result = await db.dbPool.query(`
-                    CREATE TABLE branches (
-                       name TEXT PRIMARY KEY NOT NULL,
-                       creator TEXT NOT NULL,
-                       description TEXT NOT NULL,
-                       source_branches TEXT[] NOT NULL,
-                       pined_threads TEXT[] NOT NULL,
-                       banned BOOL NOT NULL,
-                       icon TEXT NOT NULL,
-                       public_key TEXT NOT NULL,
-                       private_key TEXT NOT NULL,
-                       last_update BIGINT NOT NULL
-                    );
-                `).catch((e: any) => console.log("Error create branches table", e));
-                
-                console.log(result);
-                
                 await Promise.all(Object.keys((store as any).branches).map(async branchId => {
                     let branch = (store as any).branches[branchId];
                     
@@ -527,16 +464,6 @@ export function loadStore(cb: any): void {
             }
             
             if (utils.migrationNumber == 11) {
-                let result = await db.dbPool.query(`
-                    CREATE TABLE likes (
-                        id TEXT PRIMARY KEY NOT NULL,
-                        author TEXT NOT NULL,
-                        object TEXT NOT NULL
-                    );
-                `).catch((e: any) => console.log("Error create likes table", e));
-                
-                console.log(result);
-                
                 await Promise.all(Object.keys((store as any).likes).map(async likeId => {
                     let like = (store as any).likes[likeId];
                     
@@ -548,21 +475,22 @@ export function loadStore(cb: any): void {
             }
             
             if (utils.migrationNumber == 12) {
-                let result = await db.dbPool.query(`
-                    CREATE TABLE follows (
-                        id TEXT PRIMARY KEY NOT NULL,
-                        follower TEXT NOT NULL,
-                        target TEXT NOT NULL
-                    );
-                `).catch((e: any) => console.log("Error create follows table", e));
-                
-                console.log(result);
-                
                 await Promise.all(Object.keys((store as any).follows).map(async followId => {
                     let follow = (store as any).follows[followId];
                     
                     insertFollow(follow)
                     .catch((e: any) => console.log("Error adding follow to table", e));
+                }));
+                
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            
+            if (utils.migrationNumber == 13) {
+                await Promise.all(Object.keys((store as any).remoteInstances).map(async remoteId => {
+                    let remoteInstance = (store as any).remoteInstances[remoteId];
+                    
+                    insertRemoteInstance(remoteInstance)
+                    .catch((e: any) => console.log("Error adding remoteInstance to table", e));
                 }));
                 
                 utils.setMigrationNumber(utils.migrationNumber + 1);
@@ -916,7 +844,14 @@ export async function createNotification(recipient: User, title: string, content
 
 export const getNotificationById: (id: string) => Promise<Notification | undefined> = db.getObjectByField<Notification>("notifications", "id");
 
-const getNotificationsByUserId: (recipient: string) => Promise<Notification[]> = db.getObjectsByField<Notification>("notifications", "recipient");
+export async function getNotificationsByUserId(recipient: string): Promise<Notification[]> {
+    return (await db.query(`
+        SELECT * FROM notifications
+        WHERE recipient = $1
+        ORDER BY date DESC
+    `, [recipient]))
+    .rows.map((r: Notification) => db.fromDBObject(r, NotificationDefinition));
+}
 export const getNotificationsByUser: (recipient: User) => Promise<Notification[]> = function(user: User) {
     return getNotificationsByUserId(user.name);
 }
@@ -1469,6 +1404,8 @@ export async function getNewThreadsByBranch(branch: string | undefined, user: Us
            .sort((t1, t2) => t2.published - t1.published).map((t, i) => ((t.position = i+1), t)).splice(page*pageSize, pageSize);
 }
 
+// REMOTEINSTANCE
+const insertRemoteInstance: (remoteInstance: RemoteInstance) => Promise<void> = db.insertForType("remote_instances", RemoteInstanceDefinition);
 export async function createRemoteInstance(host: string, name: string, blocked: boolean): Promise<RemoteInstance | undefined> {
     let {body} = await utils.request({
         method: "GET",
@@ -1484,13 +1421,13 @@ export async function createRemoteInstance(host: string, name: string, blocked: 
         blocked: blocked
     };
     
-    store.remoteInstances[remoteInstance.host] = remoteInstance;
-    saveStore();
+    await insertRemoteInstance(remoteInstance);
     
     return remoteInstance;
 }
+const queryRemoteInstanceByHost: (host: string) => Promise<RemoteInstance | undefined> = db.getObjectByField<RemoteInstance>("remote_instances", "host");
 export async function getRemoteInstanceByHost(host: string): Promise<RemoteInstance | undefined> {
-    let inst = store.remoteInstances[host] as RemoteInstance | undefined;
+    let inst = await queryRemoteInstanceByHost(host);
     
     if (inst)
         return inst;
@@ -1508,12 +1445,13 @@ export async function getRemoteInstanceByHost(host: string): Promise<RemoteInsta
         return inst;
     }
 }
-export async function getRemoteInstances(): Promise<RemoteInstance[]> {
-    return Object.values(store.remoteInstances);
-}
+export const getRemoteInstances: () => Promise<RemoteInstance[]> = db.getAllFrom("remote_instances");
 export async function setRemoteInstanceBlockedStatus(instance: RemoteInstance, blocked: boolean) {
-    instance.blocked = blocked;
-    saveStore();
+    await db.updateFieldsWhere("remote_instances", {
+        host: instance.host
+    }, {
+        blocked: blocked
+    });
 }
 // FOLLOWS
 const insertFollow: (follow: Follow) => Promise<void> = db.insertForType("follows", FollowDefinition);
@@ -1529,7 +1467,7 @@ export async function createFollow(follower: string, target: string): Promise<Fo
     return follow;
 }
 export async function getFollowersByActor(actor: string): Promise<string[]> {
-    return (await db.getObjectsWhere<Follow>("likes", {
+    return (await db.getObjectsWhere<Follow>("follows", {
         target: actor
     })).map(follow => follow.follower);
 }

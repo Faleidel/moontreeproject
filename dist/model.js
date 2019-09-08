@@ -21,6 +21,8 @@ exports.ActivityDefinition = modelInterfaces_1.ActivityDefinition;
 exports.BranchDefinition = modelInterfaces_1.BranchDefinition;
 exports.LikeDefinition = modelInterfaces_1.LikeDefinition;
 exports.FollowDefinition = modelInterfaces_1.FollowDefinition;
+exports.RemoteInstanceDefinition = modelInterfaces_1.RemoteInstanceDefinition;
+const modelInterfaces = __importStar(require("./modelInterfaces"));
 const db = __importStar(require("./db"));
 async function activityToJSON(act) {
     let object = typeof act.object == "object"
@@ -29,35 +31,41 @@ async function activityToJSON(act) {
     let user = await getUserByName(act.author);
     let media = object.media;
     if (object && user) {
-        return {
-            "@context": [
-                "https://www.w3.org/ns/activitystreams",
-                "https://w3id.org/security/v1"
-            ],
-            id: act.id,
-            type: "Create",
-            to: act.to,
-            cc: await getFollowersByActor(utils.urlForPath('user/' + user.name)),
-            published: new Date(act.published).toISOString(),
-            actor: utils.urlForPath("user/" + act.author),
-            object: {
-                type: "Note",
-                id: object.id,
-                url: object.id,
-                attachment: !media ? [] : [utils.externalMediaToAttachment(media)],
-                attributedTo: act.author,
-                actor: utils.urlForPath("user/" + act.author),
-                to: object.to,
+        try {
+            return {
+                "@context": [
+                    "https://www.w3.org/ns/activitystreams",
+                    "https://w3id.org/security/v1"
+                ],
+                id: act.id,
+                type: "Create",
+                to: act.to,
                 cc: await getFollowersByActor(utils.urlForPath('user/' + user.name)),
-                inReplyTo: object.inReplyTo,
-                title: object.title,
-                content: object.content,
-                published: new Date(object.published).toISOString(),
-                sensitive: false,
-                summary: null,
-                tag: object.tags
-            }
-        };
+                published: new Date(act.published).toISOString(),
+                actor: utils.urlForPath("user/" + act.author),
+                object: {
+                    type: "Note",
+                    id: object.id,
+                    url: object.id,
+                    attachment: !media ? [] : [utils.externalMediaToAttachment(media)],
+                    attributedTo: act.author,
+                    actor: utils.urlForPath("user/" + act.author),
+                    to: object.to,
+                    cc: await getFollowersByActor(utils.urlForPath('user/' + user.name)),
+                    inReplyTo: object.inReplyTo,
+                    title: object.title,
+                    content: object.content,
+                    published: new Date(object.published).toISOString(),
+                    sensitive: false,
+                    summary: null,
+                    tag: object.tags
+                }
+            };
+        }
+        catch (e) {
+            console.log("Error creating JSON from activity", act, e);
+            throw (new Error("Error creating JSON from activity"));
+        }
     }
     else
         return undefined;
@@ -195,8 +203,7 @@ exports.branchFromJSON = branchFromJSON;
 exports.store = {
     comments: {},
     threads: {},
-    likeBundles: {},
-    remoteInstances: {}
+    likeBundles: {} // id is object.id + server name
 };
 let indexs = {
     commentChildrens: {},
@@ -295,20 +302,6 @@ function loadStore(cb) {
                     .catch(() => utils.log("Database " + utils.config.database.database + " already existed"));
                 dbPoolPG.end();
                 db.setDbPool();
-                let result = await db.dbPool.query(`
-                    CREATE TABLE users (
-                       name VARCHAR (50) PRIMARY KEY NOT NULL,
-                       password_hashed TEXT NOT NULL,
-                       password_salt TEXT NOT NULL,
-                       public_key TEXT NOT NULL,
-                       private_key TEXT NOT NULL,
-                       banned BOOL NOT NULL,
-                       local BOOL NOT NULL,
-                       last_update bigint,
-                       foreign_url TEXT NOT NULL
-                    );
-                `).catch((e) => console.log("Error create users table", e));
-                console.log(result);
                 await Promise.all(Object.keys(exports.store.users).map(async (userName) => {
                     let user = exports.store.users[userName];
                     insertUser(user)
@@ -316,18 +309,8 @@ function loadStore(cb) {
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
+            await modelInterfaces.createMissingTables();
             if (utils.migrationNumber == 7) {
-                let result = await db.dbPool.query(`
-                    CREATE TABLE notifications (
-                       id VARCHAR (50) PRIMARY KEY NOT NULL,
-                       recipient TEXT NOT NULL,
-                       title TEXT NOT NULL,
-                       content TEXT NOT NULL,
-                       date bigint,
-                       read BOOL NOT NULL
-                    );
-                `).catch((e) => console.log("Error create notifications table", e));
-                console.log(result);
                 await Promise.all(Object.keys(exports.store.notifications).map(async (notifId) => {
                     let notif = exports.store.notifications[notifId];
                     insertNotification(notif)
@@ -336,14 +319,6 @@ function loadStore(cb) {
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
             if (utils.migrationNumber == 8) {
-                let result = await db.dbPool.query(`
-                    CREATE TABLE sessions (
-                       id VARCHAR (50) PRIMARY KEY NOT NULL,
-                       user_name TEXT,
-                       creation_date TEXT NOT NULL
-                    );
-                `).catch((e) => console.log("Error create notifications table", e));
-                console.log(result);
                 await Promise.all(Object.keys(exports.store.sessions).map(async (sessionId) => {
                     let session = exports.store.sessions[sessionId];
                     insertSession(session)
@@ -352,16 +327,6 @@ function loadStore(cb) {
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
             if (utils.migrationNumber == 9) {
-                let result = await db.dbPool.query(`
-                    CREATE TABLE activitys (
-                       id TEXT PRIMARY KEY NOT NULL,
-                       object_id TEXT NOT NULL,
-                       published bigint NOT NULL,
-                       author TEXT NOT NULL,
-                       "to" TEXT[] NOT NULL
-                    );
-                `).catch((e) => console.log("Error create activitys table", e));
-                console.log(result);
                 await Promise.all(Object.keys(exports.store.activitys).map(async (actId) => {
                     let activity = exports.store.activitys[actId];
                     insertActivity(activity)
@@ -370,21 +335,6 @@ function loadStore(cb) {
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
             if (utils.migrationNumber == 10) {
-                let result = await db.dbPool.query(`
-                    CREATE TABLE branches (
-                       name TEXT PRIMARY KEY NOT NULL,
-                       creator TEXT NOT NULL,
-                       description TEXT NOT NULL,
-                       source_branches TEXT[] NOT NULL,
-                       pined_threads TEXT[] NOT NULL,
-                       banned BOOL NOT NULL,
-                       icon TEXT NOT NULL,
-                       public_key TEXT NOT NULL,
-                       private_key TEXT NOT NULL,
-                       last_update BIGINT NOT NULL
-                    );
-                `).catch((e) => console.log("Error create branches table", e));
-                console.log(result);
                 await Promise.all(Object.keys(exports.store.branches).map(async (branchId) => {
                     let branch = exports.store.branches[branchId];
                     insertBranch(branch)
@@ -393,14 +343,6 @@ function loadStore(cb) {
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
             if (utils.migrationNumber == 11) {
-                let result = await db.dbPool.query(`
-                    CREATE TABLE likes (
-                        id TEXT PRIMARY KEY NOT NULL,
-                        author TEXT NOT NULL,
-                        object TEXT NOT NULL
-                    );
-                `).catch((e) => console.log("Error create likes table", e));
-                console.log(result);
                 await Promise.all(Object.keys(exports.store.likes).map(async (likeId) => {
                     let like = exports.store.likes[likeId];
                     insertLike(like)
@@ -409,18 +351,18 @@ function loadStore(cb) {
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
             if (utils.migrationNumber == 12) {
-                let result = await db.dbPool.query(`
-                    CREATE TABLE follows (
-                        id TEXT PRIMARY KEY NOT NULL,
-                        follower TEXT NOT NULL,
-                        target TEXT NOT NULL
-                    );
-                `).catch((e) => console.log("Error create follows table", e));
-                console.log(result);
                 await Promise.all(Object.keys(exports.store.follows).map(async (followId) => {
                     let follow = exports.store.follows[followId];
                     insertFollow(follow)
                         .catch((e) => console.log("Error adding follow to table", e));
+                }));
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            if (utils.migrationNumber == 13) {
+                await Promise.all(Object.keys(exports.store.remoteInstances).map(async (remoteId) => {
+                    let remoteInstance = exports.store.remoteInstances[remoteId];
+                    insertRemoteInstance(remoteInstance)
+                        .catch((e) => console.log("Error adding remoteInstance to table", e));
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
@@ -731,7 +673,15 @@ async function createNotification(recipient, title, content) {
 }
 exports.createNotification = createNotification;
 exports.getNotificationById = db.getObjectByField("notifications", "id");
-const getNotificationsByUserId = db.getObjectsByField("notifications", "recipient");
+async function getNotificationsByUserId(recipient) {
+    return (await db.query(`
+        SELECT * FROM notifications
+        WHERE recipient = $1
+        ORDER BY date DESC
+    `, [recipient]))
+        .rows.map((r) => db.fromDBObject(r, modelInterfaces_1.NotificationDefinition));
+}
+exports.getNotificationsByUserId = getNotificationsByUserId;
 exports.getNotificationsByUser = function (user) {
     return getNotificationsByUserId(user.name);
 };
@@ -1225,6 +1175,8 @@ async function getNewThreadsByBranch(branch, user, page) {
         .sort((t1, t2) => t2.published - t1.published).map((t, i) => ((t.position = i + 1), t)).splice(page * pageSize, pageSize);
 }
 exports.getNewThreadsByBranch = getNewThreadsByBranch;
+// REMOTEINSTANCE
+const insertRemoteInstance = db.insertForType("remote_instances", modelInterfaces_1.RemoteInstanceDefinition);
 async function createRemoteInstance(host, name, blocked) {
     let { body } = await utils.request({
         method: "GET",
@@ -1237,13 +1189,13 @@ async function createRemoteInstance(host, name, blocked) {
         name: json.title || name,
         blocked: blocked
     };
-    exports.store.remoteInstances[remoteInstance.host] = remoteInstance;
-    saveStore();
+    await insertRemoteInstance(remoteInstance);
     return remoteInstance;
 }
 exports.createRemoteInstance = createRemoteInstance;
+const queryRemoteInstanceByHost = db.getObjectByField("remote_instances", "host");
 async function getRemoteInstanceByHost(host) {
-    let inst = exports.store.remoteInstances[host];
+    let inst = await queryRemoteInstanceByHost(host);
     if (inst)
         return inst;
     else {
@@ -1259,13 +1211,13 @@ async function getRemoteInstanceByHost(host) {
     }
 }
 exports.getRemoteInstanceByHost = getRemoteInstanceByHost;
-async function getRemoteInstances() {
-    return Object.values(exports.store.remoteInstances);
-}
-exports.getRemoteInstances = getRemoteInstances;
+exports.getRemoteInstances = db.getAllFrom("remote_instances");
 async function setRemoteInstanceBlockedStatus(instance, blocked) {
-    instance.blocked = blocked;
-    saveStore();
+    await db.updateFieldsWhere("remote_instances", {
+        host: instance.host
+    }, {
+        blocked: blocked
+    });
 }
 exports.setRemoteInstanceBlockedStatus = setRemoteInstanceBlockedStatus;
 // FOLLOWS
@@ -1281,7 +1233,7 @@ async function createFollow(follower, target) {
 }
 exports.createFollow = createFollow;
 async function getFollowersByActor(actor) {
-    return (await db.getObjectsWhere("likes", {
+    return (await db.getObjectsWhere("follows", {
         target: actor
     })).map(follow => follow.follower);
 }

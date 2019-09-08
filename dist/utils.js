@@ -452,16 +452,6 @@ function camelToSnakeCase(input) {
     }).toLowerCase();
 }
 exports.camelToSnakeCase = camelToSnakeCase;
-function fromDBObject(obj) {
-    if (!obj)
-        return obj;
-    let r = {};
-    Object.keys(obj).map(key => {
-        r[snakeToCamelCase(key)] = obj[key];
-    });
-    return r;
-}
-exports.fromDBObject = fromDBObject;
 const model = __importStar(require("./model"));
 function urlForUser(user) {
     if (typeof user == "string")
