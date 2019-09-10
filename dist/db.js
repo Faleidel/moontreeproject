@@ -37,7 +37,8 @@ function fromDBObject(obj, definition) {
     Object.keys(obj).map(key => {
         let value = obj[key];
         let realKey = utils.snakeToCamelCase(key);
-        if (definition[realKey] == "number") {
+        // sometimes there are extra keys not in the definition so `definition[realKey].tsType` could crash
+        if (definition[realKey] && definition[realKey].tsType == "number") {
             value = parseInt(value, 10);
         }
         r[realKey] = value;
@@ -100,7 +101,13 @@ function insertForType(tableName, typeDefinition) {
         VALUES (${valuesInserts});
     `;
     return async function (a) {
-        await query(sql, Object.keys(typeDefinition).map(k => a[k]));
+        await query(sql, Object.keys(typeDefinition).map(k => {
+            let infos = typeDefinition[k];
+            if (infos.dbType == "json")
+                return JSON.stringify(a[k]);
+            else
+                return a[k];
+        }));
     };
 }
 exports.insertForType = insertForType;

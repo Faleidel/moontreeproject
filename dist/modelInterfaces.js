@@ -9,72 +9,197 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 //WARNING, THIS FILE IS COMPUTER GENERATED, PLEASE REFER TO THE HUMAN VERSION AT src/modelInterfaces.mts
 const db = __importStar(require("./db"));
+const utils = __importStar(require("./utils"));
 let UserDefinition = {
-    "name": "string",
-    "passwordHashed": "string",
-    "passwordSalt": "string",
-    "publicKey": "string",
-    "privateKey": "string",
-    "banned": "boolean",
-    "local": "boolean",
-    "lastUpdate": "number",
-    "foreignUrl": "string"
+    "name": {
+        "tsType": "string"
+    },
+    "passwordHashed": {
+        "tsType": "string"
+    },
+    "passwordSalt": {
+        "tsType": "string"
+    },
+    "publicKey": {
+        "tsType": "string"
+    },
+    "privateKey": {
+        "tsType": "string"
+    },
+    "banned": {
+        "tsType": "boolean"
+    },
+    "local": {
+        "tsType": "boolean"
+    },
+    "lastUpdate": {
+        "tsType": "number"
+    },
+    "foreignUrl": {
+        "tsType": "string"
+    }
 };
 exports.UserDefinition = UserDefinition;
 let NotificationDefinition = {
-    "id": "string",
-    "recipient": "string",
-    "title": "string",
-    "content": "string",
-    "date": "number",
-    "read": "boolean"
+    "id": {
+        "tsType": "string"
+    },
+    "recipient": {
+        "tsType": "string"
+    },
+    "title": {
+        "tsType": "string"
+    },
+    "content": {
+        "tsType": "string"
+    },
+    "date": {
+        "tsType": "number"
+    },
+    "read": {
+        "tsType": "boolean"
+    }
 };
 exports.NotificationDefinition = NotificationDefinition;
 let SessionDefinition = {
-    "id": "string",
-    "userName": "string | undefined",
-    "creationDate": "string"
+    "id": {
+        "tsType": "string"
+    },
+    "userName": {
+        "tsType": "string | undefined"
+    },
+    "creationDate": {
+        "tsType": "string"
+    }
 };
 exports.SessionDefinition = SessionDefinition;
 let ActivityDefinition = {
-    "id": "string",
-    "objectId": "string",
-    "published": "number",
-    "author": "string",
-    "to": "string[]"
+    "id": {
+        "tsType": "string"
+    },
+    "objectId": {
+        "tsType": "string"
+    },
+    "published": {
+        "tsType": "number"
+    },
+    "author": {
+        "tsType": "string"
+    },
+    "to": {
+        "tsType": "string[]"
+    }
 };
 exports.ActivityDefinition = ActivityDefinition;
 let BranchDefinition = {
-    "name": "string",
-    "creator": "string",
-    "description": "string",
-    "sourceBranches": "string[]",
-    "pinedThreads": "string[]",
-    "banned": "boolean",
-    "icon": "string",
-    "publicKey": "string",
-    "privateKey": "string",
-    "lastUpdate": "number"
+    "name": {
+        "tsType": "string"
+    },
+    "creator": {
+        "tsType": "string"
+    },
+    "description": {
+        "tsType": "string"
+    },
+    "sourceBranches": {
+        "tsType": "string[]"
+    },
+    "pinedThreads": {
+        "tsType": "string[]"
+    },
+    "banned": {
+        "tsType": "boolean"
+    },
+    "icon": {
+        "tsType": "string"
+    },
+    "publicKey": {
+        "tsType": "string"
+    },
+    "privateKey": {
+        "tsType": "string"
+    },
+    "lastUpdate": {
+        "tsType": "number"
+    }
 };
 exports.BranchDefinition = BranchDefinition;
 let LikeDefinition = {
-    "id": "string",
-    "author": "string",
-    "object": "string"
+    "id": {
+        "tsType": "string"
+    },
+    "author": {
+        "tsType": "string"
+    },
+    "object": {
+        "tsType": "string"
+    }
 };
 exports.LikeDefinition = LikeDefinition;
 let FollowDefinition = {
-    "follower": "string",
-    "target": "string",
-    "id": "string"
+    "follower": {
+        "tsType": "string"
+    },
+    "target": {
+        "tsType": "string"
+    },
+    "id": {
+        "tsType": "string"
+    }
 };
 exports.FollowDefinition = FollowDefinition;
 let RemoteInstanceDefinition = {
-    "host": "string",
-    "name": "string",
-    "blocked": "boolean"
+    "host": {
+        "tsType": "string"
+    },
+    "name": {
+        "tsType": "string"
+    },
+    "blocked": {
+        "tsType": "boolean"
+    }
 };
 exports.RemoteInstanceDefinition = RemoteInstanceDefinition;
+let LikeBundleDefinition = {
+    "server": {
+        "tsType": "string"
+    },
+    "object": {
+        "tsType": "string"
+    },
+    "amount": {
+        "tsType": "number"
+    }
+};
+exports.LikeBundleDefinition = LikeBundleDefinition;
+let CommentDefinition = {
+    "id": {
+        "tsType": "string"
+    },
+    "content": {
+        "tsType": "string"
+    },
+    "published": {
+        "tsType": "number"
+    },
+    "author": {
+        "tsType": "string"
+    },
+    "to": {
+        "tsType": "string[]"
+    },
+    "adminDeleted": {
+        "tsType": "boolean"
+    },
+    "inReplyTo": {
+        "tsType": "string | undefined"
+    },
+    "tags": {
+        "dbType": "json",
+        "tsType": "CommentTag[]"
+    }
+};
+exports.CommentDefinition = CommentDefinition;
 function createUserTable() {
     return db.dbPool.query(`
         CREATE TABLE users (
@@ -165,6 +290,30 @@ function createRemoteInstanceTable() {
         );
     `).catch((e) => console.log("Error create remote_instances table", e));
 }
+function createLikeBundleTable() {
+    return db.dbPool.query(`
+        CREATE TABLE like_bundles (
+            server TEXT NOT NULL,
+            object TEXT NOT NULL,
+            amount BIGINT NOT NULL,
+            PRIMARY KEY (server, object)
+        );
+    `).catch((e) => console.log("Error create remote_instances table", e));
+}
+function createCommentTable() {
+    return db.dbPool.query(`
+        CREATE TABLE comments (
+            id TEXT PRIMARY KEY NOT NULL,
+            content TEXT NOT NULL,
+            published BIGINT NOT NULL,
+            author TEXT NOT NULL,
+            "to" TEXT[] NOT NULL,
+            admin_deleted BOOL NOT NULL,
+            in_reply_to TEXT,
+            tags JSON NOT NULL
+        );
+    `).catch((e) => console.log("Error create remote_instances table", e));
+}
 async function listTables() {
     return (await db.query(`
         SELECT
@@ -185,7 +334,9 @@ exports.tableMap = {
     "notifications": { constructor: createNotificationTable, definition: NotificationDefinition },
     "remote_instances": { constructor: createRemoteInstanceTable, definition: RemoteInstanceDefinition },
     "sessions": { constructor: createSessionTable, definition: SessionDefinition },
-    "users": { constructor: createUserTable, definition: UserDefinition }
+    "users": { constructor: createUserTable, definition: UserDefinition },
+    "like_bundles": { constructor: createLikeBundleTable, definition: LikeBundleDefinition },
+    "comments": { constructor: createCommentTable, definition: CommentDefinition }
 };
 async function createMissingTables() {
     let tableList = await listTables();
@@ -197,3 +348,7 @@ async function createMissingTables() {
     }));
 }
 exports.createMissingTables = createMissingTables;
+function columnsOfDefinition(definition) {
+    return Object.keys(definition).map(utils.camelToSnakeCase);
+}
+exports.columnsOfDefinition = columnsOfDefinition;

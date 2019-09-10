@@ -1,17 +1,36 @@
 //WARNING, THIS FILE IS COMPUTER GENERATED, PLEASE REFER TO THE HUMAN VERSION AT src/modelInterfaces.mts
 import * as db from "./db";
+import * as utils from "./utils";
 
 
 let UserDefinition = {
-    "name": "string",
-    "passwordHashed": "string",
-    "passwordSalt": "string",
-    "publicKey": "string",
-    "privateKey": "string",
-    "banned": "boolean",
-    "local": "boolean",
-    "lastUpdate": "number",
-    "foreignUrl": "string"
+    "name": {
+        "tsType": "string"
+    },
+    "passwordHashed": {
+        "tsType": "string"
+    },
+    "passwordSalt": {
+        "tsType": "string"
+    },
+    "publicKey": {
+        "tsType": "string"
+    },
+    "privateKey": {
+        "tsType": "string"
+    },
+    "banned": {
+        "tsType": "boolean"
+    },
+    "local": {
+        "tsType": "boolean"
+    },
+    "lastUpdate": {
+        "tsType": "number"
+    },
+    "foreignUrl": {
+        "tsType": "string"
+    }
 };
 
 interface User {
@@ -31,12 +50,24 @@ export {User, UserDefinition};
 
 
 let NotificationDefinition = {
-    "id": "string",
-    "recipient": "string",
-    "title": "string",
-    "content": "string",
-    "date": "number",
-    "read": "boolean"
+    "id": {
+        "tsType": "string"
+    },
+    "recipient": {
+        "tsType": "string"
+    },
+    "title": {
+        "tsType": "string"
+    },
+    "content": {
+        "tsType": "string"
+    },
+    "date": {
+        "tsType": "number"
+    },
+    "read": {
+        "tsType": "boolean"
+    }
 };
 
 interface Notification {
@@ -53,9 +84,15 @@ export {Notification, NotificationDefinition};
 
 
 let SessionDefinition = {
-    "id": "string",
-    "userName": "string | undefined",
-    "creationDate": "string"
+    "id": {
+        "tsType": "string"
+    },
+    "userName": {
+        "tsType": "string | undefined"
+    },
+    "creationDate": {
+        "tsType": "string"
+    }
 };
 
 interface Session {
@@ -69,11 +106,21 @@ export {Session, SessionDefinition}
 
 
 let ActivityDefinition = {
-    "id": "string",
-    "objectId": "string",
-    "published": "number",
-    "author": "string",
-    "to": "string[]"
+    "id": {
+        "tsType": "string"
+    },
+    "objectId": {
+        "tsType": "string"
+    },
+    "published": {
+        "tsType": "number"
+    },
+    "author": {
+        "tsType": "string"
+    },
+    "to": {
+        "tsType": "string[]"
+    }
 };
 
 interface Activity {
@@ -89,16 +136,36 @@ export {Activity, ActivityDefinition};
 
 
 let BranchDefinition = {
-    "name": "string",
-    "creator": "string",
-    "description": "string",
-    "sourceBranches": "string[]",
-    "pinedThreads": "string[]",
-    "banned": "boolean",
-    "icon": "string",
-    "publicKey": "string",
-    "privateKey": "string",
-    "lastUpdate": "number"
+    "name": {
+        "tsType": "string"
+    },
+    "creator": {
+        "tsType": "string"
+    },
+    "description": {
+        "tsType": "string"
+    },
+    "sourceBranches": {
+        "tsType": "string[]"
+    },
+    "pinedThreads": {
+        "tsType": "string[]"
+    },
+    "banned": {
+        "tsType": "boolean"
+    },
+    "icon": {
+        "tsType": "string"
+    },
+    "publicKey": {
+        "tsType": "string"
+    },
+    "privateKey": {
+        "tsType": "string"
+    },
+    "lastUpdate": {
+        "tsType": "number"
+    }
 };
 
 interface Branch {
@@ -119,9 +186,15 @@ export {Branch, BranchDefinition};
 
 
 let LikeDefinition = {
-    "id": "string",
-    "author": "string",
-    "object": "string"
+    "id": {
+        "tsType": "string"
+    },
+    "author": {
+        "tsType": "string"
+    },
+    "object": {
+        "tsType": "string"
+    }
 };
 
 interface Like {
@@ -135,9 +208,15 @@ export {Like, LikeDefinition};
 
 
 let FollowDefinition = {
-    "follower": "string",
-    "target": "string",
-    "id": "string"
+    "follower": {
+        "tsType": "string"
+    },
+    "target": {
+        "tsType": "string"
+    },
+    "id": {
+        "tsType": "string"
+    }
 };
 
 interface Follow {
@@ -151,9 +230,15 @@ export {Follow, FollowDefinition};
 
 
 let RemoteInstanceDefinition = {
-    "host": "string",
-    "name": "string",
-    "blocked": "boolean"
+    "host": {
+        "tsType": "string"
+    },
+    "name": {
+        "tsType": "string"
+    },
+    "blocked": {
+        "tsType": "boolean"
+    }
 };
 
 interface RemoteInstance {
@@ -164,6 +249,77 @@ interface RemoteInstance {
 
 
 export {RemoteInstance, RemoteInstanceDefinition};
+
+
+let LikeBundleDefinition = {
+    "server": {
+        "tsType": "string"
+    },
+    "object": {
+        "tsType": "string"
+    },
+    "amount": {
+        "tsType": "number"
+    }
+};
+
+interface LikeBundle {
+    server: string,
+    object: string,
+    amount: number
+}
+
+
+export {LikeBundle, LikeBundleDefinition};
+
+export interface CommentTag {
+    type: string,
+    href: string,
+    name: string,
+}
+
+
+let CommentDefinition = {
+    "id": {
+        "tsType": "string"
+    },
+    "content": {
+        "tsType": "string"
+    },
+    "published": {
+        "tsType": "number"
+    },
+    "author": {
+        "tsType": "string"
+    },
+    "to": {
+        "tsType": "string[]"
+    },
+    "adminDeleted": {
+        "tsType": "boolean"
+    },
+    "inReplyTo": {
+        "tsType": "string | undefined"
+    },
+    "tags": {
+        "dbType": "json",
+        "tsType": "CommentTag[]"
+    }
+};
+
+interface Comment {
+    id: string,
+    content: string,
+    published: number,
+    author: string,
+    to: string[],
+    adminDeleted: boolean,
+    inReplyTo: string | undefined,
+    tags: CommentTag[]
+}
+
+
+export {Comment, CommentDefinition};
 
 function createUserTable(): Promise<any> {
     return db.dbPool.query(`
@@ -263,6 +419,32 @@ function createRemoteInstanceTable(): Promise<any> {
     `).catch((e: any) => console.log("Error create remote_instances table", e));
 }
 
+function createLikeBundleTable(): Promise<any> {
+    return db.dbPool.query(`
+        CREATE TABLE like_bundles (
+            server TEXT NOT NULL,
+            object TEXT NOT NULL,
+            amount BIGINT NOT NULL,
+            PRIMARY KEY (server, object)
+        );
+    `).catch((e: any) => console.log("Error create remote_instances table", e));
+}
+
+function createCommentTable(): Promise<any> {
+    return db.dbPool.query(`
+        CREATE TABLE comments (
+            id TEXT PRIMARY KEY NOT NULL,
+            content TEXT NOT NULL,
+            published BIGINT NOT NULL,
+            author TEXT NOT NULL,
+            "to" TEXT[] NOT NULL,
+            admin_deleted BOOL NOT NULL,
+            in_reply_to TEXT,
+            tags JSON NOT NULL
+        );
+    `).catch((e: any) => console.log("Error create remote_instances table", e));
+}
+
 async function listTables(): Promise<string[]> {
     return (await db.query(`
         SELECT
@@ -278,7 +460,7 @@ async function listTables(): Promise<string[]> {
 
 interface TableDefinition {
     constructor: () => Promise<void>,
-    definition: any
+    definition: {[key: string]: any}
 }
 
 export const tableMap: {[key: string]: TableDefinition} = {
@@ -289,7 +471,9 @@ export const tableMap: {[key: string]: TableDefinition} = {
     "notifications":    { constructor: createNotificationTable,   definition: NotificationDefinition   },
     "remote_instances": { constructor: createRemoteInstanceTable, definition: RemoteInstanceDefinition },
     "sessions":         { constructor: createSessionTable,        definition: SessionDefinition        },
-    "users":            { constructor: createUserTable,           definition: UserDefinition           }
+    "users":            { constructor: createUserTable,           definition: UserDefinition           },
+    "like_bundles":     { constructor: createLikeBundleTable,     definition: LikeBundleDefinition     },
+    "comments":         { constructor: createCommentTable,        definition: CommentDefinition        }
 };
 
 export async function createMissingTables(): Promise<void> {
@@ -301,4 +485,8 @@ export async function createMissingTables(): Promise<void> {
             await tableMap[tableName].constructor();
         }
     }));
+}
+
+export function columnsOfDefinition(definition: any): string[] {
+    return Object.keys(definition).map(utils.camelToSnakeCase);
 }

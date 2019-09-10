@@ -35,7 +35,8 @@ export function fromDBObject<A>(obj: A, definition: any): A {
         
         let realKey = utils.snakeToCamelCase(key);
         
-        if (definition[realKey] == "number") {
+        // sometimes there are extra keys not in the definition so `definition[realKey].tsType` could crash
+        if (definition[realKey] && definition[realKey].tsType == "number") {
             value = parseInt(value, 10);
         }
         
@@ -109,7 +110,14 @@ export function insertForType<A>(tableName: string, typeDefinition: any): (a: A)
     `;
     
     return async function(a: A) {
-        await query(sql, Object.keys(typeDefinition).map(k => (a as any)[k]));
+        await query(sql, Object.keys(typeDefinition).map(k => {
+            let infos = typeDefinition[k];
+            
+            if (infos.dbType == "json")
+                return JSON.stringify((a as any)[k]);
+            else
+                return (a as any)[k];
+        }));
     }
 }
 

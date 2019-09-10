@@ -12,20 +12,36 @@ const db = __importStar(require("./db"));
 async function changeSiteUrl(from, to) {
     model.loadStore(async () => {
         let threads = Object.values(model.store.threads);
-        let comments = Object.values(model.store.comments);
         model.store.threads = {};
-        model.store.comments = {};
         threads.map(t => {
             t.id = t.id.replace(from, to);
             t.author = t.author.replace(from, to);
             model.store.threads[t.id] = t;
         });
-        comments.map(t => {
-            t.id = t.id.replace(from, to);
-            t.author = t.author.replace(from, to);
-            if (t.inReplyTo)
-                t.inReplyTo = t.inReplyTo.replace(from, to);
-            model.store.comments[t.id] = t;
+        let commentsQ = await db.dbPool.query(`SELECT * FROM comments;`);
+        let comments = commentsQ.rows;
+        comments.map((t) => {
+            db.dbPool.connect(async (err, client, done) => {
+                try {
+                    await client.query(`BEGIN`, []);
+                    await client.query(`
+                        UPDATE comments
+                        SET author = $2, object_id = $3, id = $4, in_reply_to = $5
+                        WHERE id = $1;
+                    `, [t.id,
+                        t.author.replace(from, to),
+                        t.object_id.replace(from, to),
+                        t.id.replace(from, to),
+                        t.in_reply_to.replace(from, to)
+                    ]);
+                    await client.query(`COMMIT`);
+                    done();
+                }
+                catch (e) {
+                    await client.query('ROLLBACK');
+                    done();
+                }
+            });
         });
         let actsQ = await db.dbPool.query(`SELECT * FROM activitys;`);
         let acts = actsQ.rows;

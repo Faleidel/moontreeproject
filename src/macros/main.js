@@ -30,9 +30,24 @@ Promise.all(listFiles("src")
                     
                     let interfaceDefinition = eval("("+interfaceJSON.join(" ")+")");
                     
+                    Object.keys(interfaceDefinition).map(key => {
+                        let value = interfaceDefinition[key];
+                        
+                        if (value instanceof Array) {
+                            interfaceDefinition[key] = {
+                                ... value[1],
+                                tsType: value[0]
+                            };
+                        } else {
+                            interfaceDefinition[key] = {
+                                tsType: value
+                            };
+                        }
+                    });
+                    
                     let interfaceTS =
                         "{\n"
-                        + Object.keys(interfaceDefinition).map(key => `    ${key}: ${interfaceDefinition[key]}`).join(",\n")
+                        + Object.keys(interfaceDefinition).map(key => `    ${key}: ${interfaceDefinition[key].tsType}`).join(",\n")
                         + "\n}";
                     
                     parts[x] = `let ${name}Definition = ${JSON.stringify(interfaceDefinition, null, 4)};\n\n`

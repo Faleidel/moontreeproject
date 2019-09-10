@@ -22,6 +22,8 @@ exports.BranchDefinition = modelInterfaces_1.BranchDefinition;
 exports.LikeDefinition = modelInterfaces_1.LikeDefinition;
 exports.FollowDefinition = modelInterfaces_1.FollowDefinition;
 exports.RemoteInstanceDefinition = modelInterfaces_1.RemoteInstanceDefinition;
+exports.LikeBundleDefinition = modelInterfaces_1.LikeBundleDefinition;
+exports.CommentDefinition = modelInterfaces_1.CommentDefinition;
 const modelInterfaces = __importStar(require("./modelInterfaces"));
 const db = __importStar(require("./db"));
 async function activityToJSON(act) {
@@ -201,15 +203,10 @@ async function branchFromJSON(obj) {
 }
 exports.branchFromJSON = branchFromJSON;
 exports.store = {
-    comments: {},
-    threads: {},
-    likeBundles: {} // id is object.id + server name
+    threads: {}
 };
 let indexs = {
-    commentChildrens: {},
-    userComments: {},
-    hotThreadsByBranch: {},
-    likeBundlesByObject: {},
+    hotThreadsByBranch: {}
 };
 function addToIndex(indexName, key, value) {
     let list = indexs[indexName][key];
@@ -219,18 +216,9 @@ function addToIndex(indexName, key, value) {
     }
     list.push(value);
 }
-function indexComment(comment) {
-    if (!indexs.userComments[comment.author] || !indexs.userComments[comment.author].find(c => c == comment.id))
-        addToIndex("userComments", comment.author, comment.id);
-    if (comment.inReplyTo && (!indexs.commentChildrens[comment.inReplyTo] || !indexs.commentChildrens[comment.inReplyTo].find(c => c == comment.id)))
-        addToIndex("commentChildrens", comment.inReplyTo, comment.id);
-}
 function indexThread(thread) {
     if (!indexs.hotThreadsByBranch[thread.branch] || !indexs.hotThreadsByBranch[thread.branch].find(c => c == thread.id))
         addToIndex("hotThreadsByBranch", thread.branch, thread.id);
-}
-function indexLikeBundle(likeBundle) {
-    addToIndex("likeBundlesByObject", likeBundle.object, likeBundle.object + likeBundle.server);
 }
 async function testLikeOn(comment, amount) {
     for (let i = 0; i < amount; i++) {
@@ -366,10 +354,23 @@ function loadStore(cb) {
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
-            Object.values(exports.store.comments).map(c => indexComment(c));
-            Object.values(exports.store.threads).map(t => indexComment(t));
+            if (utils.migrationNumber == 14) {
+                await Promise.all(Object.keys(exports.store.likeBundles).map(async (id) => {
+                    let bundle = exports.store.likeBundles[id];
+                    insertLikeBundle(bundle)
+                        .catch((e) => console.log("Error adding like bundle to table", e));
+                }));
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            if (utils.migrationNumber == 15) {
+                await Promise.all(Object.keys(exports.store.comments).map(async (id) => {
+                    let comment = exports.store.comments[id];
+                    exports.insertComment(comment)
+                        .catch((e) => console.log("Error adding comment bundle to table", e));
+                }));
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
             Object.values(exports.store.threads).map(t => indexThread(t));
-            Object.values(exports.store.likeBundles).map(t => indexLikeBundle(t));
             console.log("Finised loading, migrating and indexing JSON store");
         }
         else {
@@ -460,11 +461,19 @@ async function hasActorLiked(actor, object) {
 }
 exports.hasActorLiked = hasActorLiked;
 // LIKEBUNDLE
+const insertLikeBundle = db.insertForType("like_bundles", modelInterfaces_1.LikeBundleDefinition);
 async function createOrUpdateLikeBundle(server, object, amount) {
-    let pastBundle = exports.store.likeBundles[object.id + server];
+    let pastBundle = await db.getObjectWhere("like_bundles", {
+        server: server,
+        object: object.id
+    });
     if (pastBundle) {
-        pastBundle.amount = amount;
-        saveStore();
+        await db.updateFieldsWhere("like_bundles", {
+            server: server,
+            object: object.id
+        }, {
+            amount: amount
+        });
     }
     else {
         let bundle = {
@@ -472,21 +481,17 @@ async function createOrUpdateLikeBundle(server, object, amount) {
             object: object.id,
             amount: amount
         };
-        exports.store.likeBundles[bundle.object + bundle.server] = bundle;
-        indexLikeBundle(bundle);
-        saveStore();
+        insertLikeBundle(bundle);
         return bundle;
     }
 }
 exports.createOrUpdateLikeBundle = createOrUpdateLikeBundle;
-async function getLikeBundleById(id) {
-    return exports.store.likeBundles[id];
-}
-exports.getLikeBundleById = getLikeBundleById;
 async function getRemoteLikesAmount(object) {
-    let bundles = (await Promise.all((indexs.likeBundlesByObject[object.id] || [])
-        .map(async (id) => await getLikeBundleById(id)))).filter(e => !!e);
-    return bundles.reduce((acc, bundle) => acc + bundle.amount, 0);
+    return parseInt((await db.query(`
+        SELECT SUM(amount)
+        FROM like_bundles
+        WHERE object = '${object.id}'
+    `)).rows[0].sum || 0, 10);
 }
 exports.getRemoteLikesAmount = getRemoteLikesAmount;
 // USER
@@ -606,10 +611,8 @@ async function importForeignUserData(name) {
                     author: name,
                     to: act.to
                 };
-                exports.store.comments[comment.id] = comment;
+                exports.insertComment(comment);
                 insertActivity(activity);
-                indexComment(comment);
-                saveStore();
             }
         });
     }
@@ -862,8 +865,10 @@ async function createActivity(author, object) {
 exports.createActivity = createActivity;
 exports.getActivitysByAuthor = db.getObjectsByField("activitys", "author");
 // COMMENTS
+exports.queryCommentById = db.getObjectByField("comments", "id");
+exports.insertComment = db.insertForType("comments", modelInterfaces_1.CommentDefinition);
 async function getCommentById(id) {
-    let comment = exports.store.comments[id];
+    let comment = await exports.queryCommentById(id);
     if (comment && comment.adminDeleted)
         return undefined;
     else
@@ -903,59 +908,49 @@ async function createComment(author, content, inReplyTo) {
             }
         }
     }
-    exports.store.comments[comment.id] = comment;
-    saveStore();
-    indexComment(comment);
+    exports.insertComment(comment);
     return comment;
 }
 exports.createComment = createComment;
 async function updateComment(comment, content) {
-    comment.content = content;
-    saveStore();
+    await db.updateFieldsWhere("comments", {
+        id: comment.id
+    }, {
+        content: content
+    });
 }
 exports.updateComment = updateComment;
-async function saveComment(comment) {
-    exports.store.comments[comment.id] = comment;
-    saveStore();
-    indexComment(comment);
-}
-exports.saveComment = saveComment;
 async function getCommentsByAuthor(userName) {
-    let user = await getUserByName(userName);
-    if (user) {
-        return (await Promise.all((indexs.userComments[userName] || []).map(getCommentById))).filter((x) => !!x);
-    }
-    else
-        return undefined;
+    return await db.getObjectsWhere("comments", {
+        author: userName
+    });
 }
 exports.getCommentsByAuthor = getCommentsByAuthor;
 async function adminDeleteComment(id) {
-    let object = undefined;
-    if (await isLocalThread(id))
-        object = await getThreadById(id);
-    else
-        object = await getCommentById(id);
-    if (object)
-        object.adminDeleted = true;
-    saveStore();
+    //    let object = undefined;
+    //    if (await isLocalThread(id))
+    //        object = await getThreadById(id);
+    //    else
+    //        object = await getCommentById(id);
+    //    
+    //    if (object)
+    //        object.adminDeleted = true;
+    await db.updateFieldsWhere("comments", {
+        id: id
+    }, {
+        admin_deleted: true
+    });
 }
 exports.adminDeleteComment = adminDeleteComment;
-async function isLocalThread(id) {
-    return !!exports.store.threads[id];
-}
-exports.isLocalThread = isLocalThread;
-async function isLocalComment(id) {
-    return !!exports.store.comments[id];
-}
-exports.isLocalComment = isLocalComment;
 // THREAD
-function isOwnThread(thread) {
-    return true;
+function isOwnThread(id) {
+    let qName = utils.parseQualifiedName(id);
+    return qName.isOwn;
 }
 exports.isOwnThread = isOwnThread;
 async function getThreadById(id) {
     let thread = exports.store.threads[id];
-    if ((!thread || (thread && !isOwnThread(thread) && new Date().getTime() - thread.lastUpdate > 1000 * 60 * 10)) && !id.startsWith(utils.baseUrl())) {
+    if (!isOwnThread(id) && (!thread || (thread && new Date().getTime() - thread.lastUpdate > 1000 * 60 * 10))) {
         thread = await ((async () => {
             let threadUrl = id;
             let { resp, body } = await utils.request({
@@ -975,7 +970,7 @@ async function getThreadById(id) {
                 await Promise.all(threadJson.childrens.map(async (c) => {
                     let comment = await commentFromJSON(c);
                     if (comment) {
-                        await saveComment(comment);
+                        await exports.insertComment(comment);
                         let { host } = urlLib.parse(comment.id);
                         await createOrUpdateLikeBundle(host, comment, c.likes);
                     }
@@ -995,44 +990,69 @@ async function getThreadsCountForBranch(branch) {
 }
 exports.getThreadsCountForBranch = getThreadsCountForBranch;
 async function getThreadCommentsCount(id) {
-    let tree = await getThreadCommentsForClient(undefined, id);
-    if (tree) {
-        function count(tree) {
-            return tree.childrens.length + tree.childrens.map(c => count(c)).reduce((a, b) => a + b, 0);
-        }
-        return count(tree);
-    }
-    else
-        return undefined;
+    return parseInt((await db.query(`
+        WITH RECURSIVE rec AS (
+            SELECT C1.* FROM comments as C1
+            WHERE C1.in_reply_to = $1
+            
+            UNION ALL
+            
+            SELECT c.*
+            FROM rec as rec, comments as c
+            WHERE c.in_reply_to = rec.id
+        )
+        
+        SELECT count(*) FROM rec;
+    `, [id])).rows[0].count, 10);
 }
 exports.getThreadCommentsCount = getThreadCommentsCount;
 async function getThreadCommentsForClient(user, id) {
-    let thread = undefined;
-    if (await isLocalThread(id))
-        thread = await getThreadById(id);
-    if (await isLocalComment(id))
-        thread = await getCommentById(id);
+    let thread = (await getThreadById(id)) || (await getCommentById(id));
+    thread.likes = await getLikesByObject(thread);
     if (thread) {
-        let childrens = await Promise.all((indexs.commentChildrens[id] || [])
-            .map(url => getCommentById(url)));
-        childrens = childrens.filter((c) => c);
-        childrens = await Promise.all(childrens.map(async (c) => {
-            let comments = await getThreadCommentsForClient(user, c.id);
+        let commentColumns = modelInterfaces.columnsOfDefinition(modelInterfaces_1.CommentDefinition)
+            .filter(name => name != "tags")
+            .map(c => `rec."${c}"`).join(", ");
+        let childrensMap = (await db.query(`
+            WITH RECURSIVE rec AS (
+                SELECT C1.* FROM comments as C1
+                WHERE C1.in_reply_to = $1
+                
+                UNION ALL
+                
+                SELECT c.*
+                FROM rec as rec, comments as c
+                WHERE c.in_reply_to = rec.id
+            )
+            
+            SELECT ${commentColumns}
+                 , count(likes) + COALESCE(SUM(like_b.amount), 0) as likes
+                 , EXISTS(SELECT * FROM likes WHERE likes.author = $2 AND likes.object = rec.id) as liked
+                 FROM rec
+            
+            LEFT JOIN likes ON likes.object = rec.id
+            LEFT JOIN like_bundles as like_b ON like_b.object = rec.id
+            
+            GROUP BY ${commentColumns}
+        `, [id, user ? user.name : "" /*this could be a bad idea, I don't know...*/]))
+            .rows.map((o) => db.fromDBObject(o, modelInterfaces_1.CommentDefinition))
+            .reduce((acc, value) => {
+            if (!acc[value.inReplyTo])
+                acc[value.inReplyTo] = [];
+            acc[value.inReplyTo].push(value);
+            return acc;
+        }, {});
+        async function treeFor(c) {
             return {
                 comment: c,
-                childrens: (comments ? comments.childrens : []).sort((c1, c2) => c2.score - c1.score),
-                score: await calculateCommentScore(c),
-                liked: user ? (await hasActorLiked(user, c)) : false,
-                likes: (await getLikesByObject(c)) + await getRemoteLikesAmount(c)
+                childrens: (await Promise.all((childrensMap[c.id] || []).map(comment => treeFor(comment)))).sort((c1, c2) => c2.score - c1.score),
+                liked: c.liked,
+                likes: parseInt(c.likes),
+                score: calculateScore(c.likes, c.published)
             };
-        }));
-        return {
-            comment: thread,
-            childrens: childrens.sort((c1, c2) => c2.score - c1.score),
-            score: await calculateCommentScore(thread),
-            liked: user ? (await hasActorLiked(user, thread)) : false,
-            likes: (await getLikesByObject(thread)) + await getRemoteLikesAmount(thread)
-        };
+        }
+        let tree = await treeFor(thread);
+        return tree;
     }
     else
         return undefined;
@@ -1091,7 +1111,6 @@ async function createThread(author, title, content, branch) {
     }
     exports.store.threads[thread.id] = thread;
     saveStore();
-    indexComment(thread);
     indexThread(thread);
     return {
         thread: thread,
@@ -1107,23 +1126,28 @@ exports.updateThread = updateThread;
 async function saveThread(thread) {
     exports.store.threads[thread.id] = thread;
     saveStore();
-    indexComment(thread);
     indexThread(thread);
 }
 exports.saveThread = saveThread;
 async function calculateCommentScore(comment) {
-    let now = new Date().getTime();
-    let published = comment.published;
     let likes = (await getLikesByObject(comment)) + await getRemoteLikesAmount(comment);
+    return calculateScore(likes, comment.published);
+}
+exports.calculateCommentScore = calculateCommentScore;
+function calculateScore(likes, published) {
+    let now = new Date().getTime();
     let age = (now - published) / 1000 / 60 / 60 / 24;
     let score = 0;
     if (age < 2)
         score = -0.5 * Math.cos(age * (Math.PI / 2)) + 0.5;
     else
         score = (-age / 6) + 4 / 3;
-    return score * (likes + 1); // + 1 since score * 0 is 0 and we want scores to continues in the negatives
+    if (score > 0)
+        return score * (likes + 1); // + 1 since score * 0 is 0 and we want scores to continues in the negatives
+    else
+        return score / (likes + 1); // + 1 since score * 0 is 0 and we want scores to continues in the negatives
 }
-exports.calculateCommentScore = calculateCommentScore;
+exports.calculateScore = calculateScore;
 let pageSize = 20;
 async function threadToThreadForUI(user, thread) {
     return Object.assign({}, thread, { likes: (await getLikesByObject(thread)) + await getRemoteLikesAmount(thread), score: await calculateCommentScore(thread), position: 0, liked: user ? (await hasActorLiked(user, thread)) : false, pined: false, commentsCount: await getThreadCommentsCount(thread.id) });

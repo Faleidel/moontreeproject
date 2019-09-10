@@ -1,4 +1,5 @@
 import * as db from "./db";
+import * as utils from "./utils";
 
 meta interface User {
     name: "string",
@@ -76,6 +77,31 @@ meta interface RemoteInstance {
     blocked: "boolean"
 } end meta interface
 export {RemoteInstance, RemoteInstanceDefinition};
+
+meta interface LikeBundle {
+    server: "string",
+    object: "string",
+    amount: "number"
+} end meta interface
+export {LikeBundle, LikeBundleDefinition};
+
+export interface CommentTag {
+    type: string,
+    href: string,
+    name: string,
+}
+
+meta interface Comment {
+    id: "string",
+    content: "string",
+    published: "number",
+    author: "string",
+    to: "string[]", // activitypub "to" field. Mostly just the special value for public posts
+    adminDeleted: "boolean",
+    inReplyTo: "string | undefined", // complete URL of the object. Can be an other comment or a thread
+    tags: ["CommentTag[]", {dbType: "json"}]
+} end meta interface
+export {Comment, CommentDefinition};
 
 function createUserTable(): Promise<any> {
     return db.dbPool.query(`
@@ -175,6 +201,32 @@ function createRemoteInstanceTable(): Promise<any> {
     `).catch((e: any) => console.log("Error create remote_instances table", e));
 }
 
+function createLikeBundleTable(): Promise<any> {
+    return db.dbPool.query(`
+        CREATE TABLE like_bundles (
+            server TEXT NOT NULL,
+            object TEXT NOT NULL,
+            amount BIGINT NOT NULL,
+            PRIMARY KEY (server, object)
+        );
+    `).catch((e: any) => console.log("Error create remote_instances table", e));
+}
+
+function createCommentTable(): Promise<any> {
+    return db.dbPool.query(`
+        CREATE TABLE comments (
+            id TEXT PRIMARY KEY NOT NULL,
+            content TEXT NOT NULL,
+            published BIGINT NOT NULL,
+            author TEXT NOT NULL,
+            "to" TEXT[] NOT NULL,
+            admin_deleted BOOL NOT NULL,
+            in_reply_to TEXT,
+            tags JSON NOT NULL
+        );
+    `).catch((e: any) => console.log("Error create remote_instances table", e));
+}
+
 async function listTables(): Promise<string[]> {
     return (await db.query(`
         SELECT
@@ -190,7 +242,7 @@ async function listTables(): Promise<string[]> {
 
 interface TableDefinition {
     constructor: () => Promise<void>,
-    definition: any
+    definition: {[key: string]: any}
 }
 
 export const tableMap: {[key: string]: TableDefinition} = {
@@ -201,7 +253,9 @@ export const tableMap: {[key: string]: TableDefinition} = {
     "notifications":    { constructor: createNotificationTable,   definition: NotificationDefinition   },
     "remote_instances": { constructor: createRemoteInstanceTable, definition: RemoteInstanceDefinition },
     "sessions":         { constructor: createSessionTable,        definition: SessionDefinition        },
-    "users":            { constructor: createUserTable,           definition: UserDefinition           }
+    "users":            { constructor: createUserTable,           definition: UserDefinition           },
+    "like_bundles":     { constructor: createLikeBundleTable,     definition: LikeBundleDefinition     },
+    "comments":         { constructor: createCommentTable,        definition: CommentDefinition        }
 };
 
 export async function createMissingTables(): Promise<void> {
@@ -213,4 +267,8 @@ export async function createMissingTables(): Promise<void> {
             await tableMap[tableName].constructor();
         }
     }));
+}
+
+export function columnsOfDefinition(definition: any): string[] {
+    return Object.keys(definition).map(utils.camelToSnakeCase);
 }

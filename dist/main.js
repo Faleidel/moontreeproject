@@ -373,7 +373,7 @@ utils.configLoaded.then(() => {
                     else {
                         let comment = await model.commentFromJSON(json);
                         if (comment)
-                            model.saveComment(comment);
+                            model.insertComment(comment);
                         else
                             console.log("Error with remote comment", body);
                         res.end("ok comment");
