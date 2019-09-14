@@ -516,3 +516,11 @@ export async function createViewData(cookies: any): Promise<any> {
     
     return viewData;
 }
+
+export function isObjectEmpty(obj: {[key: string]: any}): boolean {
+    for(var key in obj) {
+        if(obj.hasOwnProperty(key))
+            return false;
+    }
+    return true;
+}

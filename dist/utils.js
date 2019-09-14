@@ -497,3 +497,11 @@ async function createViewData(cookies) {
     return viewData;
 }
 exports.createViewData = createViewData;
+function isObjectEmpty(obj) {
+    for (var key in obj) {
+        if (obj.hasOwnProperty(key))
+            return false;
+    }
+    return true;
+}
+exports.isObjectEmpty = isObjectEmpty;

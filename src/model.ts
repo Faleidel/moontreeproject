@@ -3,6 +3,7 @@ import * as utils from "./utils";
 import * as crypto from "crypto";
 import * as urlLib from "url";
 const request = require("request");
+import * as cache from "./cache";
 const { Pool } = require('pg')
 import { User, UserDefinition
        , Notification, NotificationDefinition
@@ -485,7 +486,17 @@ export function loadStore(cb: any): void {
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
             
-            Object.values(store.threads).map(t => indexThread(t));
+            let threadLength = Object.values(store.threads).map(t => indexThread(t)).length;
+            
+            // test code to generate random commentst tree for a thread
+//            let user = await getUserByName("test0@192.168.117.101:9090");
+//            let ids = [Object.values(store.threads)[Math.floor(Math.random()* threadLength)].id];
+//            if (user ) {
+//                for (let x = 0 ; x < 0 ; x++) {
+//                    let comment = await createComment(user, Math.random() + "", ids[Math.floor(Math.random() * ids.length)]);
+//                    ids.push(comment.id);
+//                }
+//            }
             
             console.log("Finised loading, migrating and indexing JSON store");
         } else {
@@ -1165,7 +1176,16 @@ export async function getThreadById(id: string): Promise<Thread | undefined> {
 export async function getThreadsCountForBranch(branch: Branch): Promise<number> {
     return (indexs.hotThreadsByBranch[branch.name] || []).length;
 }
-export async function getThreadCommentsCount(id: string): Promise<number> { // return 0 if the id doesn't exists
+let getThreadCommentsCountCache: cache.Cache<string, number> = cache.createCache({
+    expireTime: 1000 * 60 * 5,
+    invalidTime: 1000 * 60 * 30,
+    cleanInterval: 1000 * 60 * 60,
+    fetchItem: doGetThreadCommentsCount
+});
+export function getThreadCommentsCount(id: string): Promise<number> { // return 0 if the id doesn't exists
+    return getThreadCommentsCountCache.get(id);
+}
+async function doGetThreadCommentsCount(id: string): Promise<number> {
     return parseInt((await db.query(`
         WITH RECURSIVE rec AS (
             SELECT C1.* FROM comments as C1

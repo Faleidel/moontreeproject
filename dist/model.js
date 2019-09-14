@@ -12,6 +12,7 @@ const utils = __importStar(require("./utils"));
 const crypto = __importStar(require("crypto"));
 const urlLib = __importStar(require("url"));
 const request = require("request");
+const cache = __importStar(require("./cache"));
 const { Pool } = require('pg');
 const modelInterfaces_1 = require("./modelInterfaces");
 exports.UserDefinition = modelInterfaces_1.UserDefinition;
@@ -370,7 +371,16 @@ function loadStore(cb) {
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
-            Object.values(exports.store.threads).map(t => indexThread(t));
+            let threadLength = Object.values(exports.store.threads).map(t => indexThread(t)).length;
+            // test code to generate random commentst tree for a thread
+            //            let user = await getUserByName("test0@192.168.117.101:9090");
+            //            let ids = [Object.values(store.threads)[Math.floor(Math.random()* threadLength)].id];
+            //            if (user ) {
+            //                for (let x = 0 ; x < 0 ; x++) {
+            //                    let comment = await createComment(user, Math.random() + "", ids[Math.floor(Math.random() * ids.length)]);
+            //                    ids.push(comment.id);
+            //                }
+            //            }
             console.log("Finised loading, migrating and indexing JSON store");
         }
         else {
@@ -989,7 +999,17 @@ async function getThreadsCountForBranch(branch) {
     return (indexs.hotThreadsByBranch[branch.name] || []).length;
 }
 exports.getThreadsCountForBranch = getThreadsCountForBranch;
-async function getThreadCommentsCount(id) {
+let getThreadCommentsCountCache = cache.createCache({
+    expireTime: 1000 * 60 * 5,
+    invalidTime: 1000 * 60 * 30,
+    cleanInterval: 1000 * 60 * 60,
+    fetchItem: doGetThreadCommentsCount
+});
+function getThreadCommentsCount(id) {
+    return getThreadCommentsCountCache.get(id);
+}
+exports.getThreadCommentsCount = getThreadCommentsCount;
+async function doGetThreadCommentsCount(id) {
     return parseInt((await db.query(`
         WITH RECURSIVE rec AS (
             SELECT C1.* FROM comments as C1
@@ -1005,7 +1025,6 @@ async function getThreadCommentsCount(id) {
         SELECT count(*) FROM rec;
     `, [id])).rows[0].count, 10);
 }
-exports.getThreadCommentsCount = getThreadCommentsCount;
 async function getThreadCommentsForClient(user, id) {
     let thread = (await getThreadById(id)) || (await getCommentById(id));
     thread.likes = await getLikesByObject(thread);
