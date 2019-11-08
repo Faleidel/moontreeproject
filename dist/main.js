@@ -365,7 +365,7 @@ utils.configLoaded.then(() => {
                     if (json["@context"].some((c) => c == "ironTreeThread")) {
                         let thread = await model.threadFromJSON(json);
                         if (thread)
-                            model.saveThread(thread);
+                            model.insertThread(thread);
                         else
                             console.log("Error with remote comment", body);
                         res.end("ok thread");

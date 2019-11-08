@@ -33,7 +33,7 @@ let UserDefinition = {
     }
 };
 
-interface User {
+interface User  {
     name: string,
     passwordHashed: string,
     passwordSalt: string,
@@ -70,7 +70,7 @@ let NotificationDefinition = {
     }
 };
 
-interface Notification {
+interface Notification  {
     id: string,
     recipient: string,
     title: string,
@@ -95,7 +95,7 @@ let SessionDefinition = {
     }
 };
 
-interface Session {
+interface Session  {
     id: string,
     userName: string | undefined,
     creationDate: string
@@ -123,7 +123,7 @@ let ActivityDefinition = {
     }
 };
 
-interface Activity {
+interface Activity  {
     id: string,
     objectId: string,
     published: number,
@@ -168,7 +168,7 @@ let BranchDefinition = {
     }
 };
 
-interface Branch {
+interface Branch  {
     name: string,
     creator: string,
     description: string,
@@ -197,7 +197,7 @@ let LikeDefinition = {
     }
 };
 
-interface Like {
+interface Like  {
     id: string,
     author: string,
     object: string
@@ -219,7 +219,7 @@ let FollowDefinition = {
     }
 };
 
-interface Follow {
+interface Follow  {
     follower: string,
     target: string,
     id: string
@@ -241,7 +241,7 @@ let RemoteInstanceDefinition = {
     }
 };
 
-interface RemoteInstance {
+interface RemoteInstance  {
     host: string,
     name: string,
     blocked: boolean
@@ -263,7 +263,7 @@ let LikeBundleDefinition = {
     }
 };
 
-interface LikeBundle {
+interface LikeBundle  {
     server: string,
     object: string,
     amount: number
@@ -307,7 +307,7 @@ let CommentDefinition = {
     }
 };
 
-interface Comment {
+interface Comment  {
     id: string,
     content: string,
     published: number,
@@ -320,6 +320,45 @@ interface Comment {
 
 
 export {Comment, CommentDefinition};
+
+
+let ThreadHeaderDefinition = {
+    "id": {
+        "tsType": "string"
+    },
+    "title": {
+        "tsType": "string"
+    },
+    "branch": {
+        "tsType": "string"
+    },
+    "isLink": {
+        "tsType": "boolean"
+    },
+    "media": {
+        "dbType": "json",
+        "tsType": "utils.ExternalMedia | undefined"
+    },
+    "lastUpdate": {
+        "tsType": "number"
+    }
+};
+
+interface ThreadHeader  {
+    id: string,
+    title: string,
+    branch: string,
+    isLink: boolean,
+    media: utils.ExternalMedia | undefined,
+    lastUpdate: number
+}
+
+
+export {ThreadHeader, ThreadHeaderDefinition};
+
+type Thread = Comment & ThreadHeader;
+const ThreadDefinition = { ...CommentDefinition, ...ThreadHeaderDefinition };
+export {Thread, ThreadDefinition};
 
 function createUserTable(): Promise<any> {
     return db.dbPool.query(`
@@ -427,7 +466,7 @@ function createLikeBundleTable(): Promise<any> {
             amount BIGINT NOT NULL,
             PRIMARY KEY (server, object)
         );
-    `).catch((e: any) => console.log("Error create remote_instances table", e));
+    `).catch((e: any) => console.log("Error create like_bundles table", e));
 }
 
 function createCommentTable(): Promise<any> {
@@ -442,7 +481,20 @@ function createCommentTable(): Promise<any> {
             in_reply_to TEXT,
             tags JSON NOT NULL
         );
-    `).catch((e: any) => console.log("Error create remote_instances table", e));
+    `).catch((e: any) => console.log("Error create comment table", e));
+}
+
+function createThreadTable(): Promise<any> {
+    return db.dbPool.query(`
+        CREATE TABLE threads (
+            id TEXT PRIMARY KEY NOT NULL,
+            title TEXT NOT NULL,
+            branch TEXT NOT NULL,
+            is_link BOOL NOT NULL,
+            media JSON,
+            last_update BIGINT NOT NULL
+        );
+    `).catch((e: any) => console.log("Error create threads", e));
 }
 
 async function listTables(): Promise<string[]> {
@@ -473,7 +525,8 @@ export const tableMap: {[key: string]: TableDefinition} = {
     "sessions":         { constructor: createSessionTable,        definition: SessionDefinition        },
     "users":            { constructor: createUserTable,           definition: UserDefinition           },
     "like_bundles":     { constructor: createLikeBundleTable,     definition: LikeBundleDefinition     },
-    "comments":         { constructor: createCommentTable,        definition: CommentDefinition        }
+    "comments":         { constructor: createCommentTable,        definition: CommentDefinition        },
+    "threads":          { constructor: createThreadTable,         definition: ThreadHeaderDefinition   }
 };
 
 export async function createMissingTables(): Promise<void> {

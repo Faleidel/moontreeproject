@@ -4,7 +4,7 @@ import { tableMap } from "./modelInterfaces";
 
 export let dbPool = undefined as any;
 
-utils.configLoaded.then(setDbPool);
+export let dbReady: Promise<any> = utils.configLoaded.then(setDbPool);
 
 export function setDbPool() {
     dbPool = new Pool({

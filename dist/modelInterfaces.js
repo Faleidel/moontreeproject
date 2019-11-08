@@ -200,6 +200,30 @@ let CommentDefinition = {
     }
 };
 exports.CommentDefinition = CommentDefinition;
+let ThreadHeaderDefinition = {
+    "id": {
+        "tsType": "string"
+    },
+    "title": {
+        "tsType": "string"
+    },
+    "branch": {
+        "tsType": "string"
+    },
+    "isLink": {
+        "tsType": "boolean"
+    },
+    "media": {
+        "dbType": "json",
+        "tsType": "utils.ExternalMedia | undefined"
+    },
+    "lastUpdate": {
+        "tsType": "number"
+    }
+};
+exports.ThreadHeaderDefinition = ThreadHeaderDefinition;
+const ThreadDefinition = Object.assign({}, CommentDefinition, ThreadHeaderDefinition);
+exports.ThreadDefinition = ThreadDefinition;
 function createUserTable() {
     return db.dbPool.query(`
         CREATE TABLE users (
@@ -298,7 +322,7 @@ function createLikeBundleTable() {
             amount BIGINT NOT NULL,
             PRIMARY KEY (server, object)
         );
-    `).catch((e) => console.log("Error create remote_instances table", e));
+    `).catch((e) => console.log("Error create like_bundles table", e));
 }
 function createCommentTable() {
     return db.dbPool.query(`
@@ -312,7 +336,19 @@ function createCommentTable() {
             in_reply_to TEXT,
             tags JSON NOT NULL
         );
-    `).catch((e) => console.log("Error create remote_instances table", e));
+    `).catch((e) => console.log("Error create comment table", e));
+}
+function createThreadTable() {
+    return db.dbPool.query(`
+        CREATE TABLE threads (
+            id TEXT PRIMARY KEY NOT NULL,
+            title TEXT NOT NULL,
+            branch TEXT NOT NULL,
+            is_link BOOL NOT NULL,
+            media JSON,
+            last_update BIGINT NOT NULL
+        );
+    `).catch((e) => console.log("Error create threads", e));
 }
 async function listTables() {
     return (await db.query(`
@@ -336,7 +372,8 @@ exports.tableMap = {
     "sessions": { constructor: createSessionTable, definition: SessionDefinition },
     "users": { constructor: createUserTable, definition: UserDefinition },
     "like_bundles": { constructor: createLikeBundleTable, definition: LikeBundleDefinition },
-    "comments": { constructor: createCommentTable, definition: CommentDefinition }
+    "comments": { constructor: createCommentTable, definition: CommentDefinition },
+    "threads": { constructor: createThreadTable, definition: ThreadHeaderDefinition }
 };
 async function createMissingTables() {
     let tableList = await listTables();

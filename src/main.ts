@@ -414,7 +414,7 @@ utils.configLoaded.then(() => {
                         let thread = await model.threadFromJSON(json);
                         
                         if (thread)
-                            model.saveThread(thread);
+                            model.insertThread(thread);
                         else
                             console.log("Error with remote comment", body);
                         

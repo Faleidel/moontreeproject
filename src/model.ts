@@ -15,6 +15,8 @@ import { User, UserDefinition
        , RemoteInstance, RemoteInstanceDefinition
        , LikeBundle, LikeBundleDefinition
        , Comment, CommentDefinition
+       , Thread, ThreadDefinition
+       , ThreadHeader, ThreadHeaderDefinition
        } from "./modelInterfaces";
 
 import * as modelInterfaces from "./modelInterfaces";
@@ -29,6 +31,8 @@ export { User, UserDefinition
        , RemoteInstance, RemoteInstanceDefinition
        , LikeBundle, LikeBundleDefinition
        , Comment, CommentDefinition
+       , Thread, ThreadDefinition
+       , ThreadHeader, ThreadHeaderDefinition
        };
 
 import * as db from "./db";
@@ -145,13 +149,6 @@ export interface CommentTree {
     childrens: CommentTree[]
 }
 
-export interface Thread extends Comment {
-    title: string,
-    branch: string,
-    isLink: boolean,
-    media: utils.ExternalMedia | undefined,
-    lastUpdate: number
-}
 export async function threadToJSON(thread: Thread): Promise<any> {
     let result = {
         ... await commentToJSON(thread),
@@ -261,27 +258,7 @@ export async function branchFromJSON(obj: any): Promise<Branch | undefined> {
     };
 }
 
-export let store = {
-    threads: {} as {[id: string]: Thread}
-};
-
-let indexs = {
-    hotThreadsByBranch: {} as {[id: string]: string[]}
-};
-function addToIndex(indexName: string, key: string, value: string) {
-    let list = (indexs as any)[indexName][key];
-    
-    if (!list) {
-        list = [];
-        (indexs as any)[indexName][key] = list;
-    }
-    
-    list.push(value);
-}
-function indexThread(thread: Thread): void {
-    if (!indexs.hotThreadsByBranch[thread.branch] || !indexs.hotThreadsByBranch[thread.branch].find(c => c == thread.id))
-        addToIndex("hotThreadsByBranch", thread.branch, thread.id);
-}
+export let store = {}; // not used anymore
 
 async function testLikeOn(comment: Comment, amount: number): Promise<void> {
     for (let i = 0 ; i < amount ; i++) {
@@ -312,7 +289,7 @@ export function loadStore(cb: any): void {
                 Object.values((store as any).comments as Comment[]).map(act => {
                     act.published = new Date(act.published).getTime();
                 });
-                Object.values(store.threads).map(act => {
+                Object.values((store as any).threads as Thread[]).map(act => {
                     act.published = new Date(act.published).getTime();
                 });
                 
@@ -385,6 +362,7 @@ export function loadStore(cb: any): void {
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
             
+            await db.dbReady;
             await modelInterfaces.createMissingTables();
             
             if (utils.migrationNumber == 7) {
@@ -486,7 +464,16 @@ export function loadStore(cb: any): void {
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
             
-            let threadLength = Object.values(store.threads).map(t => indexThread(t)).length;
+            if (utils.migrationNumber == 16) {
+                await Promise.all(Object.keys((store as any).threads).map(async id => {
+                    let thread = (store as any).threads[id];
+                    
+                    insertThread(thread)
+                    .catch((e: any) => console.log("Error adding thread bundle to table", e));
+                }));
+                
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
             
             // test code to generate random commentst tree for a thread
 //            let user = await getUserByName("test0@192.168.117.101:9090");
@@ -526,13 +513,13 @@ export function loadStore(cb: any): void {
                     }
                     
                     await (async () => {
-                        for (let tid in store.threads) {
-                            let c = await getThreadById(tid);
-                            if (c)
-                                await testLikeOn(c, Math.floor(Math.random()*5));
-                            else
-                                console.log("Bad thread", c);
-                        }
+//                        for (let tid in store.threads) {
+//                            let c = await getThreadById(tid);
+//                            if (c)
+//                                await testLikeOn(c, Math.floor(Math.random()*5));
+//                            else
+//                                console.log("Bad thread", c);
+//                        }
                     })();
                 }
                 
@@ -943,7 +930,7 @@ export async function fetchRemoteBranchThreads(name: string): Promise<void> {
                     let thread = await threadFromJSON(threadJSON);
                     
                     if (thread) {
-                        await saveThread(thread);
+                        await insertThread(thread);
                         let {host} = urlLib.parse(thread.id) as any;
                         await createOrUpdateLikeBundle(host, thread, threadJSON.likes);
                     }
@@ -1108,15 +1095,6 @@ export async function getCommentsByAuthor(userName: string): Promise<Comment[] |
     });
 }
 export async function adminDeleteComment(id: string): Promise<void> {
-//    let object = undefined;
-//    if (await isLocalThread(id))
-//        object = await getThreadById(id);
-//    else
-//        object = await getCommentById(id);
-//    
-//    if (object)
-//        object.adminDeleted = true;
-    
     await db.updateFieldsWhere("comments", {
         id: id
     }, {
@@ -1124,12 +1102,30 @@ export async function adminDeleteComment(id: string): Promise<void> {
     });
 }
 // THREAD
+const insertThreadHeader: (thread: Thread) => Promise<void> = db.insertForType("threads", ThreadHeaderDefinition);
+export async function insertThread(thread: Thread): Promise<void> {
+    await insertThreadHeader(thread);
+    await insertComment(thread);
+}
 export function isOwnThread(id: string): boolean {
     let qName = utils.parseQualifiedName(id);
     return qName.isOwn;
 }
+export async function queryThreadById(id: string): Promise<Thread | undefined> {
+    let obj = (await db.query(`
+        SELECT *
+        FROM threads
+        INNER JOIN comments ON comments.id = threads.id
+        WHERE threads.id = $1
+    `, [id])).rows[0];
+    
+    if (obj)
+        return db.fromDBObject(obj, ThreadDefinition);
+    else
+        return;
+}
 export async function getThreadById(id: string): Promise<Thread | undefined> {
-    let thread: Thread | undefined = store.threads[id];
+    let thread = await queryThreadById(id);
     
     if (!isOwnThread(id) && (!thread || (thread  && new Date().getTime()-thread.lastUpdate > 1000*60*10))) {
         thread = await ((async () => {
@@ -1149,7 +1145,7 @@ export async function getThreadById(id: string): Promise<Thread | undefined> {
             
             if (newThread) {
                 newThread.lastUpdate = new Date().getTime();
-                await saveThread(newThread);
+                await insertThread(newThread);
                 
                 let {host} = urlLib.parse(newThread.id) as any;
                 await createOrUpdateLikeBundle(host, newThread, threadJson.likes);
@@ -1174,7 +1170,9 @@ export async function getThreadById(id: string): Promise<Thread | undefined> {
         return thread;
 }
 export async function getThreadsCountForBranch(branch: Branch): Promise<number> {
-    return (indexs.hotThreadsByBranch[branch.name] || []).length;
+    return (await db.query(`
+        SELECT count(*) FROM threads WHERE branch = $1
+    `, [branch])).rows[0].count;
 }
 let getThreadCommentsCountCache: cache.Cache<string, number> = cache.createCache({
     expireTime: 1000 * 60 * 5,
@@ -1202,7 +1200,7 @@ async function doGetThreadCommentsCount(id: string): Promise<number> {
     `, [id])).rows[0].count, 10);
 }
 export async function getThreadCommentsForClient(user: User | undefined, id: string): Promise<CommentTree | undefined> {
-    let thread: any = (await getThreadById(id)) || (await getCommentById(id));
+    let thread: any = await getThreadById(id);
     
     thread.likes = await getLikesByObject(thread);
     
@@ -1297,9 +1295,11 @@ export async function createThread(author: User, title: string, content: string,
         lastUpdate: 0
     }
     
-    let gotMedia = utils.getUrlFromOpenGraph(content).then(media => {
-        thread.media = media;
-        saveStore();
+    let gotMedia = utils.getUrlFromOpenGraph(content).then(async media => {
+        await db.updateFieldsWhere("threads", {id: thread.id}, {
+            media: JSON.stringify(media)
+        });
+        
         console.log("OVER MEDIA");
     }).catch(() => {console.log("ERROR MEDIA")});
     
@@ -1319,9 +1319,7 @@ export async function createThread(author: User, title: string, content: string,
         });
     }
     
-    store.threads[thread.id] = thread;
-    saveStore();
-    indexThread(thread);
+    insertThread(thread);
     
     return {
         thread: thread,
@@ -1329,13 +1327,7 @@ export async function createThread(author: User, title: string, content: string,
     };
 }
 export async function updateThread(thread: Thread, content: string): Promise<void> {
-   thread.content = content;
-   saveStore();
-}
-export async function saveThread(thread: Thread): Promise<void> {
-    store.threads[thread.id] = thread;
-    saveStore();
-    indexThread(thread);
+   await db.updateFieldsWhere("threads", {id: thread.id}, {content: content});
 }
 export async function calculateCommentScore(comment: Comment): Promise<number> {
     let likes = (await getLikesByObject(comment)) + await getRemoteLikesAmount(comment);
@@ -1371,24 +1363,53 @@ async function threadToThreadForUI(user: User | undefined, thread: Thread): Prom
     };
 }
 export async function getHotThreadsByBranch(branch: string | undefined, user: User | undefined, page: number): Promise<ThreadForUI[]> {
-    let threads: Thread[] = (branch ? await Promise.all((indexs.hotThreadsByBranch[branch] || []).map(async (threadId, index) => {
-                                         return await getThreadById(threadId) as Thread;
-                                     }))
-                                   : (await Promise.all(
-                                         Object.values(store.threads).map(async (th) => !(await getThreadById(th.id)) ? undefined : th)
-                                     ))
-                            ).filter(th => !!th) as Thread[];
+    let possibleWhere = branch ? `WHERE threads.branch = '${branch}'` : "";
     
-    let result = (await Promise.all(threads.map(async (thread, index) => {
-                     return await threadToThreadForUI(user, thread)
-                 })))
-                 .sort((t1, t2) => t2.score - t1.score).map((t, i) => ((t.position = i+1), t)).splice(page*pageSize, pageSize);
+    let threadsColumns = modelInterfaces.columnsOfDefinition(ThreadHeaderDefinition)
+                         .map(c => `threads."${c}"`).join(", ");
+    
+    let threads = (await db.query(`
+        SELECT *,
+          CASE WHEN a3.score1 > 0
+            THEN a3.score1 * (a3.likes + 1)
+            ELSE a3.score1 / (a3.likes + 1)
+          END as score
+        FROM (
+            SELECT *,
+              CASE WHEN a2.age < 2
+                THEN (-0.5 * COS(age * (PI() / 2))) + 0.5
+                ELSE (-age / 6) + (4/3)
+              END as score1
+            FROM (
+                SELECT *, (($1 - comments.published) / 1000 / 60 / 60 / 24) as age
+                FROM (
+                    SELECT ${threadsColumns} , count(likes) + COALESCE(SUM(bundle.amount), 0) as likes FROM threads
+                    LEFT JOIN likes ON likes.object = threads.id
+                    LEFT JOIN like_bundles as bundle ON bundle.object = threads.id
+                    ${possibleWhere}
+                    GROUP BY threads.id
+                ) a1
+                
+                LEFT JOIN comments ON comments.id = a1.id
+            ) a2
+        ) a3
+        
+        ORDER BY score DESC
+        
+        LIMIT $2
+        OFFSET $3
+    `, [new Date().getTime(), pageSize, page * pageSize]))
+    .rows.map((row: Thread) => db.fromDBObject(row, {
+        ...ThreadDefinition,
+        likes: { tsType: "number" },
+        score: { tsType: "number" }
+    }));
     
     if (branch) {
         let br = await getBranchByName(branch);
         
         if (br) {
-            result.splice(0, 0, ...(await Promise.all(br.pinedThreads.map(async (id: string) => {
+            threads.splice(0, 0, ...(await Promise.all(br.pinedThreads.map(async (id: string) => {
                 let th = await getThreadById(id);
                 if (th) {
                     let thui = await threadToThreadForUI(user, th);
@@ -1399,37 +1420,54 @@ export async function getHotThreadsByBranch(branch: string | undefined, user: Us
         }
     }
     
-    return result;
+    return threads;
 }
 
 export async function getTopThreadsByBranch(branch: string | undefined, user: User | undefined, page: number): Promise<ThreadForUI[]> {
-    let threads: Thread[] = (branch ? await Promise.all((indexs.hotThreadsByBranch[branch] || []).map(async (threadId, index) => {
-                                         return await getThreadById(threadId) as Thread;
-                                     }))
-                                   : (await Promise.all(
-                                         Object.values(store.threads).map(async (th) => !(await getThreadById(th.id)) ? undefined : th)
-                                     ))
-                            ).filter(th => !!th) as Thread[];
+    let possibleWhere = branch ? `WHERE threads.branch = '${branch}'` : "";
     
-    return (await Promise.all(threads.map(async (thread, index) => {
-                 return await threadToThreadForUI(user, thread);
-           })))
-           .sort((t1, t2) => t2.likes - t1.likes).map((t, i) => ((t.position = i+1), t)).splice(page*pageSize, pageSize);
+    return (await db.query(`
+        SELECT threads.* , count(likes) + COALESCE(SUM(bundle.amount), 0) as likes FROM threads
+        
+        LEFT JOIN likes ON likes.object = threads.id
+        LEFT JOIN like_bundles as bundle ON bundle.object = threads.id
+        
+        ${possibleWhere}
+        
+        GROUP BY threads.id
+        ORDER BY likes DESC
+        
+        LIMIT $1
+        OFFSET $2
+    `, [pageSize, page * pageSize]))
+    .rows.map((row: Thread) => db.fromDBObject(row, {
+        ...ThreadDefinition,
+        likes: { tsType: "number" }
+    }));
 }
 
 export async function getNewThreadsByBranch(branch: string | undefined, user: User | undefined, page: number): Promise<ThreadForUI[]> {
-    let threads: Thread[] = (branch ? await Promise.all((indexs.hotThreadsByBranch[branch] || []).map(async (threadId, index) => {
-                                         return await getThreadById(threadId) as Thread;
-                                     }))
-                                   : (await Promise.all(
-                                         Object.values(store.threads).map(async (th) => !(await getThreadById(th.id)) ? undefined : th)
-                                     ))
-                            ).filter(th => !!th) as Thread[];
+    let possibleWhere = branch ? `WHERE threads.branch = '${branch}'` : "";
     
-    return (await Promise.all(threads.map(async (thread, index) => {
-                 return await threadToThreadForUI(user, thread);
-           })))
-           .sort((t1, t2) => t2.published - t1.published).map((t, i) => ((t.position = i+1), t)).splice(page*pageSize, pageSize);
+    return (await db.query(`
+        SELECT threads.*, comments.published, count(likes) + COALESCE(SUM(bundle.amount), 0) as likes FROM threads
+        
+        LEFT JOIN likes ON likes.object = threads.id
+        LEFT JOIN like_bundles as bundle ON bundle.object = threads.id
+        LEFT JOIN comments ON comments.id = threads.id
+        
+        ${possibleWhere}
+        
+        GROUP BY threads.id, comments.id
+        ORDER BY comments.published DESC
+        
+        LIMIT $1
+        OFFSET $2
+    `, [pageSize, page * pageSize]))
+    .rows.map((row: Thread) => db.fromDBObject(row, {
+        ...ThreadDefinition,
+        likes: { tsType: "number" }
+    }));
 }
 
 // REMOTEINSTANCE

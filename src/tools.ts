@@ -3,16 +3,12 @@ import * as db from "./db";
 
 async function changeSiteUrl(from: string, to: string) {
     model.loadStore(async () => {
-        let threads: model.Thread[] = Object.values(model.store.threads);
-        
-        model.store.threads = {};
-        
-        threads.map(t => {
-            t.id = t.id.replace(from, to);
-            t.author = t.author.replace(from, to);
-            
-            model.store.threads[t.id] = t;
-        });
+//        threads.map(t => {
+//            t.id = t.id.replace(from, to);
+//            t.author = t.author.replace(from, to);
+//            
+//            model.store.threads[t.id] = t;
+//        });
         
         let commentsQ = await db.dbPool.query(`SELECT * FROM comments;`);
         let comments = commentsQ.rows;

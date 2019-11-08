@@ -26,9 +26,10 @@ Promise.all(listFiles("src")
                 for (let x = 1 ; x < parts.length ; x++) {
                     let [inter, rest] = parts[x].split("end meta interface");
                     
-                    let [name, ...interfaceJSON] = inter.split(" ");
+                    let [header, ...interfaceJSON] = inter.split("{");
+                    let [name, extendsKeyword, extendedInterface] = header.split(" ");
                     
-                    let interfaceDefinition = eval("("+interfaceJSON.join(" ")+")");
+                    let interfaceDefinition = eval("({"+interfaceJSON.join("{")+")");
                     
                     Object.keys(interfaceDefinition).map(key => {
                         let value = interfaceDefinition[key];
@@ -51,7 +52,7 @@ Promise.all(listFiles("src")
                         + "\n}";
                     
                     parts[x] = `let ${name}Definition = ${JSON.stringify(interfaceDefinition, null, 4)};\n\n`
-                             + `interface ${name} ${interfaceTS}\n\n`
+                             + `interface ${name} ${extendedInterface ? `extends ${extendedInterface}` : ""} ${interfaceTS}\n\n`
                              + `${rest}`;
                 }
             }

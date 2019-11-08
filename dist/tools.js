@@ -11,13 +11,12 @@ const model = __importStar(require("./model"));
 const db = __importStar(require("./db"));
 async function changeSiteUrl(from, to) {
     model.loadStore(async () => {
-        let threads = Object.values(model.store.threads);
-        model.store.threads = {};
-        threads.map(t => {
-            t.id = t.id.replace(from, to);
-            t.author = t.author.replace(from, to);
-            model.store.threads[t.id] = t;
-        });
+        //        threads.map(t => {
+        //            t.id = t.id.replace(from, to);
+        //            t.author = t.author.replace(from, to);
+        //            
+        //            model.store.threads[t.id] = t;
+        //        });
         let commentsQ = await db.dbPool.query(`SELECT * FROM comments;`);
         let comments = commentsQ.rows;
         comments.map((t) => {

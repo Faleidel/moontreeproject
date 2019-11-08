@@ -11,7 +11,7 @@ const { Pool } = require('pg');
 const utils = __importStar(require("./utils"));
 const modelInterfaces_1 = require("./modelInterfaces");
 exports.dbPool = undefined;
-utils.configLoaded.then(setDbPool);
+exports.dbReady = utils.configLoaded.then(setDbPool);
 function setDbPool() {
     exports.dbPool = new Pool({
         user: utils.config.database.user,
