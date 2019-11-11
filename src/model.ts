@@ -190,7 +190,6 @@ export async function threadFromJSON(json: any): Promise<Thread | undefined> {
 }
 
 export interface ThreadForUI extends Thread {
-    position: number,
     commentsCount: number,
     likes: number,
     score: number,
@@ -355,7 +354,7 @@ export function loadStore(cb: any): void {
                 await Promise.all(Object.keys((store as any).users).map(async userName => {
                     let user = (store as any).users[userName];
                     
-                    insertUser(user)
+                    await insertUser(user)
                     .catch((e: any) => console.log("Error adding user to userse table", e));
                 }));
                 
@@ -369,7 +368,7 @@ export function loadStore(cb: any): void {
                 await Promise.all(Object.keys((store as any).notifications).map(async notifId => {
                     let notif = (store as any).notifications[notifId];
                     
-                    insertNotification(notif)
+                    await insertNotification(notif)
                     .catch((e: any) => console.log("Error adding notification to table", e));
                 }));
                 
@@ -380,7 +379,7 @@ export function loadStore(cb: any): void {
                 await Promise.all(Object.keys((store as any).sessions).map(async sessionId => {
                     let session = (store as any).sessions[sessionId];
                     
-                    insertSession(session)
+                    await insertSession(session)
                     .catch((e: any) => console.log("Error adding session to table", e));
                 }));
                 
@@ -391,7 +390,7 @@ export function loadStore(cb: any): void {
                 await Promise.all(Object.keys((store as any).activitys).map(async actId => {
                     let activity = (store as any).activitys[actId];
                     
-                    insertActivity(activity)
+                    await insertActivity(activity)
                     .catch((e: any) => console.log("Error adding activity to table", e));
                 }));
                 
@@ -402,7 +401,7 @@ export function loadStore(cb: any): void {
                 await Promise.all(Object.keys((store as any).branches).map(async branchId => {
                     let branch = (store as any).branches[branchId];
                     
-                    insertBranch(branch)
+                    await insertBranch(branch)
                     .catch((e: any) => console.log("Error adding branch to table", e));
                 }));
                 
@@ -413,7 +412,7 @@ export function loadStore(cb: any): void {
                 await Promise.all(Object.keys((store as any).likes).map(async likeId => {
                     let like = (store as any).likes[likeId];
                     
-                    insertLike(like)
+                    await insertLike(like)
                     .catch((e: any) => console.log("Error adding like to table", e));
                 }));
                 
@@ -424,7 +423,7 @@ export function loadStore(cb: any): void {
                 await Promise.all(Object.keys((store as any).follows).map(async followId => {
                     let follow = (store as any).follows[followId];
                     
-                    insertFollow(follow)
+                    await insertFollow(follow)
                     .catch((e: any) => console.log("Error adding follow to table", e));
                 }));
                 
@@ -435,7 +434,7 @@ export function loadStore(cb: any): void {
                 await Promise.all(Object.keys((store as any).remoteInstances).map(async remoteId => {
                     let remoteInstance = (store as any).remoteInstances[remoteId];
                     
-                    insertRemoteInstance(remoteInstance)
+                    await insertRemoteInstance(remoteInstance)
                     .catch((e: any) => console.log("Error adding remoteInstance to table", e));
                 }));
                 
@@ -446,7 +445,7 @@ export function loadStore(cb: any): void {
                 await Promise.all(Object.keys((store as any).likeBundles).map(async id => {
                     let bundle = (store as any).likeBundles[id];
                     
-                    insertLikeBundle(bundle)
+                    await insertLikeBundle(bundle)
                     .catch((e: any) => console.log("Error adding like bundle to table", e));
                 }));
                 
@@ -457,7 +456,7 @@ export function loadStore(cb: any): void {
                 await Promise.all(Object.keys((store as any).comments).map(async id => {
                     let comment = (store as any).comments[id];
                     
-                    insertComment(comment)
+                    await insertComment(comment)
                     .catch((e: any) => console.log("Error adding comment bundle to table", e));
                 }));
                 
@@ -468,7 +467,7 @@ export function loadStore(cb: any): void {
                 await Promise.all(Object.keys((store as any).threads).map(async id => {
                     let thread = (store as any).threads[id];
                     
-                    insertThread(thread)
+                    await insertThread(thread)
                     .catch((e: any) => console.log("Error adding thread bundle to table", e));
                 }));
                 
@@ -559,7 +558,7 @@ export async function createLike(author: User, object: Comment): Promise<Like | 
             object: object.id
         };
         
-        insertLike(like);
+        await insertLike(like);
         
         return like;
     }
@@ -602,7 +601,7 @@ export async function createOrUpdateLikeBundle(server: string, object: Comment, 
             amount: amount
         };
         
-        insertLikeBundle(bundle);
+        await insertLikeBundle(bundle);
         
         return bundle;
     }
@@ -686,8 +685,7 @@ export async function getForeignUser(name: string): Promise<User | undefined> {
             banned: false
         };
         
-        insertUser(newUser);
-        saveStore();
+        await insertUser(newUser);
         
         await importForeignUserData(name);
         
@@ -750,8 +748,8 @@ export async function importForeignUserData(name: string) {
                     to: act.to
                 };
                 
-                insertComment(comment);
-                insertActivity(activity);
+                await insertComment(comment);
+                await insertActivity(activity);
             }
         })
     }
@@ -776,7 +774,7 @@ export async function createUser(name: string, password: string): Promise<User |
         })) as string;
         let passwordHashed = await utils.hashPassword(password, passwordSalt);
         
-        let u = await utils.generateUserKeyPair().then(kp => {
+        let u = await utils.generateUserKeyPair().then(async kp => {
             let user: User = {
                 name: name,
                 passwordHashed: passwordHashed,
@@ -789,20 +787,14 @@ export async function createUser(name: string, password: string): Promise<User |
                 banned: false
             };
             
-            insertUser(user);
-            saveStore();
-            
-            console.log("MADE USER");
+            await insertUser(user);
             
             return user;
         });
         
-        console.log("RETURN USER",u);
-        
         return u;
     }
     else {
-        console.log("USER EXISTS");
         return Promise.resolve(undefined);
     }
 }
@@ -820,7 +812,7 @@ export async function createNotification(recipient: User, title: string, content
         read: false
     }
     
-    insertNotification(notif);
+    await insertNotification(notif);
     
     return notif;
 }
@@ -862,7 +854,7 @@ export async function getBranchByName(name: string): Promise<Branch | undefined>
                 
                 if (mBranch) {
                     branch = mBranch;
-                    insertBranch(branch);
+                    await insertBranch(branch);
                     
                     await fetchRemoteBranchThreads(name);
                 }
@@ -967,7 +959,7 @@ export async function createBranch(name: string, description: string, sourceBran
         
         utils.alertLog("branchCreation", `User ${creator.name} create branch ${name} with description ${description}`);
         
-        insertBranch(branch);
+        await insertBranch(branch);
         
         return branch;
     }
@@ -1022,7 +1014,7 @@ export async function createActivity(author: User, object: Comment): Promise<Act
         objectId: object.id
     }
     
-    insertActivity(activity);
+    await insertActivity(activity);
     
     return activity;
 }
@@ -1078,7 +1070,7 @@ export async function createComment(author: User, content: string, inReplyTo: st
         }
     }
     
-    insertComment(comment);
+    await insertComment(comment);
     
     return comment;
 }
@@ -1172,7 +1164,7 @@ export async function getThreadById(id: string): Promise<Thread | undefined> {
 export async function getThreadsCountForBranch(branch: Branch): Promise<number> {
     return (await db.query(`
         SELECT count(*) FROM threads WHERE branch = $1
-    `, [branch])).rows[0].count;
+    `, [branch.name])).rows[0].count;
 }
 let getThreadCommentsCountCache: cache.Cache<string, number> = cache.createCache({
     expireTime: 1000 * 60 * 5,
@@ -1319,7 +1311,7 @@ export async function createThread(author: User, title: string, content: string,
         });
     }
     
-    insertThread(thread);
+    await insertThread(thread);
     
     return {
         thread: thread,
@@ -1356,7 +1348,6 @@ async function threadToThreadForUI(user: User | undefined, thread: Thread): Prom
         ...thread,
         likes: (await getLikesByObject(thread)) + await getRemoteLikesAmount(thread),
         score: await calculateCommentScore(thread),
-        position: 0,
         liked: user ? (await hasActorLiked(user, thread)) : false,
         pined: false,
         commentsCount: await getThreadCommentsCount(thread.id)
@@ -1430,7 +1421,7 @@ export async function getHotThreadsByBranch(branch: string | undefined, user: Us
 export async function getTopThreadsByBranch(branch: string | undefined, user: User | undefined, page: number): Promise<ThreadForUI[]> {
     let possibleWhere = branch ? `WHERE threads.branch = '${branch}'` : "";
     
-    return (await db.query(`
+    let threads = (await db.query(`
         SELECT threads.* , count(likes) + COALESCE(SUM(bundle.amount), 0) as likes FROM threads
         
         LEFT JOIN likes ON likes.object = threads.id
@@ -1448,12 +1439,18 @@ export async function getTopThreadsByBranch(branch: string | undefined, user: Us
         ...ThreadDefinition,
         likes: { tsType: "number" }
     }));
+    
+    threads = await Promise.all(threads.map((thread: Thread) => {
+        return threadToThreadForUI(user, thread);
+    }));
+    
+    return threads;
 }
 
 export async function getNewThreadsByBranch(branch: string | undefined, user: User | undefined, page: number): Promise<ThreadForUI[]> {
     let possibleWhere = branch ? `WHERE threads.branch = '${branch}'` : "";
     
-    return (await db.query(`
+    let threads = (await db.query(`
         SELECT threads.*, comments.published, count(likes) + COALESCE(SUM(bundle.amount), 0) as likes FROM threads
         
         LEFT JOIN likes ON likes.object = threads.id
@@ -1472,6 +1469,12 @@ export async function getNewThreadsByBranch(branch: string | undefined, user: Us
         ...ThreadDefinition,
         likes: { tsType: "number" }
     }));
+    
+    threads = await Promise.all(threads.map((thread: Thread) => {
+        return threadToThreadForUI(user, thread);
+    }));
+    
+    return threads;
 }
 
 // REMOTEINSTANCE

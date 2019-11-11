@@ -155,21 +155,9 @@
                     
                     {% for thread in threads %}
                         <div id="{{thread.id}}" class="thread {% if thread.pined %}pinedThread{% endif %}">
-                            <div class="threadPosition"><div>{{thread.position}}</div></div>
                             {% if thread.pined %}
                                 <img class="pinnedIcon" style="position: relative; left: 7px; width: 20px;" src="data:image/svg+xml;utf8;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pgo8IS0tIEdlbmVyYXRvcjogQWRvYmUgSWxsdXN0cmF0b3IgMTkuMC4wLCBTVkcgRXhwb3J0IFBsdWctSW4gLiBTVkcgVmVyc2lvbjogNi4wMCBCdWlsZCAwKSAgLS0+CjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4PSIwcHgiIHk9IjBweCIgdmlld0JveD0iMCAwIDUzLjAxMSA1My4wMTEiIHN0eWxlPSJlbmFibGUtYmFja2dyb3VuZDpuZXcgMCAwIDUzLjAxMSA1My4wMTE7IiB4bWw6c3BhY2U9InByZXNlcnZlIiB3aWR0aD0iMzJweCIgaGVpZ2h0PSIzMnB4Ij4KPHBhdGggZD0iTTUyLjk2MywyMS4yOTdjLTAuMDY4LTAuMzI5LTAuMjk3LTAuNjAzLTAuNjA5LTAuNzI3Yy0yLjc1Mi0xLjA5Ny01LjY3LTEuNjUzLTguNjczLTEuNjUzICBjLTQuNjgxLDAtOC4yOTMsMS4zMzgtOS42ODgsMS45NDJMMTkuMTE0LDguMmMwLjUyLTQuNTY4LTEuOTQ0LTcuNjkyLTIuMDU0LTcuODI4QzE2Ljg4MSwwLjE1MSwxNi42MTgsMC4wMTYsMTYuMzM1LDAgIGMtMC4yODItMC4wMDYtMC41NjEsMC4wOTEtMC43NjEsMC4yOTJMMC4zMiwxNS41NDZjLTAuMjAyLDAuMjAxLTAuMzA4LDAuNDc5LTAuMjkxLDAuNzY1YzAuMDE2LDAuMjg0LDAuMTUzLDAuNTQ5LDAuMzc2LDAuNzI2ICBjMi4xODEsMS43Myw0Ljg0MywyLjA5NCw2LjY5MSwyLjA5NGMwLjQxMiwwLDAuNzY0LTAuMDE5LDEuMDMzLTAuMDRsMTIuNzIyLDE0Ljk1NGMtMC44NjgsMi4yMy0zLjUyLDEwLjI3LTAuMzA3LDE4LjMzNyAgYzAuMTI0LDAuMzEzLDAuMzk3LDAuNTQxLDAuNzI3LDAuNjA5YzAuMDY3LDAuMDE0LDAuMTM1LDAuMDIxLDAuMjAyLDAuMDIxYzAuMjYzLDAsMC41MTgtMC4xMDQsMC43MDctMC4yOTNsMTQuNTctMTQuNTcgIGwxMy41NywxMy41N2MwLjE5NSwwLjE5NSwwLjQ1MSwwLjI5MywwLjcwNywwLjI5M3MwLjUxMi0wLjA5OCwwLjcwNy0wLjI5M2MwLjM5MS0wLjM5MSwwLjM5MS0xLjAyMywwLTEuNDE0bC0xMy41Ny0xMy41NyAgbDE0LjUyNy0xNC41MjhDNTIuOTI5LDIxLjk2OSw1My4wMzEsMjEuNjI3LDUyLjk2MywyMS4yOTd6IiBmaWxsPSIjMDAwMDAwIi8+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+Cjwvc3ZnPgo=" />
                             {% endif %}
-                            <div id="{{thread.id}}_likeControls" class="likeCount {% if not thread.liked and userName %}canLike{% endif %}">
-                                <div>
-                                    {% if userName %}
-                                        <span class="likeButton" style="cursor: pointer" toLike="{{thread.id}}">^</span>
-                                    {% endif %}
-                                    <span id="{{thread.id}}_likes">{{thread.likes}}</span>
-                                    {% if userName %}
-                                        <span class="unlikeButton" style="cursor: pointer" toUnLike="{{thread.id}}">v</span>
-                                    {% endif %}
-                                </div>
-                            </div>
                             <div class="threadInfos">
                                 <div class="threadtitle">
                                     {% if thread.isLink %}
@@ -201,6 +189,17 @@
                                     </div>
                                 </div>
                                 <div id="{{thread.id}}_media" class="mediaContainer"></div>
+                            </div>
+                            <div id="{{thread.id}}_likeControls" class="likeCount {% if not thread.liked and userName %}canLike{% endif %}">
+                                <div>
+                                    {% if userName %}
+                                        <span class="likeButton" style="cursor: pointer" toLike="{{thread.id}}">^</span>
+                                    {% endif %}
+                                    <span id="{{thread.id}}_likes">{{thread.likes}}</span>
+                                    {% if userName %}
+                                        <span class="unlikeButton" style="cursor: pointer" toUnLike="{{thread.id}}">v</span>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
                     {% else %}

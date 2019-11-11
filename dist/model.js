@@ -278,7 +278,7 @@ function loadStore(cb) {
                 db.setDbPool();
                 await Promise.all(Object.keys(exports.store.users).map(async (userName) => {
                     let user = exports.store.users[userName];
-                    insertUser(user)
+                    await insertUser(user)
                         .catch((e) => console.log("Error adding user to userse table", e));
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
@@ -288,7 +288,7 @@ function loadStore(cb) {
             if (utils.migrationNumber == 7) {
                 await Promise.all(Object.keys(exports.store.notifications).map(async (notifId) => {
                     let notif = exports.store.notifications[notifId];
-                    insertNotification(notif)
+                    await insertNotification(notif)
                         .catch((e) => console.log("Error adding notification to table", e));
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
@@ -296,7 +296,7 @@ function loadStore(cb) {
             if (utils.migrationNumber == 8) {
                 await Promise.all(Object.keys(exports.store.sessions).map(async (sessionId) => {
                     let session = exports.store.sessions[sessionId];
-                    insertSession(session)
+                    await insertSession(session)
                         .catch((e) => console.log("Error adding session to table", e));
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
@@ -304,7 +304,7 @@ function loadStore(cb) {
             if (utils.migrationNumber == 9) {
                 await Promise.all(Object.keys(exports.store.activitys).map(async (actId) => {
                     let activity = exports.store.activitys[actId];
-                    insertActivity(activity)
+                    await insertActivity(activity)
                         .catch((e) => console.log("Error adding activity to table", e));
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
@@ -312,7 +312,7 @@ function loadStore(cb) {
             if (utils.migrationNumber == 10) {
                 await Promise.all(Object.keys(exports.store.branches).map(async (branchId) => {
                     let branch = exports.store.branches[branchId];
-                    insertBranch(branch)
+                    await insertBranch(branch)
                         .catch((e) => console.log("Error adding branch to table", e));
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
@@ -320,7 +320,7 @@ function loadStore(cb) {
             if (utils.migrationNumber == 11) {
                 await Promise.all(Object.keys(exports.store.likes).map(async (likeId) => {
                     let like = exports.store.likes[likeId];
-                    insertLike(like)
+                    await insertLike(like)
                         .catch((e) => console.log("Error adding like to table", e));
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
@@ -328,7 +328,7 @@ function loadStore(cb) {
             if (utils.migrationNumber == 12) {
                 await Promise.all(Object.keys(exports.store.follows).map(async (followId) => {
                     let follow = exports.store.follows[followId];
-                    insertFollow(follow)
+                    await insertFollow(follow)
                         .catch((e) => console.log("Error adding follow to table", e));
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
@@ -336,7 +336,7 @@ function loadStore(cb) {
             if (utils.migrationNumber == 13) {
                 await Promise.all(Object.keys(exports.store.remoteInstances).map(async (remoteId) => {
                     let remoteInstance = exports.store.remoteInstances[remoteId];
-                    insertRemoteInstance(remoteInstance)
+                    await insertRemoteInstance(remoteInstance)
                         .catch((e) => console.log("Error adding remoteInstance to table", e));
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
@@ -344,7 +344,7 @@ function loadStore(cb) {
             if (utils.migrationNumber == 14) {
                 await Promise.all(Object.keys(exports.store.likeBundles).map(async (id) => {
                     let bundle = exports.store.likeBundles[id];
-                    insertLikeBundle(bundle)
+                    await insertLikeBundle(bundle)
                         .catch((e) => console.log("Error adding like bundle to table", e));
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
@@ -352,7 +352,7 @@ function loadStore(cb) {
             if (utils.migrationNumber == 15) {
                 await Promise.all(Object.keys(exports.store.comments).map(async (id) => {
                     let comment = exports.store.comments[id];
-                    exports.insertComment(comment)
+                    await exports.insertComment(comment)
                         .catch((e) => console.log("Error adding comment bundle to table", e));
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
@@ -360,7 +360,7 @@ function loadStore(cb) {
             if (utils.migrationNumber == 16) {
                 await Promise.all(Object.keys(exports.store.threads).map(async (id) => {
                     let thread = exports.store.threads[id];
-                    insertThread(thread)
+                    await insertThread(thread)
                         .catch((e) => console.log("Error adding thread bundle to table", e));
                 }));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
@@ -440,7 +440,7 @@ async function createLike(author, object) {
             author: author.name,
             object: object.id
         };
-        insertLike(like);
+        await insertLike(like);
         return like;
     }
 }
@@ -484,7 +484,7 @@ async function createOrUpdateLikeBundle(server, object, amount) {
             object: object.id,
             amount: amount
         };
-        insertLikeBundle(bundle);
+        await insertLikeBundle(bundle);
         return bundle;
     }
 }
@@ -560,8 +560,7 @@ async function getForeignUser(name) {
             foreignUrl: userLink,
             banned: false
         };
-        insertUser(newUser);
-        saveStore();
+        await insertUser(newUser);
         await importForeignUserData(name);
         return newUser;
     }
@@ -614,8 +613,8 @@ async function importForeignUserData(name) {
                     author: name,
                     to: act.to
                 };
-                exports.insertComment(comment);
-                insertActivity(activity);
+                await exports.insertComment(comment);
+                await insertActivity(activity);
             }
         });
     }
@@ -637,7 +636,7 @@ async function createUser(name, password) {
             });
         }));
         let passwordHashed = await utils.hashPassword(password, passwordSalt);
-        let u = await utils.generateUserKeyPair().then(kp => {
+        let u = await utils.generateUserKeyPair().then(async (kp) => {
             let user = {
                 name: name,
                 passwordHashed: passwordHashed,
@@ -649,16 +648,12 @@ async function createUser(name, password) {
                 foreignUrl: "",
                 banned: false
             };
-            insertUser(user);
-            saveStore();
-            console.log("MADE USER");
+            await insertUser(user);
             return user;
         });
-        console.log("RETURN USER", u);
         return u;
     }
     else {
-        console.log("USER EXISTS");
         return Promise.resolve(undefined);
     }
 }
@@ -674,7 +669,7 @@ async function createNotification(recipient, title, content) {
         date: new Date().getTime(),
         read: false
     };
-    insertNotification(notif);
+    await insertNotification(notif);
     return notif;
 }
 exports.createNotification = createNotification;
@@ -712,7 +707,7 @@ async function getBranchByName(name) {
                 let mBranch = await branchFromJSON(branchJson);
                 if (mBranch) {
                     branch = mBranch;
-                    insertBranch(branch);
+                    await insertBranch(branch);
                     await fetchRemoteBranchThreads(name);
                 }
             }
@@ -805,7 +800,7 @@ async function createBranch(name, description, sourceBranches, creator) {
             lastUpdate: 0 // only for remote branches
         };
         utils.alertLog("branchCreation", `User ${creator.name} create branch ${name} with description ${description}`);
-        insertBranch(branch);
+        await insertBranch(branch);
         return branch;
     }
 }
@@ -862,7 +857,7 @@ async function createActivity(author, object) {
         to: ["https://www.w3.org/ns/activitystreams#Public"],
         objectId: object.id
     };
-    insertActivity(activity);
+    await insertActivity(activity);
     return activity;
 }
 exports.createActivity = createActivity;
@@ -911,7 +906,7 @@ async function createComment(author, content, inReplyTo) {
             }
         }
     }
-    exports.insertComment(comment);
+    await exports.insertComment(comment);
     return comment;
 }
 exports.createComment = createComment;
@@ -1002,7 +997,7 @@ exports.getThreadById = getThreadById;
 async function getThreadsCountForBranch(branch) {
     return (await db.query(`
         SELECT count(*) FROM threads WHERE branch = $1
-    `, [branch])).rows[0].count;
+    `, [branch.name])).rows[0].count;
 }
 exports.getThreadsCountForBranch = getThreadsCountForBranch;
 let getThreadCommentsCountCache = cache.createCache({
@@ -1135,7 +1130,7 @@ async function createThread(author, title, content, branch) {
             console.log("Answer from remote inbox", err, body);
         });
     }
-    insertThread(thread);
+    await insertThread(thread);
     return {
         thread: thread,
         gotMedia: gotMedia
@@ -1226,7 +1221,7 @@ async function getHotThreadsByBranch(branch, user, page) {
 exports.getHotThreadsByBranch = getHotThreadsByBranch;
 async function getTopThreadsByBranch(branch, user, page) {
     let possibleWhere = branch ? `WHERE threads.branch = '${branch}'` : "";
-    return (await db.query(`
+    let threads = (await db.query(`
         SELECT threads.* , count(likes) + COALESCE(SUM(bundle.amount), 0) as likes FROM threads
         
         LEFT JOIN likes ON likes.object = threads.id
@@ -1241,11 +1236,15 @@ async function getTopThreadsByBranch(branch, user, page) {
         OFFSET $2
     `, [pageSize, page * pageSize]))
         .rows.map((row) => db.fromDBObject(row, Object.assign({}, modelInterfaces_1.ThreadDefinition, { likes: { tsType: "number" } })));
+    threads = await Promise.all(threads.map((thread) => {
+        return threadToThreadForUI(user, thread);
+    }));
+    return threads;
 }
 exports.getTopThreadsByBranch = getTopThreadsByBranch;
 async function getNewThreadsByBranch(branch, user, page) {
     let possibleWhere = branch ? `WHERE threads.branch = '${branch}'` : "";
-    return (await db.query(`
+    let threads = (await db.query(`
         SELECT threads.*, comments.published, count(likes) + COALESCE(SUM(bundle.amount), 0) as likes FROM threads
         
         LEFT JOIN likes ON likes.object = threads.id
@@ -1261,6 +1260,10 @@ async function getNewThreadsByBranch(branch, user, page) {
         OFFSET $2
     `, [pageSize, page * pageSize]))
         .rows.map((row) => db.fromDBObject(row, Object.assign({}, modelInterfaces_1.ThreadDefinition, { likes: { tsType: "number" } })));
+    threads = await Promise.all(threads.map((thread) => {
+        return threadToThreadForUI(user, thread);
+    }));
+    return threads;
 }
 exports.getNewThreadsByBranch = getNewThreadsByBranch;
 // REMOTEINSTANCE
