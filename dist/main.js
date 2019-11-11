@@ -21,16 +21,9 @@ const signup_1 = require("./controllers/signup");
 const wellKnown_1 = require("./controllers/wellKnown");
 const thread_1 = require("./controllers/thread");
 const branch_1 = require("./controllers/branch");
+const db = __importStar(require("./db"));
+const modelInterfaces_1 = require("./modelInterfaces");
 const request = require("request");
-let urlStats = {};
-fs.readFile("urlStats.json", "utf-8", (err, data) => {
-    if (data) {
-        urlStats = JSON.parse(data);
-    }
-    setInterval(() => {
-        fs.writeFile("urlStats.json", JSON.stringify(urlStats, undefined, 4), () => { });
-    }, 1000);
-});
 model.loadStore(() => { });
 utils.configLoaded.then(() => {
     http.createServer(async function (req, res) {
@@ -41,9 +34,12 @@ utils.configLoaded.then(() => {
             url.splice(0, 1);
         if (url[url.length - 1] == "")
             url.splice(url.length - 1, 1);
-        if (!urlStats[url.join("/")])
-            urlStats[url.join("/")] = 0;
-        urlStats[url.join("/")] += 1;
+        if (url[0] != "static" && url[0] != "favicon.ico")
+            db.insertForType("url_view", modelInterfaces_1.UrlViewDefinition)({
+                id: Math.random() * 100000000000000000 + "",
+                url: url.join("/"),
+                time: new Date().getTime()
+            });
         let cookies = {};
         if (req.headers.cookie)
             cookies = utils.parseCookies(req.headers.cookie);
@@ -570,7 +566,7 @@ utils.configLoaded.then(() => {
             else if (url[0] == "config") {
                 let user = await utils.getLoggedUser(cookies);
                 if (user && utils.isAdmin(user.name)) {
-                    let viewData = Object.assign({}, await utils.createViewData(cookies), { urlStats: urlStats, serverNameValue: utils.getServerName(), adminsValue: utils.getAdmins().join(", "), blockNewInstancesValue: utils.getBlockNewInstances(), acceptSignUpValue: utils.getAcceptSignUp(), overviewBranchesJSON: JSON.stringify(utils.getOverviewBranches()), overviewHasThreads: utils.getOverviewHasThreads(), headHTMLValue: utils.getHeadHTML(), footerHTMLValue: utils.getFooterHTML(), customCSSValue: utils.getCustomCSS(), remoteInstances: await model.getRemoteInstances(), users: await model.getUserList() });
+                    let viewData = Object.assign({}, await utils.createViewData(cookies), { urlStats: {}, serverNameValue: utils.getServerName(), adminsValue: utils.getAdmins().join(", "), blockNewInstancesValue: utils.getBlockNewInstances(), acceptSignUpValue: utils.getAcceptSignUp(), overviewBranchesJSON: JSON.stringify(utils.getOverviewBranches()), overviewHasThreads: utils.getOverviewHasThreads(), headHTMLValue: utils.getHeadHTML(), footerHTMLValue: utils.getFooterHTML(), customCSSValue: utils.getCustomCSS(), remoteInstances: await model.getRemoteInstances(), users: await model.getUserList() });
                     let html = utils.renderTemplate("views/config.njk", viewData);
                     res.end(html);
                 }
@@ -669,5 +665,5 @@ utils.configLoaded.then(() => {
                 res.end("404");
             }
         }
-    }).listen(utils.port() || utils.realPort() || 80);
+    }).listen(utils.port() || utils.realPort());
 });

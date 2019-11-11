@@ -15,17 +15,11 @@ import { handleWellKnownGet } from "./controllers/wellKnown";
 import { handleThread } from "./controllers/thread";
 import { handleBranch, handleBranchInboxPost } from "./controllers/branch";
 
-const request = require("request");
+import * as db from "./db";
 
-let urlStats: {[key: string]: number} = {};
-fs.readFile("urlStats.json", "utf-8", (err, data) => {
-    if (data) {
-        urlStats = JSON.parse(data);
-    }
-    setInterval(() => {
-        fs.writeFile("urlStats.json", JSON.stringify(urlStats, undefined, 4), () => {});
-    }, 1000);
-});
+import { UrlView, UrlViewDefinition } from "./modelInterfaces";
+
+const request = require("request");
 
 model.loadStore(() => {});
 
@@ -37,9 +31,12 @@ utils.configLoaded.then(() => {
         if (url[0] == "") url.splice(0,1);
         if (url[url.length-1] == "") url.splice(url.length-1,1);
         
-        if (!urlStats[url.join("/")])
-            urlStats[url.join("/")] = 0;
-        urlStats[url.join("/")] += 1;
+        if (url[0] != "static" && url[0] != "favicon.ico")
+            db.insertForType("url_view", UrlViewDefinition)({
+                id: Math.random() * 100000000000000000 + "",
+                url: url.join("/"),
+                time: new Date().getTime()
+            });
         
         let cookies: any = {};
         if (req.headers.cookie)
@@ -657,7 +654,7 @@ utils.configLoaded.then(() => {
                     let viewData: any = {
                         ... await utils.createViewData(cookies),
                         
-                        urlStats: urlStats,
+                        urlStats: {}, // TODO
                         
                         serverNameValue: utils.getServerName(),
                         adminsValue: utils.getAdmins().join(", "),
@@ -779,5 +776,5 @@ utils.configLoaded.then(() => {
                 res.end("404");
             }
         }
-    }).listen(utils.port() || utils.realPort() || 80);
+    }).listen(utils.port() || utils.realPort());
 });

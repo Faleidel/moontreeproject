@@ -360,6 +360,28 @@ type Thread = Comment & ThreadHeader;
 const ThreadDefinition = { ...CommentDefinition, ...ThreadHeaderDefinition };
 export {Thread, ThreadDefinition};
 
+
+let UrlViewDefinition = {
+    "id": {
+        "tsType": "string"
+    },
+    "url": {
+        "tsType": "string"
+    },
+    "time": {
+        "tsType": "number"
+    }
+};
+
+interface UrlView  {
+    id: string,
+    url: string,
+    time: number
+}
+
+
+export {UrlView, UrlViewDefinition};
+
 function createUserTable(): Promise<any> {
     return db.dbPool.query(`
         CREATE TABLE users (
@@ -494,7 +516,17 @@ function createThreadTable(): Promise<any> {
             media JSON,
             last_update BIGINT NOT NULL
         );
-    `).catch((e: any) => console.log("Error create threads", e));
+    `).catch((e: any) => console.log("Error create threads table", e));
+}
+
+function createUrlViewTable(): Promise<any> {
+    return db.dbPool.query(`
+        CREATE TABLE url_view (
+            id TEXT PRIMARY KEY NOT NULL,
+            url TEXT NOT NULL,
+            time BIGINT NOT NULL
+        );
+    `).catch((e: any) => console.log("Error create url view table", e));
 }
 
 async function listTables(): Promise<string[]> {
@@ -526,7 +558,8 @@ export const tableMap: {[key: string]: TableDefinition} = {
     "users":            { constructor: createUserTable,           definition: UserDefinition           },
     "like_bundles":     { constructor: createLikeBundleTable,     definition: LikeBundleDefinition     },
     "comments":         { constructor: createCommentTable,        definition: CommentDefinition        },
-    "threads":          { constructor: createThreadTable,         definition: ThreadHeaderDefinition   }
+    "threads":          { constructor: createThreadTable,         definition: ThreadHeaderDefinition   },
+    "url_view":         { constructor: createUrlViewTable,        definition: UrlViewDefinition        }
 };
 
 export async function createMissingTables(): Promise<void> {

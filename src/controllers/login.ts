@@ -10,7 +10,7 @@ export async function handleLoginPost(url: string[], query: any, req: any, res: 
     user = user + "@" + utils.serverAddress();
     
     let userObject = await model.getUserByName(user);
-    console.log("GET USER", userObject, utils.serverAddress());
+    
     if (   userObject
         && !userObject.banned
         && userObject.local

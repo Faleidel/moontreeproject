@@ -14,7 +14,6 @@ async function handleLoginPost(url, query, req, res, body, cookies) {
     let { user, password } = queryString.parse(body);
     user = user + "@" + utils.serverAddress();
     let userObject = await model.getUserByName(user);
-    console.log("GET USER", userObject, utils.serverAddress());
     if (userObject
         && !userObject.banned
         && userObject.local

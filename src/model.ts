@@ -998,7 +998,7 @@ export async function createSession(): Promise<Session> {
         creationDate: new Date().toUTCString()
     };
     
-    insertSession(session);
+    await insertSession(session);
     
     return session;
 }
@@ -1403,6 +1403,10 @@ export async function getHotThreadsByBranch(branch: string | undefined, user: Us
         ...ThreadDefinition,
         likes: { tsType: "number" },
         score: { tsType: "number" }
+    }));
+    
+    threads = await Promise.all(threads.map((thread: Thread) => {
+        return threadToThreadForUI(user, thread);
     }));
     
     if (branch) {

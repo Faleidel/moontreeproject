@@ -838,7 +838,7 @@ async function createSession() {
         userName: undefined,
         creationDate: new Date().toUTCString()
     };
-    insertSession(session);
+    await insertSession(session);
     return session;
 }
 exports.createSession = createSession;
@@ -1205,6 +1205,9 @@ async function getHotThreadsByBranch(branch, user, page) {
         OFFSET $3
     `, [new Date().getTime(), pageSize, page * pageSize]))
         .rows.map((row) => db.fromDBObject(row, Object.assign({}, modelInterfaces_1.ThreadDefinition, { likes: { tsType: "number" }, score: { tsType: "number" } })));
+    threads = await Promise.all(threads.map((thread) => {
+        return threadToThreadForUI(user, thread);
+    }));
     if (branch) {
         let br = await getBranchByName(branch);
         if (br) {
