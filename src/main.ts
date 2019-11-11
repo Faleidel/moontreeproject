@@ -258,6 +258,8 @@ utils.configLoaded.then(() => {
                             errors.push("Branch name is too long");
                         if (description.length > 5000)
                             errors.push("Branch description is too long");
+                        if (await model.getUserByName(name))
+                            errors.push("A use exists with that name");
                         
                         if (errors.length == 0) {
                             let branch = await model.createBranch(name, description, [], user);

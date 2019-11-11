@@ -29,7 +29,7 @@ async function handleSignupPost(url, query, req, res, body, cookies) {
                 .then(async (worked) => {
                 if (worked) {
                     let session = await model.createSession();
-                    let userObject = await model.getUserByName(user + "@" + utils.serverAddress());
+                    let userObject = await model.getUserByName((user + "@" + utils.serverAddress()));
                     await model.loginSession(session, userObject);
                     res.setHeader("Set-Cookie", utils.stringifyCookies({
                         session: session.id

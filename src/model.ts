@@ -352,6 +352,7 @@ export function loadStore(cb: any): void {
                 db.setDbPool();
                 
                 await Promise.all(Object.keys((store as any).users).map(async userName => {
+                    console.log("Insert user", userName);
                     let user = (store as any).users[userName];
                     
                     await insertUser(user)
@@ -456,6 +457,8 @@ export function loadStore(cb: any): void {
                 await Promise.all(Object.keys((store as any).comments).map(async id => {
                     let comment = (store as any).comments[id];
                     
+                    comment.tags = comment.tags || []; //to fix a bug, lot's of comment's don't have tags but the field is mendatory
+                    
                     await insertComment(comment)
                     .catch((e: any) => console.log("Error adding comment bundle to table", e));
                 }));
@@ -466,6 +469,8 @@ export function loadStore(cb: any): void {
             if (utils.migrationNumber == 16) {
                 await Promise.all(Object.keys((store as any).threads).map(async id => {
                     let thread = (store as any).threads[id];
+                    
+                    thread.tags = thread.tags || []; //to fix a bug, lot's of comment's don't have tags but the field is mendatory
                     
                     await insertThread(thread)
                     .catch((e: any) => console.log("Error adding thread bundle to table", e));

@@ -277,6 +277,7 @@ function loadStore(cb) {
                 dbPoolPG.end();
                 db.setDbPool();
                 await Promise.all(Object.keys(exports.store.users).map(async (userName) => {
+                    console.log("Insert user", userName);
                     let user = exports.store.users[userName];
                     await insertUser(user)
                         .catch((e) => console.log("Error adding user to userse table", e));
@@ -352,6 +353,7 @@ function loadStore(cb) {
             if (utils.migrationNumber == 15) {
                 await Promise.all(Object.keys(exports.store.comments).map(async (id) => {
                     let comment = exports.store.comments[id];
+                    comment.tags = comment.tags || []; //to fix a bug, lot's of comment's don't have tags but the field is mendatory
                     await exports.insertComment(comment)
                         .catch((e) => console.log("Error adding comment bundle to table", e));
                 }));
@@ -360,6 +362,7 @@ function loadStore(cb) {
             if (utils.migrationNumber == 16) {
                 await Promise.all(Object.keys(exports.store.threads).map(async (id) => {
                     let thread = exports.store.threads[id];
+                    thread.tags = thread.tags || []; //to fix a bug, lot's of comment's don't have tags but the field is mendatory
                     await insertThread(thread)
                         .catch((e) => console.log("Error adding thread bundle to table", e));
                 }));
@@ -1162,7 +1165,7 @@ function calculateScore(likes, published) {
 exports.calculateScore = calculateScore;
 let pageSize = 20;
 async function threadToThreadForUI(user, thread) {
-    return Object.assign({}, thread, { likes: (await getLikesByObject(thread)) + await getRemoteLikesAmount(thread), score: await calculateCommentScore(thread), position: 0, liked: user ? (await hasActorLiked(user, thread)) : false, pined: false, commentsCount: await getThreadCommentsCount(thread.id) });
+    return Object.assign({}, thread, { likes: (await getLikesByObject(thread)) + await getRemoteLikesAmount(thread), score: await calculateCommentScore(thread), liked: user ? (await hasActorLiked(user, thread)) : false, pined: false, commentsCount: await getThreadCommentsCount(thread.id) });
 }
 async function getHotThreadsByBranch(branch, user, page) {
     let possibleWhere = branch ? `WHERE threads.branch = '${branch}'` : "";
