@@ -34,8 +34,8 @@ async function activityToJSON(act) {
         ? act.object
         : await getThreadById(act.objectId) || await getCommentById(act.objectId);
     let user = await getUserByName(act.author);
-    let media = object.media;
     if (object && user) {
+        let media = object.media;
         try {
             return {
                 "@context": [

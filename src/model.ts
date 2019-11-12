@@ -44,9 +44,9 @@ export async function activityToJSON(act: Activity): Promise<any | undefined> {
     
     let user = await getUserByName(act.author);
     
-    let media: utils.ExternalMedia | undefined = (object as Thread).media;
-    
     if (object && user) {
+        let media: utils.ExternalMedia | undefined = (object as Thread).media;
+        
         try {
             return {
                 "@context": [

@@ -13,10 +13,8 @@ const queryString = __importStar(require("querystring"));
 async function handleLoginPost(url, query, req, res, body, cookies) {
     let { user, password } = queryString.parse(body);
     let qName = utils.parseQualifiedName(user);
-    console.log("##########", user);
     if (!qName.isQualified)
         user = user + "@" + qName.host;
-    console.log("##########", user);
     let userObject = await model.getUserByName(user);
     if (userObject
         && !userObject.banned
