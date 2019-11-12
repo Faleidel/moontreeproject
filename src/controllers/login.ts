@@ -7,7 +7,9 @@ import * as queryString from "querystring";
 export async function handleLoginPost(url: string[], query: any, req: any, res: any, body: string, cookies: any) {
     let {user, password} = queryString.parse(body) as any;
     
-    user = user + "@" + utils.serverAddress();
+    let qName = utils.parseQualifiedName(user);
+    if (!qName.isQualified)
+        user = user + "@" + qName.host;
     
     let userObject = await model.getUserByName(user);
     

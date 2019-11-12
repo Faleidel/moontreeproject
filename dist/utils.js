@@ -352,9 +352,10 @@ function parseQualifiedName(str) {
     if (parts.length == 1) {
         return {
             name: str,
-            host: host + (port() ? ":" + port() : ""),
+            host: host() + (port() ? ":" + port() : ""),
             isOwn: true,
-            isBranch: false
+            isBranch: false,
+            isQualified: false
         };
     }
     else if (parts.length == 2) {
@@ -362,7 +363,8 @@ function parseQualifiedName(str) {
             name: parts[0],
             host: parts[1],
             isOwn: parts[1] == serverAddress(),
-            isBranch: false
+            isBranch: false,
+            isQualified: true
         };
     }
     else if (parts.length == 3) {
@@ -370,7 +372,8 @@ function parseQualifiedName(str) {
             name: parts[0],
             host: parts[2],
             isOwn: parts[2] == serverAddress(),
-            isBranch: parts[1] == "b"
+            isBranch: parts[1] == "b",
+            isQualified: true
         };
     }
     else {

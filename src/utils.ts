@@ -363,29 +363,32 @@ export function isUrl(str: string): boolean {
     return !!str.match(regex);
 }
 
-export function parseQualifiedName(str: string): {name: string, host: string, isOwn: boolean, isBranch: boolean} {
+export function parseQualifiedName(str: string): {name: string, host: string, isOwn: boolean, isBranch: boolean, isQualified: boolean} {
     let parts = str.split("@");
     
     if (parts.length == 1) {
         return {
             name: str,
-            host: host + (port() ? ":"+port() : ""),
+            host: host() + (port() ? ":"+port() : ""),
             isOwn: true,
-            isBranch: false
+            isBranch: false,
+            isQualified: false
         };
     } else if (parts.length == 2) {
         return {
             name: parts[0],
             host: parts[1],
             isOwn: parts[1] == serverAddress(),
-            isBranch: false
+            isBranch: false,
+            isQualified: true
         };
     } else if (parts.length == 3) {
         return {
             name: parts[0],
             host: parts[2],
             isOwn: parts[2] == serverAddress(),
-            isBranch: parts[1] == "b"
+            isBranch: parts[1] == "b",
+            isQualified: true
         };
     } else {
         throw(new Error('could not parse ' + str));
