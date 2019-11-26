@@ -9,7 +9,7 @@ import * as queryString from "querystring";
 import * as formidable from "formidable";
 
 import { handleUserInboxPost, handleUserGet } from "./controllers/user";
-import { handleLoginPost } from "./controllers/login";
+import { handleLoginPost, handleLogin } from "./controllers/login";
 import { handleSignupPost } from "./controllers/signup";
 import { handleWellKnownGet } from "./controllers/wellKnown";
 import { handleThread } from "./controllers/thread";
@@ -31,16 +31,28 @@ utils.configLoaded.then(() => {
         if (url[0] == "") url.splice(0,1);
         if (url[url.length-1] == "") url.splice(url.length-1,1);
         
-        if (url[0] != "static" && url[0] != "favicon.ico")
-            db.insertForType("url_view", UrlViewDefinition)({
-                id: Math.random() * 100000000000000000 + "",
-                url: url.join("/"),
-                time: new Date().getTime()
-            });
+        let isHuman = req.headers["user-agent"].toLowerCase().indexOf("mozilla") != -1
+                   && !utils.containsUrl(req.headers["user-agent"]);
         
         let cookies: any = {};
         if (req.headers.cookie)
             cookies = utils.parseCookies(req.headers.cookie);
+        
+        if (!cookies.session) {
+            let session = await model.createSession();
+            res.setHeader("Set-Cookie", utils.stringifyCookies({
+                session: session.id
+            }));
+        } else {
+            if (url[0] != "static" && url[0] != "favicon.ico" && isHuman)
+                db.insertForType("url_view", UrlViewDefinition)({
+                    id: Math.random() * 100000000000000000 + "",
+                    url: url.join("/"),
+                    time: new Date().getTime(),
+                    userAgent: req.headers["user-agent"]
+                });
+        }
+        
         
         console.log("Url:", url);
         utils.log("Url:", url, req.headers);
@@ -719,9 +731,7 @@ utils.configLoaded.then(() => {
             }
             // LOGIN PAGE
             else if (url[0] == "login") {
-                let viewData = await utils.createViewData(cookies);
-                let html = utils.renderTemplate("views/login.njk", viewData);
-                res.end(html);
+                handleWith(handleLogin);
             }
             // SIGNUP PAGE
             else if (url[0] == "signup") {

@@ -233,6 +233,9 @@ let UrlViewDefinition = {
     },
     "time": {
         "tsType": "number"
+    },
+    "userAgent": {
+        "tsType": "string"
     }
 };
 exports.UrlViewDefinition = UrlViewDefinition;
@@ -367,7 +370,8 @@ function createUrlViewTable() {
         CREATE TABLE url_view (
             id TEXT PRIMARY KEY NOT NULL,
             url TEXT NOT NULL,
-            time BIGINT NOT NULL
+            time BIGINT NOT NULL,
+            user_agent TEXT
         );
     `).catch((e) => console.log("Error create url view table", e));
 }

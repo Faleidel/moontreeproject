@@ -22,7 +22,7 @@
             {% if userName %}
                 <div class="desktop">
                     <span class="welcome">Welcome, </span>
-                    <a href="/user/{{userName}}" style="margin-right: 10px;">
+                    <a class="test-header-user-link" href="/user/{{userName}}" style="margin-right: 10px;">
                         {{utils.renderUserName(userName)}}
                         {% if notifCount %}
                             <span class="notifCount">({{notifCount}})</span>

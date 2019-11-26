@@ -120,7 +120,8 @@ export {Thread, ThreadDefinition};
 meta interface UrlView {
     id: "string",
     url: "string",
-    time: "number"
+    time: "number",
+    userAgent: "string"
 } end meta interface
 export {UrlView, UrlViewDefinition};
 
@@ -266,7 +267,8 @@ function createUrlViewTable(): Promise<any> {
         CREATE TABLE url_view (
             id TEXT PRIMARY KEY NOT NULL,
             url TEXT NOT NULL,
-            time BIGINT NOT NULL
+            time BIGINT NOT NULL,
+            user_agent TEXT
         );
     `).catch((e: any) => console.log("Error create url view table", e));
 }

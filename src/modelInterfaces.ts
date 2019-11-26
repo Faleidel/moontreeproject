@@ -370,13 +370,17 @@ let UrlViewDefinition = {
     },
     "time": {
         "tsType": "number"
+    },
+    "userAgent": {
+        "tsType": "string"
     }
 };
 
 interface UrlView  {
     id: string,
     url: string,
-    time: number
+    time: number,
+    userAgent: string
 }
 
 
@@ -524,7 +528,8 @@ function createUrlViewTable(): Promise<any> {
         CREATE TABLE url_view (
             id TEXT PRIMARY KEY NOT NULL,
             url TEXT NOT NULL,
-            time BIGINT NOT NULL
+            time BIGINT NOT NULL,
+            user_agent TEXT
         );
     `).catch((e: any) => console.log("Error create url view table", e));
 }

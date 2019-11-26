@@ -29,7 +29,17 @@ export async function handleLoginPost(url: string[], query: any, req: any, res: 
         utils.endWithRedirect(res, "/");
     }
     else {
-        console.log("Error, no such user", user);
-        res.end("Could not login");
+        let viewData = { ... await utils.createViewData(cookies)
+                       , error: "The user and password didn't match"
+                       , user: qName.name
+                       };
+        let html = utils.renderTemplate("views/login.njk", viewData);
+        res.end(html);
     }
+}
+
+export async function handleLogin(url: string[], query: any, req: any, res: any, body: string, cookies: any){
+    let viewData = await utils.createViewData(cookies);
+    let html = utils.renderTemplate("views/login.njk", viewData);
+    res.end(html);
 }

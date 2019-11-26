@@ -1,4 +1,4 @@
-import { readFileSync, readFile, createWriteStream, writeFile } from "fs";
+import { readFileSync, readFile, createWriteStream, writeFile, unlink } from "fs";
 const { createHash } = require("crypto");
 import * as crypto from "crypto";
 const { generateKeyPair } = require("crypto");
@@ -6,7 +6,8 @@ const createSign = require("crypto").createSign;
 const createVerify = require("crypto").createVerify;
 const requestLib = require("request");
 import * as showdown from "showdown";
-const sanitizeHtml = require('sanitize-html');
+const sanitizeHtml = require("sanitize-html");
+const sharp = require("sharp");
 
 export let config = {} as any;
 
@@ -266,14 +267,15 @@ export function request(options: any): Promise<{resp: any, body: string}> {
 }
 
 export enum MediaType {
-    image = "image",
-    video = "video",
-    iframe = "iframe"
+    Image = "image",
+    Video = "video",
+    Iframe = "iframe"
 }
 
 export interface ExternalMedia {
     type: MediaType,
-    url: string
+    url: string,
+    thumbnail: string | undefined
 }
 
 export function externalMediaToAttachment(media: ExternalMedia): any {
@@ -290,10 +292,10 @@ export function getUrlFromOpenGraph(url: string): Promise<ExternalMedia | undefi
     return new Promise((resolve, reject) => {
         requestLib.get(url, (err: any, resp: any, data: string) => {
             if (data) {
-                console.log(resp.headers);
                 if (resp.headers["content-type"] && resp.headers["content-type"].indexOf("image") != -1) {
-                    resolve({ type: MediaType.image
+                    resolve({ type: MediaType.Image
                             , url: url
+                            , thumbnail: undefined
                             });
                     return;
                 }
@@ -339,16 +341,19 @@ export function getUrlFromOpenGraph(url: string): Promise<ExternalMedia | undefi
                     });
                 
                 if (videoUrl)
-                    resolve({ type: MediaType.video
+                    resolve({ type: MediaType.Video
                             , url: videoUrl
+                            , thumbnail: undefined
                             });
                 else if (iframeUrl)
-                    resolve({ type: MediaType.iframe
+                    resolve({ type: MediaType.Iframe
                             , url: iframeUrl
+                            , thumbnail: undefined
                             });
                 else if (imageUrl)
-                    resolve({ type: MediaType.image
+                    resolve({ type: MediaType.Image
                             , url: imageUrl
+                            , thumbnail: undefined
                             });
             } else {
                 reject();
@@ -357,10 +362,53 @@ export function getUrlFromOpenGraph(url: string): Promise<ExternalMedia | undefi
     });
 }
 
+// from an image url download the image, resize it to a thumbnail size
+// and return the thumbnail static image id
+export function downloadThumbnail(url: string): Promise<string> {
+    let download = function(uri: string, filename: string, callback: any){
+        requestLib.head(uri, function(err: any, res: any, body: any){
+            //console.log('content-type:', res.headers['content-type']);
+            //console.log('content-length:', res.headers['content-length']);
+            
+            requestLib(uri).pipe(createWriteStream(filename)).on('close', callback);
+        });
+    };
+    
+    let tempFile = "static/uploads/" + newUUID() + "_temp";
+    
+    return new Promise((res, rej) => {
+        download(url, tempFile, () => {
+            sharp(tempFile)
+            .resize(200)
+            .toBuffer()
+            .then((data: any) => {
+                let smallUUID = newUUID();
+                
+                writeFile("static/uploads/" + smallUUID, data, () => {
+                    unlink(tempFile, () => {});
+                    
+                    res(smallUUID);
+                });
+            });
+        });
+    });
+}
+
+export function newUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        let r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
 export function isUrl(str: string): boolean {
     var expression = /^(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/)?[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?$/;
     var regex = new RegExp(expression);
     return !!str.match(regex);
+}
+
+export function containsUrl(str: string): boolean {
+    return /[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?/.test(str);
 }
 
 export function parseQualifiedName(str: string): {name: string, host: string, isOwn: boolean, isBranch: boolean, isQualified: boolean} {

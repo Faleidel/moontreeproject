@@ -15,7 +15,8 @@ const createSign = require("crypto").createSign;
 const createVerify = require("crypto").createVerify;
 const requestLib = require("request");
 const showdown = __importStar(require("showdown"));
-const sanitizeHtml = require('sanitize-html');
+const sanitizeHtml = require("sanitize-html");
+const sharp = require("sharp");
 exports.config = {};
 exports.configLoaded = new Promise((resolve, reject) => {
     fs_1.readFile("config.json", "UTF-8", (err, data) => {
@@ -257,9 +258,9 @@ function request(options) {
 exports.request = request;
 var MediaType;
 (function (MediaType) {
-    MediaType["image"] = "image";
-    MediaType["video"] = "video";
-    MediaType["iframe"] = "iframe";
+    MediaType["Image"] = "image";
+    MediaType["Video"] = "video";
+    MediaType["Iframe"] = "iframe";
 })(MediaType = exports.MediaType || (exports.MediaType = {}));
 function externalMediaToAttachment(media) {
     return {
@@ -275,10 +276,10 @@ function getUrlFromOpenGraph(url) {
     return new Promise((resolve, reject) => {
         requestLib.get(url, (err, resp, data) => {
             if (data) {
-                console.log(resp.headers);
                 if (resp.headers["content-type"] && resp.headers["content-type"].indexOf("image") != -1) {
-                    resolve({ type: MediaType.image,
-                        url: url
+                    resolve({ type: MediaType.Image,
+                        url: url,
+                        thumbnail: undefined
                     });
                     return;
                 }
@@ -322,16 +323,19 @@ function getUrlFromOpenGraph(url) {
                     }
                 });
                 if (videoUrl)
-                    resolve({ type: MediaType.video,
-                        url: videoUrl
+                    resolve({ type: MediaType.Video,
+                        url: videoUrl,
+                        thumbnail: undefined
                     });
                 else if (iframeUrl)
-                    resolve({ type: MediaType.iframe,
-                        url: iframeUrl
+                    resolve({ type: MediaType.Iframe,
+                        url: iframeUrl,
+                        thumbnail: undefined
                     });
                 else if (imageUrl)
-                    resolve({ type: MediaType.image,
-                        url: imageUrl
+                    resolve({ type: MediaType.Image,
+                        url: imageUrl,
+                        thumbnail: undefined
                     });
             }
             else {
@@ -341,12 +345,50 @@ function getUrlFromOpenGraph(url) {
     });
 }
 exports.getUrlFromOpenGraph = getUrlFromOpenGraph;
+// from an image url download the image, resize it to a thumbnail size
+// and return the thumbnail static image id
+function downloadThumbnail(url) {
+    let download = function (uri, filename, callback) {
+        requestLib.head(uri, function (err, res, body) {
+            //console.log('content-type:', res.headers['content-type']);
+            //console.log('content-length:', res.headers['content-length']);
+            requestLib(uri).pipe(fs_1.createWriteStream(filename)).on('close', callback);
+        });
+    };
+    let tempFile = "static/uploads/" + newUUID() + "_temp";
+    return new Promise((res, rej) => {
+        download(url, tempFile, () => {
+            sharp(tempFile)
+                .resize(200)
+                .toBuffer()
+                .then((data) => {
+                let smallUUID = newUUID();
+                fs_1.writeFile("static/uploads/" + smallUUID, data, () => {
+                    fs_1.unlink(tempFile, () => { });
+                    res(smallUUID);
+                });
+            });
+        });
+    });
+}
+exports.downloadThumbnail = downloadThumbnail;
+function newUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        let r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+exports.newUUID = newUUID;
 function isUrl(str) {
     var expression = /^(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/)?[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?$/;
     var regex = new RegExp(expression);
     return !!str.match(regex);
 }
 exports.isUrl = isUrl;
+function containsUrl(str) {
+    return /[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?/.test(str);
+}
+exports.containsUrl = containsUrl;
 function parseQualifiedName(str) {
     let parts = str.split("@");
     if (parts.length == 1) {

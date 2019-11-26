@@ -34,15 +34,26 @@ utils.configLoaded.then(() => {
             url.splice(0, 1);
         if (url[url.length - 1] == "")
             url.splice(url.length - 1, 1);
-        if (url[0] != "static" && url[0] != "favicon.ico")
-            db.insertForType("url_view", modelInterfaces_1.UrlViewDefinition)({
-                id: Math.random() * 100000000000000000 + "",
-                url: url.join("/"),
-                time: new Date().getTime()
-            });
+        let isHuman = req.headers["user-agent"].toLowerCase().indexOf("mozilla") != -1
+            && !utils.containsUrl(req.headers["user-agent"]);
         let cookies = {};
         if (req.headers.cookie)
             cookies = utils.parseCookies(req.headers.cookie);
+        if (!cookies.session) {
+            let session = await model.createSession();
+            res.setHeader("Set-Cookie", utils.stringifyCookies({
+                session: session.id
+            }));
+        }
+        else {
+            if (url[0] != "static" && url[0] != "favicon.ico" && isHuman)
+                db.insertForType("url_view", modelInterfaces_1.UrlViewDefinition)({
+                    id: Math.random() * 100000000000000000 + "",
+                    url: url.join("/"),
+                    time: new Date().getTime(),
+                    userAgent: req.headers["user-agent"]
+                });
+        }
         console.log("Url:", url);
         utils.log("Url:", url, req.headers);
         if (req.method == "POST") {
@@ -608,9 +619,7 @@ utils.configLoaded.then(() => {
             }
             // LOGIN PAGE
             else if (url[0] == "login") {
-                let viewData = await utils.createViewData(cookies);
-                let html = utils.renderTemplate("views/login.njk", viewData);
-                res.end(html);
+                handleWith(login_1.handleLogin);
             }
             // SIGNUP PAGE
             else if (url[0] == "signup") {

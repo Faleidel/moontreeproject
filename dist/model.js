@@ -285,7 +285,22 @@ function loadStore(cb) {
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
             await db.dbReady;
-            await modelInterfaces.createMissingTables();
+            await modelInterfaces.createMissingTables()
+                .catch(async (e) => {
+                const dbPoolPG = new Pool({
+                    user: utils.config.database.user,
+                    host: utils.config.database.host,
+                    database: "postgres",
+                    password: utils.config.database.password,
+                    port: utils.config.database.port
+                });
+                await dbPoolPG.query(`CREATE DATABASE ${utils.config.database.database};`)
+                    .then(() => utils.log("Created database " + utils.config.database.database))
+                    .catch(() => utils.log("Database " + utils.config.database.database + " already existed"));
+                dbPoolPG.end();
+                db.setDbPool();
+                await modelInterfaces.createMissingTables();
+            });
             if (utils.migrationNumber == 7) {
                 await Promise.all(Object.keys(exports.store.notifications).map(async (notifId) => {
                     let notif = exports.store.notifications[notifId];
@@ -366,6 +381,13 @@ function loadStore(cb) {
                     await insertThread(thread)
                         .catch((e) => console.log("Error adding thread bundle to table", e));
                 }));
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            if (utils.migrationNumber == 17) {
+                await db.query(`
+                    ALTER TABLE url_view
+                    ADD COLUMN user_agent text;
+                `);
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
             // test code to generate random commentst tree for a thread
@@ -1119,6 +1141,15 @@ async function createThread(author, title, content, branch) {
         await db.updateFieldsWhere("threads", { id: thread.id }, {
             media: JSON.stringify(media)
         });
+        if (media && media.type == utils.MediaType.Image) {
+            utils.downloadThumbnail(media.url)
+                .then(thumbnail => {
+                media.thumbnail = thumbnail;
+                db.updateFieldsWhere("threads", { id: thread.id }, {
+                    media: JSON.stringify(media)
+                });
+            });
+        }
         console.log("OVER MEDIA");
     }).catch(() => { console.log("ERROR MEDIA"); });
     await createActivity(author, thread);

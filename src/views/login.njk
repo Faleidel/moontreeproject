@@ -6,8 +6,12 @@
 {% block body %}
     <div class="lightSection formBox">
         <h1>Login</h1>
+        {% if error %}
+            <img src="/static/sadCactus.svg" style="margin-bottom: 30px; height: 130px;"/>
+            <div class="error login" style="color: #c10404; margin: 12px;">{{error}}</div>
+        {% endif %}
         <form action="/login" method="POST">
-            <input style="margin-bottom: 10px;" type="user" placeholder="user" name="user"/>
+            <input style="margin-bottom: 10px;" type="user" value="{{user}}" placeholder="user" name="user"/>
             <input style="margin-bottom: 10px;" type="password" placeholder="password" name="password"/>
             <input type="submit" value="Login"/>
         </form>

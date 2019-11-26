@@ -129,7 +129,12 @@
                     {% if thread.media.type == "image" %}
                         <img style="max-width: 100%" src="{{thread.media.url}}"/>
                     {% elif thread.media.type == "iframe" %}
-                        <iframe src="{{thread.media.url}}" allowfullscreen></iframe>
+                        <div style="width: 100%; padding-top: 56.25%; position: relative;">
+                            <iframe style="width: 100%; height: 100%; position: absolute; top: 0; border: none"
+                                    src="{{thread.media.url}}"
+                                    allowfullscreen>
+                            </iframe>
+                        </div>
                     {% elif thread.media.type == "video" %}
                         <video style="max-width: 100%" src="{{thread.media.url}}" controls/>
                     {% endif %}
