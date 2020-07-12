@@ -15,6 +15,8 @@ import { handleWellKnownGet } from "./controllers/wellKnown";
 import { handleThread } from "./controllers/thread";
 import { handleBranch, handleBranchInboxPost } from "./controllers/branch";
 
+const fileType = require("file-type");
+
 import * as db from "./db";
 
 import { UrlView, UrlViewDefinition } from "./modelInterfaces";
@@ -127,14 +129,16 @@ utils.configLoaded.then(() => {
                     let user = await utils.getLoggedUser(cookies);
                     
                     if (user) {
-                        let {pinedThreads, branch} = queryString.parse(body) as any;
+                        let {pinedThreads, following, branch} = queryString.parse(body) as any;
                         
-                        let pinedThreadsList = pinedThreads.split(",").map((s: string) => s.replace(/ /g, ""));
+                        let pinedThreadsList = pinedThreads.split("\n").filter((x: string) => x.length != 0);
+                        let followingList = following.split("\n").filter((x: string) => x.length != 0);
                         
                         let branchO = await model.getBranchByName(branch);
                         
                         if (branchO && model.isBranchAdmin(user, branchO)) {
-                            model.setBranchPinedThreads(branchO, pinedThreadsList);
+                            await model.setBranchPinedThreads(branchO, pinedThreadsList);
+                            await model.setBranchFollowing(branchO, followingList);
                             
                             utils.endWithRedirect(res, "/branch/"+ branch);
                         }
@@ -565,7 +569,7 @@ utils.configLoaded.then(() => {
                 let path = url[1];
                 if (url[2]) path += "/" + url[2];
                 
-                if (end.indexOf(".png") != -1 || end.indexOf(".jpg")) {
+                if (end.indexOf(".png") != -1 || end.indexOf(".jpg") != -1) {
                     fs.readFile("static/" + path, (err, data) => {
                         res.end(data);
                     })
@@ -575,9 +579,21 @@ utils.configLoaded.then(() => {
                     fs.readFile("static/" + url[1], "utf-8", (err, data) => {
                         res.end(data);
                     })
-                } else {
+                } else if (end.indexOf(".css") != -1) {
                     fs.readFile("static/" + url[1], "utf-8", (err, data) => {
                         res.end(data);
+                    })
+                } else {
+                    fs.readFile("static/" + url[1], (err, data) => {
+                        if (err) {
+                            res.end("Err");
+                        } else {
+                            console.log(url[1], data, err);
+                            console.log(fileType(data).mime);
+                            res.setHeader('Content-Type', fileType(data).mime);
+                            
+                            res.end(data);
+                        }
                     })
                 }
             }

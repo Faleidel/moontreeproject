@@ -360,12 +360,13 @@ function downloadThumbnail(url) {
         download(url, tempFile, () => {
             sharp(tempFile)
                 .resize(200)
+                .png()
                 .toBuffer()
                 .then((data) => {
                 let smallUUID = newUUID();
-                fs_1.writeFile("static/uploads/" + smallUUID, data, () => {
+                fs_1.writeFile("static/uploads/" + smallUUID + ".png", data, () => {
                     fs_1.unlink(tempFile, () => { });
-                    res(smallUUID);
+                    res(smallUUID + ".png");
                 });
             });
         });
@@ -550,3 +551,11 @@ function isObjectEmpty(obj) {
     return true;
 }
 exports.isObjectEmpty = isObjectEmpty;
+function concat(arrs) {
+    let r = [];
+    arrs.map(arr => {
+        r.push(...arr);
+    });
+    return r;
+}
+exports.concat = concat;

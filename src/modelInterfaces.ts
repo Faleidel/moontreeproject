@@ -145,7 +145,7 @@ let BranchDefinition = {
     "description": {
         "tsType": "string"
     },
-    "sourceBranches": {
+    "following": {
         "tsType": "string[]"
     },
     "pinedThreads": {
@@ -172,7 +172,7 @@ interface Branch  {
     name: string,
     creator: string,
     description: string,
-    sourceBranches: string[],
+    following: string[],
     pinedThreads: string[],
     banned: boolean,
     icon: string,

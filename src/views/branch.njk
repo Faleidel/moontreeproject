@@ -243,10 +243,14 @@
             {% if isBranchAdmin %}
                 <div style="border-top: 1px solid grey; margin-top: 12px; padding-top: 12px;">
                     <form action="/branchConfig" method="POST">
-                        <div style="margin-bottom: 10px;">Pinned thread list separeted by comma</div>
                         <input style="margin-bottom: 10px;" type="hidden" name="branch" value="{{branch.name}}"/>
-                        <textarea style="margin-bottom: 10px; width: 100%; box-sizing: border-box;" name="pinedThreads">{{branch.pinedThreads.join(", ")}}</textarea>
-                        <input type="submit" value="set pinned threads"/>
+                        
+                        <div style="margin-bottom: 10px;">Pinned thread list separated by line feed</div>
+                        <textarea style="margin-bottom: 10px; width: 100%; box-sizing: border-box;" name="pinedThreads">{{branch.pinedThreads.join("\n")}}</textarea>
+                        
+                        <div style="margin-bottom: 10px;">List of actors this branch is following separated by linefeed</div>
+                        <textarea style="margin-bottom: 10px; width: 100%; box-sizing: border-box;" name="following">{{branch.following.join("\n")}}</textarea>
+                        <input type="submit" value="save"/>
                     </form>
                 </div>
                 

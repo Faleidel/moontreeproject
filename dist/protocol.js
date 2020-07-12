@@ -77,3 +77,13 @@ async function handleFollow(streamObject, actorUrl, privateKeyId, privateKey) {
     });
 }
 exports.handleFollow = handleFollow;
+async function createFollowRequest(actor, target) {
+    return {
+        "@context": "https://www.w3.org/ns/activitystreams",
+        id: utils.newUUID(),
+        actor: actor,
+        object: target,
+        type: "Follow"
+    };
+}
+exports.createFollowRequest = createFollowRequest;

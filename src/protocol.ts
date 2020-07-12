@@ -93,3 +93,13 @@ export async function handleFollow(streamObject: any, actorUrl: string, privateK
         utils.log("Post to remote instance follow accept answer", err, resp, body);
     });
 }
+
+export async function createFollowRequest(actor: string, target: string): Promise<any> {
+   return {
+       "@context": "https://www.w3.org/ns/activitystreams",
+       id: utils.newUUID(),
+       actor: actor,
+       object: target,
+       type: "Follow"
+   };
+}

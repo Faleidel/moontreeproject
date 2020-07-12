@@ -101,7 +101,7 @@ let BranchDefinition = {
     "description": {
         "tsType": "string"
     },
-    "sourceBranches": {
+    "following": {
         "tsType": "string[]"
     },
     "pinedThreads": {

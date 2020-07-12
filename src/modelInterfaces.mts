@@ -45,7 +45,7 @@ meta interface Branch {
     name: "string",
     creator: "string",
     description: "string",
-    sourceBranches: "string[]",
+    following: "string[]",
     pinedThreads: "string[]",
     banned: "boolean",
     icon: "string",

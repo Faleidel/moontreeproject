@@ -136,7 +136,7 @@ export async function updateFieldsWhere(tableName: string, condition: any, set: 
         WHERE ${conds.join(" AND ")}
     `;
     
-    await query(sql, ([] as any).concat(...Object.values(set), ...Object.values(condition)));
+    await query(sql, utils.concat([Object.values(set), Object.values(condition)]));
 }
 
 export async function deleteWhere(tableName: string, condition: any): Promise<void> {

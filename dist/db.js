@@ -123,7 +123,7 @@ async function updateFieldsWhere(tableName, condition, set) {
         SET ${sets.join(", ")}
         WHERE ${conds.join(" AND ")}
     `;
-    await query(sql, [].concat(...Object.values(set), ...Object.values(condition)));
+    await query(sql, utils.concat([Object.values(set), Object.values(condition)]));
 }
 exports.updateFieldsWhere = updateFieldsWhere;
 async function deleteWhere(tableName, condition) {

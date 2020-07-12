@@ -195,7 +195,7 @@ async function branchFromJSON(obj) {
         name: obj.name,
         creator: obj.creator,
         description: obj.description,
-        sourceBranches: [],
+        following: [],
         pinedThreads: obj.pinedThreads,
         lastUpdate: new Date().getTime(),
         icon: "",
@@ -388,6 +388,17 @@ function loadStore(cb) {
                     ALTER TABLE url_view
                     ADD COLUMN user_agent text;
                 `);
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            if (utils.migrationNumber == 18) {
+                await db.query(`
+                    ALTER TABLE branches
+                    DROP COLUMN source_branches;
+                `).catch((e) => console.log(e));
+                await db.query(`
+                    ALTER TABLE branches
+                    ADD COLUMN following text[];
+                `).catch((e) => console.log(e));
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
             // test code to generate random commentst tree for a thread
@@ -816,7 +827,7 @@ async function createBranch(name, description, sourceBranches, creator) {
             name: name,
             description: description,
             creator: creator.name,
-            sourceBranches: sourceBranches,
+            following: sourceBranches,
             pinedThreads: [],
             banned: false,
             icon: "",
@@ -845,6 +856,10 @@ async function setBranchPinedThreads(branch, pinedThreads) {
     await db.updateFieldsWhere("branches", { name: branch.name }, { pinedThreads: pinedThreads });
 }
 exports.setBranchPinedThreads = setBranchPinedThreads;
+async function setBranchFollowing(branch, following) {
+    await db.updateFieldsWhere("branches", { name: branch.name }, { following: following });
+}
+exports.setBranchFollowing = setBranchFollowing;
 async function unsafeBranchList() {
     return (await db.getAllFrom("branches")()).filter(b => !b.banned);
 }

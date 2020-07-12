@@ -245,7 +245,7 @@ export async function branchFromJSON(obj: any): Promise<Branch | undefined> {
         name: obj.name,
         creator: obj.creator,
         description: obj.description,
-        sourceBranches: [],
+        following: [],
         pinedThreads: obj.pinedThreads,
         lastUpdate: new Date().getTime(),
         icon: "",
@@ -503,6 +503,20 @@ export function loadStore(cb: any): void {
                     ALTER TABLE url_view
                     ADD COLUMN user_agent text;
                 `);
+                
+                utils.setMigrationNumber(utils.migrationNumber + 1);
+            }
+            
+            if (utils.migrationNumber == 18) {
+                await db.query(`
+                    ALTER TABLE branches
+                    DROP COLUMN source_branches;
+                `).catch((e: any) => console.log(e));
+                
+                await db.query(`
+                    ALTER TABLE branches
+                    ADD COLUMN following text[];
+                `).catch((e: any) => console.log(e));
                 
                 utils.setMigrationNumber(utils.migrationNumber + 1);
             }
@@ -979,7 +993,7 @@ export async function createBranch(name: string, description: string, sourceBran
             name: name,
             description: description,
             creator: creator.name,
-            sourceBranches: sourceBranches,
+            following: sourceBranches,
             pinedThreads: [],
             banned: false,
             icon: "",
@@ -1008,6 +1022,9 @@ export async function isBranchAdmin(user: User | undefined, branch: Branch): Pro
 }
 export async function setBranchPinedThreads(branch: Branch, pinedThreads: string[]): Promise<void> {
     await db.updateFieldsWhere("branches", {name: branch.name}, {pinedThreads: pinedThreads});
+}
+export async function setBranchFollowing(branch: Branch, following: string[]): Promise<void> {
+    await db.updateFieldsWhere("branches", {name: branch.name}, {following: following});
 }
 export async function unsafeBranchList(): Promise<Branch[]> {
     return (await db.getAllFrom<Branch>("branches")()).filter(b => !b.banned);
