@@ -1,5 +1,35 @@
 import * as model from "./model";
 import * as db from "./db";
+import * as crypto from "crypto";
+import readline from 'readline';
+import * as utils from "./utils";
+
+const hiddenQuestion: any = (query: string) => new Promise((resolve: any, reject: any) => {
+  const rl: any = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+  const stdin = process.openStdin();
+  process.stdin.on('data', char => {
+    char = char + '';
+    switch (char) {
+      case '\n':
+      case '\r':
+      case '\u0004':
+        stdin.pause();
+        break;
+      default:
+        (process as any).stdout.clearLine();
+        readline.cursorTo(process.stdout, 0);
+        process.stdout.write(query + Array(rl.line.length + 1).join('*'));
+        break;
+    }
+  });
+  rl.question(query, (value: any) => {
+    rl.history = rl.history.slice(1);
+    resolve(value);
+  });
+});
 
 async function changeSiteUrl(from: string, to: string) {
     model.loadStore(async () => {
@@ -173,4 +203,29 @@ else if (command == "--migrate-name") {
     let to = process.argv[4];
     
     changeSiteUrl(from, to);
+}
+else if (command == "--reset-password") {
+    let userName = process.argv[3];
+
+    hiddenQuestion("New password?").then(async (password: string) => {
+        let passwordSalt: string = await (new Promise((resolve, reject) => {
+            crypto.randomBytes(512, (err, buf) => {
+                if (err)
+                    reject();
+                else
+                    resolve(buf.toString("hex") as string);
+            });
+        })) as string;
+        let hashed = await utils.hashPassword(password, passwordSalt);
+
+        let user = await model.getUserByName(userName);
+        if (user) {
+            await db.updateFieldsWhere("users", {name: user.name}, {
+                passwordHashed: hashed,
+                passwordSalt: passwordSalt
+            });
+        } else {
+            console.log("Could not find user", userName);
+        }
+    });
 }

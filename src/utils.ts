@@ -380,14 +380,15 @@ export function downloadThumbnail(url: string): Promise<string> {
         download(url, tempFile, () => {
             sharp(tempFile)
             .resize(200)
+            .png()
             .toBuffer()
             .then((data: any) => {
                 let smallUUID = newUUID();
                 
-                writeFile("static/uploads/" + smallUUID, data, () => {
+                writeFile("static/uploads/" + smallUUID + ".png", data, () => {
                     unlink(tempFile, () => {});
                     
-                    res(smallUUID);
+                    res(smallUUID + ".png");
                 });
             });
         });
@@ -574,4 +575,14 @@ export function isObjectEmpty(obj: {[key: string]: any}): boolean {
             return false;
     }
     return true;
+}
+
+export function concat<A>(arrs: A[][]): A[] {
+    let r: A[] = [];
+    
+    arrs.map(arr => {
+        r.push(...arr);
+    });
+    
+    return r;
 }
