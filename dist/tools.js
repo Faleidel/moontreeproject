@@ -6,9 +6,41 @@ var __importStar = (this && this.__importStar) || function (mod) {
     result["default"] = mod;
     return result;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const model = __importStar(require("./model"));
 const db = __importStar(require("./db"));
+const crypto = __importStar(require("crypto"));
+const readline_1 = __importDefault(require("readline"));
+const utils = __importStar(require("./utils"));
+const hiddenQuestion = (query) => new Promise((resolve, reject) => {
+    const rl = readline_1.default.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+    const stdin = process.openStdin();
+    process.stdin.on('data', char => {
+        char = char + '';
+        switch (char) {
+            case '\n':
+            case '\r':
+            case '\u0004':
+                stdin.pause();
+                break;
+            default:
+                process.stdout.clearLine();
+                readline_1.default.cursorTo(process.stdout, 0);
+                process.stdout.write(query + Array(rl.line.length + 1).join('*'));
+                break;
+        }
+    });
+    rl.question(query, (value) => {
+        rl.history = rl.history.slice(1);
+        resolve(value);
+    });
+});
 async function changeSiteUrl(from, to) {
     model.loadStore(async () => {
         //        threads.map(t => {
@@ -177,4 +209,28 @@ else if (command == "--migrate-name") {
     let from = process.argv[3];
     let to = process.argv[4];
     changeSiteUrl(from, to);
+}
+else if (command == "--reset-password") {
+    let userName = process.argv[3];
+    hiddenQuestion("New password?").then(async (password) => {
+        let passwordSalt = await (new Promise((resolve, reject) => {
+            crypto.randomBytes(512, (err, buf) => {
+                if (err)
+                    reject();
+                else
+                    resolve(buf.toString("hex"));
+            });
+        }));
+        let hashed = await utils.hashPassword(password, passwordSalt);
+        let user = await model.getUserByName(userName);
+        if (user) {
+            await db.updateFieldsWhere("users", { name: user.name }, {
+                passwordHashed: hashed,
+                passwordSalt: passwordSalt
+            });
+        }
+        else {
+            console.log("Could not find user", userName);
+        }
+    });
 }
