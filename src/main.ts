@@ -565,7 +565,7 @@ utils.configLoaded.then(() => {
                 let path = url[1];
                 if (url[2]) path += "/" + url[2];
                 
-                if (end.indexOf(".png") != -1 || end.indexOf(".jpg")) {
+                if (end.indexOf(".png") != -1 || end.indexOf(".jpg") != -1) {
                     fs.readFile("static/" + path, (err, data) => {
                         res.end(data);
                     })

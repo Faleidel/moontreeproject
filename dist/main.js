@@ -507,12 +507,13 @@ utils.configLoaded.then(() => {
                 let path = url[1];
                 if (url[2])
                     path += "/" + url[2];
-                if (end.indexOf(".png") != -1 || end.indexOf(".jpg")) {
+                if (end.indexOf(".png") != -1 || end.indexOf(".jpg") != -1) {
                     fs.readFile("static/" + path, (err, data) => {
                         res.end(data);
                     });
                 }
                 else if (end.indexOf(".svg") != -1) {
+                    console.log("Static SVG");
                     res.setHeader('Content-Type', 'image/svg+xml');
                     fs.readFile("static/" + url[1], "utf-8", (err, data) => {
                         res.end(data);
