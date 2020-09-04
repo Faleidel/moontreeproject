@@ -15,7 +15,7 @@
     "request": "^2.88.0",
     "sanitize-html": "^1.20.0",
     "sharp": "^0.23.2",
-    "showdown": "^1.9.0",
+    "showdown": "^1.9.1",
     "twilio": "^3.30.3",
     "typescript": "^3.5.1"
   },
