@@ -127,7 +127,7 @@ utils.configLoaded.then(() => {
                         let branchO = await model.getBranchByName(branch);
                         if (branchO && model.isBranchAdmin(user, branchO)) {
                             await model.setBranchPinedThreads(branchO, pinedThreadsList);
-                            await model.setBranchFollowing(branchO, followingList);
+                            await model.updateBranchFollowing(branchO, followingList);
                             utils.endWithRedirect(res, "/branch/" + branch);
                         }
                     }

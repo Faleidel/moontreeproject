@@ -29,6 +29,7 @@ exports.ThreadDefinition = modelInterfaces_1.ThreadDefinition;
 exports.ThreadHeaderDefinition = modelInterfaces_1.ThreadHeaderDefinition;
 const modelInterfaces = __importStar(require("./modelInterfaces"));
 const db = __importStar(require("./db"));
+const protocol = __importStar(require("./protocol"));
 async function activityToJSON(act) {
     let object = typeof act.object == "object"
         ? act.object
@@ -856,10 +857,20 @@ async function setBranchPinedThreads(branch, pinedThreads) {
     await db.updateFieldsWhere("branches", { name: branch.name }, { pinedThreads: pinedThreads });
 }
 exports.setBranchPinedThreads = setBranchPinedThreads;
-async function setBranchFollowing(branch, following) {
-    await db.updateFieldsWhere("branches", { name: branch.name }, { following: following });
+async function updateBranchFollowing(branch, following) {
+    let original = await getBranchByName(branch.name);
+    if (original) {
+        let newFollowing = following.filter(f => !original.following.some(x => x == f));
+        // save new info
+        await db.updateFieldsWhere("branches", { name: branch.name }, { following: following });
+        //send new following subscription
+        for (let follow of newFollowing) {
+            let request = protocol.createFollowRequest(follow, branch.name);
+            await protocol.sendSignedRequest(follow, request, branch.privateKey, utils.urlForBranch(branch) + "#main-key");
+        }
+    }
 }
-exports.setBranchFollowing = setBranchFollowing;
+exports.updateBranchFollowing = updateBranchFollowing;
 async function unsafeBranchList() {
     return (await db.getAllFrom("branches")()).filter(b => !b.banned);
 }

@@ -1027,15 +1027,17 @@ export async function setBranchPinedThreads(branch: Branch, pinedThreads: string
 export async function updateBranchFollowing(branch: Branch, following: string[]): Promise<void> {
     let original = await getBranchByName(branch.name);
     
-    let newFollowing = following.filter(f => !original.some(x => x == f));
-    
-    // save new info
-    await db.updateFieldsWhere("branches", {name: branch.name}, {following: following});
-    
-    //send new following subscription
-    for (follow of newFollowing) {
-        let request = protocol.createFollowRequest(follow, branch.name);
-        await protocol.sendSignedRequest(follow, request, branch.privateKey, utils.urlForBranch(branch) + "#main-key");
+    if (original) {
+        let newFollowing = following.filter(f => !original!.following.some(x => x == f));
+        
+        // save new info
+        await db.updateFieldsWhere("branches", {name: branch.name}, {following: following});
+        
+        //send new following subscription
+        for (let follow of newFollowing) {
+            let request = protocol.createFollowRequest(follow, branch.name);
+            await protocol.sendSignedRequest(follow, request, branch.privateKey, utils.urlForBranch(branch) + "#main-key");
+        }
     }
 }
 export async function unsafeBranchList(): Promise<Branch[]> {

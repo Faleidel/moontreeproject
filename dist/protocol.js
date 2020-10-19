@@ -46,6 +46,8 @@ async function postToRemoteForUsers(users, activity, authorUrl, privateKey) {
     });
 }
 exports.postToRemoteForUsers = postToRemoteForUsers;
+// handle follow request from an other server. For example someone from mastodon wants to follow user1 from our server.
+// we need to answer with a signed Accept message
 async function handleFollow(streamObject, actorUrl, privateKeyId, privateKey) {
     await model.createFollow(streamObject.actor, actorUrl);
     let remoteDomain = streamObject.actor.split("/")[2];
@@ -77,6 +79,29 @@ async function handleFollow(streamObject, actorUrl, privateKeyId, privateKey) {
     });
 }
 exports.handleFollow = handleFollow;
+function sendSignedRequest(actorDestination, body, privateKey, privateKeyId) {
+    return new Promise((res, rej) => {
+        let remoteDomain = actorDestination.split("/")[2];
+        let date = new Date().toUTCString();
+        let stringToSign = `date: ${date}`;
+        let signedString = utils.signString(privateKey, stringToSign);
+        let header = `keyId="${privateKeyId}#main-key",algorithm="rsa-sha256",headers="date",signature="${signedString}"`;
+        let options = {
+            url: actorDestination + "/inbox",
+            headers: {
+                Host: remoteDomain,
+                Date: date,
+                Signature: header,
+            },
+            body: body
+        };
+        request.post(options, (err, resp, body) => {
+            utils.log("Signed request resp", err, resp, body);
+            res();
+        });
+    });
+}
+exports.sendSignedRequest = sendSignedRequest;
 async function createFollowRequest(actor, target) {
     return {
         "@context": "https://www.w3.org/ns/activitystreams",
