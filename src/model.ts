@@ -36,6 +36,7 @@ export { User, UserDefinition
        };
 
 import * as db from "./db";
+import * as protocol from "./protocol";
 
 export async function activityToJSON(act: Activity): Promise<any | undefined> {
     let object: any = typeof (act as any).object == "object"
@@ -1023,8 +1024,19 @@ export async function isBranchAdmin(user: User | undefined, branch: Branch): Pro
 export async function setBranchPinedThreads(branch: Branch, pinedThreads: string[]): Promise<void> {
     await db.updateFieldsWhere("branches", {name: branch.name}, {pinedThreads: pinedThreads});
 }
-export async function setBranchFollowing(branch: Branch, following: string[]): Promise<void> {
+export async function updateBranchFollowing(branch: Branch, following: string[]): Promise<void> {
+    let original = await getBranchByName(branch.name);
+    
+    let newFollowing = following.filter(f => !original.some(x => x == f));
+    
+    // save new info
     await db.updateFieldsWhere("branches", {name: branch.name}, {following: following});
+    
+    //send new following subscription
+    for (follow of newFollowing) {
+        let request = protocol.createFollowRequest(follow, branch.name);
+        await protocol.sendSignedRequest(follow, request, branch.privateKey, utils.urlForBranch(branch) + "#main-key");
+    }
 }
 export async function unsafeBranchList(): Promise<Branch[]> {
     return (await db.getAllFrom<Branch>("branches")()).filter(b => !b.banned);

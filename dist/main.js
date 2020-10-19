@@ -693,4 +693,5 @@ utils.configLoaded.then(() => {
             }
         }
     }).listen(utils.port() || utils.realPort());
+    console.log("Opening server on port", utils.port() || utils.realPort());
 });
