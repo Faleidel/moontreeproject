@@ -983,9 +983,9 @@ async function adminDeleteComment(id) {
 }
 exports.adminDeleteComment = adminDeleteComment;
 // THREAD
-const insertThreadHeader = db.insertForType("threads", modelInterfaces_1.ThreadHeaderDefinition);
+exports.insertThreadHeader = db.insertForType("threads", modelInterfaces_1.ThreadHeaderDefinition);
 async function insertThread(thread) {
-    await insertThreadHeader(thread);
+    await exports.insertThreadHeader(thread);
     await exports.insertComment(thread);
 }
 exports.insertThread = insertThread;

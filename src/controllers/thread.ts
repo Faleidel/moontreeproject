@@ -4,7 +4,9 @@ const request = require("request");
 
 export async function handleThread(url: string[], query: any, req: any, res: any, body: string, cookies: any){
     if (url[1]) {
-        let threadId = url[1].indexOf("://") != -1 ? decodeURIComponent(url[1]) : utils.urlForPath("thread/" + url[1]);
+        url[1] = decodeURIComponent(url[1]);
+        let threadId = url[1].indexOf("://") != -1 ? url[1] : utils.urlForPath("thread/" + url[1]);
+        console.log("Search for thread", threadId);
         
         let asJson = !!query.json || (req.headers.accept && (req.headers.accept.indexOf("json") != -1));
         if (asJson)

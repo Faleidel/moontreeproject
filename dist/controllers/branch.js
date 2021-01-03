@@ -32,8 +32,25 @@ async function handleBranchInboxPost(url, query, req, res, body, cookies) {
                 inReplyTo: streamObject.object.inReplyTo,
                 tags: streamObject.object.tag
             };
+            let threadHeader = {
+                id: newComment.id,
+                title: newComment.content.substr(0, 20),
+                branch: branch.name,
+                isLink: false,
+                media: undefined,
+                lastUpdate: 0
+            };
+            if (streamObject.object.attachment.length != 0) {
+                threadHeader.media = {
+                    type: utils.MediaType.Image,
+                    url: streamObject.object.attachment[0].url,
+                    thumbnail: undefined
+                };
+            }
             await model.insertComment(newComment);
+            await model.insertThreadHeader(threadHeader);
             utils.log("Added remote comment", newComment);
+            utils.log(streamObject);
             res.statusCode = 201;
             res.end();
         }

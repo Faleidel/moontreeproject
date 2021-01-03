@@ -12,7 +12,9 @@ const model = __importStar(require("../model"));
 const request = require("request");
 async function handleThread(url, query, req, res, body, cookies) {
     if (url[1]) {
-        let threadId = url[1].indexOf("://") != -1 ? decodeURIComponent(url[1]) : utils.urlForPath("thread/" + url[1]);
+        url[1] = decodeURIComponent(url[1]);
+        let threadId = url[1].indexOf("://") != -1 ? url[1] : utils.urlForPath("thread/" + url[1]);
+        console.log("Search for thread", threadId);
         let asJson = !!query.json || (req.headers.accept && (req.headers.accept.indexOf("json") != -1));
         if (asJson)
             res.setHeader("Content-Type", "application/ld+json");

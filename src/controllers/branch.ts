@@ -21,6 +21,10 @@ export async function handleBranchInboxPost(url: string[], query: any, req: any,
             
             res.statusCode = 201;
             res.end();
+        } else if (streamObject.type == "Accept") {
+            utils.log("branch Accept", streamObject);
+            res.statusCode = 201;
+            res.end();
         } else if (streamObject.type == "Create") {
             let newComment = {
                 id: streamObject.object.id,
@@ -33,8 +37,27 @@ export async function handleBranchInboxPost(url: string[], query: any, req: any,
                 tags: streamObject.object.tag
             };
             
+            let threadHeader: model.ThreadHeader = {
+                id: newComment.id,
+                title: newComment.content.substr(0, 20),
+                branch: branch.name,
+                isLink: false,
+                media: undefined,
+                lastUpdate: 0
+            };
+            
+            if (streamObject.object.attachment.length != 0) {
+                threadHeader.media = {
+                    type: utils.MediaType.Image,
+                    url: streamObject.object.attachment[0].url,
+                    thumbnail: undefined
+                };
+            }
+            
             await model.insertComment(newComment);
+            await model.insertThreadHeader(threadHeader);
             utils.log("Added remote comment", newComment);
+            utils.log(streamObject);
             
             res.statusCode = 201;
             res.end();

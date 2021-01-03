@@ -1162,7 +1162,7 @@ export async function adminDeleteComment(id: string): Promise<void> {
     });
 }
 // THREAD
-const insertThreadHeader: (thread: Thread) => Promise<void> = db.insertForType("threads", ThreadHeaderDefinition);
+export const insertThreadHeader: (thread: ThreadHeader) => Promise<void> = db.insertForType("threads", ThreadHeaderDefinition);
 export async function insertThread(thread: Thread): Promise<void> {
     await insertThreadHeader(thread);
     await insertComment(thread);
