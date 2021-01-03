@@ -99,25 +99,28 @@ export async function handleFollow(streamObject: any, actorUrl: string, privateK
 export function sendSignedRequest(actorDestination: string, body: any, privateKey: string, privateKeyId: string): Promise<void> {
     return new Promise((res, rej) => {
         let remoteDomain = actorDestination.split("/")[2];
+        let bodyString = JSON.stringify(body);
+        let bodySha256 = utils.sha256(bodyString);
         
         let date = new Date().toUTCString();
         
-        let stringToSign = `date: ${date}`;
+        let stringToSign = `date: ${date}\ndigest: sha-256=${bodySha256}`;
         let signedString = utils.signString(privateKey, stringToSign);
-        let header       = `keyId="${privateKeyId}#main-key",algorithm="rsa-sha256",headers="date",signature="${signedString}"`;
+        let header       = `keyId="${privateKeyId}",algorithm="rsa-sha256",headers="date digest",signature="${signedString}"`;
         
         let options = {
             url:  actorDestination + "/inbox", // this won't work for some server. Will fix later
             headers: {
                 Host      : remoteDomain,
                 Date      : date,
+                Digest    : "sha-256=" + bodySha256,
                 Signature : header,
             },
-            body: body
+            body: bodyString
         };
         
         request.post(options, (err: any, resp: any, body: string) => {
-            utils.log("Signed request resp", err, resp, body);
+            utils.log("Signed request resp", err, resp, body, options);
             res();
         });
     });

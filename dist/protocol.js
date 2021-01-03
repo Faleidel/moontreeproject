@@ -82,21 +82,24 @@ exports.handleFollow = handleFollow;
 function sendSignedRequest(actorDestination, body, privateKey, privateKeyId) {
     return new Promise((res, rej) => {
         let remoteDomain = actorDestination.split("/")[2];
+        let bodyString = JSON.stringify(body);
+        let bodySha256 = utils.sha256(bodyString);
         let date = new Date().toUTCString();
-        let stringToSign = `date: ${date}`;
+        let stringToSign = `date: ${date}\ndigest: sha-256=${bodySha256}`;
         let signedString = utils.signString(privateKey, stringToSign);
-        let header = `keyId="${privateKeyId}#main-key",algorithm="rsa-sha256",headers="date",signature="${signedString}"`;
+        let header = `keyId="${privateKeyId}",algorithm="rsa-sha256",headers="date digest",signature="${signedString}"`;
         let options = {
             url: actorDestination + "/inbox",
             headers: {
                 Host: remoteDomain,
                 Date: date,
+                Digest: "sha-256=" + bodySha256,
                 Signature: header,
             },
-            body: body
+            body: bodyString
         };
         request.post(options, (err, resp, body) => {
-            utils.log("Signed request resp", err, resp, body);
+            utils.log("Signed request resp", err, resp, body, options);
             res();
         });
     });

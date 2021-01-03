@@ -207,7 +207,7 @@ export async function branchToJSON(branch: Branch): Promise<any> {
         
         id: utils.urlForBranch(branch),
         type: "Person",
-        preferredUsername: branch.name + "@" + utils.host,
+        preferredUsername: branch.name + "@" + utils.host(),
         inbox: utils.urlForBranch(branch) + "/inbox",
         outbox: utils.urlForBranch(branch) + "/outbox",
         icon: {
@@ -1035,8 +1035,12 @@ export async function updateBranchFollowing(branch: Branch, following: string[])
         
         //send new following subscription
         for (let follow of newFollowing) {
-            let request = protocol.createFollowRequest(follow, branch.name);
-            await protocol.sendSignedRequest(follow, request, branch.privateKey, utils.urlForBranch(branch) + "#main-key");
+            await protocol.sendSignedRequest(
+                follow,
+                await protocol.createFollowRequest("https://moontreeproject.org/branch/" + branch.name, follow),
+                branch.privateKey,
+                utils.urlForBranch(branch) + "#main-key"
+            );
         }
     }
 }

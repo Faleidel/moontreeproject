@@ -532,9 +532,9 @@ export function urlForUser(user: string | model.User): string {
 
 export function urlForBranch(branch: string | model.Branch): string {
     if (typeof branch == "string")
-        return urlForPath("branch/" + branch + "@" + host());
+        return urlForPath("branch/" + branch);
     else
-        return urlForPath("branch/" + branch.name + "@" + host())
+        return urlForPath("branch/" + branch.name)
 }
 
 export async function getLoggedUser(cookies: {[key: string]: string}): Promise<model.User | undefined> {

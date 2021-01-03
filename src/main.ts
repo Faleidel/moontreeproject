@@ -33,7 +33,7 @@ utils.configLoaded.then(() => {
         if (url[0] == "") url.splice(0,1);
         if (url[url.length-1] == "") url.splice(url.length-1,1);
         
-        let isHuman = req.headers["user-agent"].toLowerCase().indexOf("mozilla") != -1
+        let isHuman = req.headers["user-agent"] && req.headers["user-agent"].toLowerCase().indexOf("mozilla") != -1
                    && !utils.containsUrl(req.headers["user-agent"]);
         
         let cookies: any = {};

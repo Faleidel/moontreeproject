@@ -35,7 +35,7 @@ async function handleWellKnownGet(url, query, req, res, body, cookies) {
                         "links": [{
                                 "rel": "self",
                                 "type": "application/activity+json",
-                                "href": utils.urlForPath("branch/" + userName + "@" + utils.host)
+                                "href": utils.urlForPath("branch/" + userName)
                             }]
                     }));
                 }

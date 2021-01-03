@@ -508,9 +508,9 @@ function urlForUser(user) {
 exports.urlForUser = urlForUser;
 function urlForBranch(branch) {
     if (typeof branch == "string")
-        return urlForPath("branch/" + branch + "@" + host());
+        return urlForPath("branch/" + branch);
     else
-        return urlForPath("branch/" + branch.name + "@" + host());
+        return urlForPath("branch/" + branch.name);
 }
 exports.urlForBranch = urlForBranch;
 async function getLoggedUser(cookies) {
