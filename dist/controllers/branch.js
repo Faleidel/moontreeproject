@@ -14,22 +14,39 @@ const request = require("request");
 async function handleBranchInboxPost(url, query, req, res, body, cookies) {
     let branchName = url[1];
     let streamObject = JSON.parse(body);
-    if (streamObject.type == "Follow" && streamObject.actor) {
-        let branch = await model.getBranchByName(branchName);
-        if (branch) {
+    let branch = await model.getBranchByName(branchName);
+    if (branch) {
+        if (streamObject.type == "Follow" && streamObject.actor) {
             protocol.handleFollow(streamObject, utils.urlForBranch(branch), utils.urlForBranch(branch) + "#main-key", branch.privateKey);
             res.statusCode = 201;
             res.end();
         }
+        else if (streamObject.type == "Create") {
+            let newComment = {
+                id: streamObject.object.id,
+                content: streamObject.object.content,
+                published: new Date(streamObject.object.published).getTime(),
+                author: streamObject.object.attributedTo,
+                to: streamObject.object.to,
+                adminDeleted: false,
+                inReplyTo: streamObject.object.inReplyTo,
+                tags: streamObject.object.tag
+            };
+            await model.insertComment(newComment);
+            utils.log("Added remote comment", newComment);
+            res.statusCode = 201;
+            res.end();
+        }
         else {
-            res.statusCode = 404;
-            res.end("Invalid branch");
+            utils.log("STREAM OBJECT IN INBOX", "User", branchName, "Type", streamObject.type, "Content", streamObject.object.content, streamObject);
+            res.statusCode = 500;
+            res.end("Action not supported");
         }
     }
     else {
-        utils.log("STREAM OBJECT IN INBOX", "User", branchName, "Type", streamObject.type, "Content", streamObject.object.content, streamObject);
-        res.statusCode = 500;
-        res.end("Action not supported");
+        utils.log("Sending object to branch inbox that does not exists", streamObject);
+        res.statusCode = 404;
+        res.end("Invalid branch");
     }
 }
 exports.handleBranchInboxPost = handleBranchInboxPost;
