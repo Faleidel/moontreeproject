@@ -67,7 +67,7 @@ async function handleUserGet(url, query, req, res, body, cookies) {
                 if (viewData.user && viewData.user.name == user.name) {
                     viewData.notifications = await model.getNotificationsByUser(viewData.user);
                 }
-                let html = utils.renderTemplate("views/account.njk", viewData);
+                let html = await utils.renderTemplate("views/account.njk", viewData);
                 res.end(html);
             }
         }

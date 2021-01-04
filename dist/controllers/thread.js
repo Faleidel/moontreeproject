@@ -32,7 +32,7 @@ async function handleThread(url, query, req, res, body, cookies) {
                     let theme = query.theme || "";
                     if (theme)
                         theme = theme + "-";
-                    res.end(utils.renderTemplate("views/" + theme + "thread.njk", viewData));
+                    res.end(await utils.renderTemplate("views/" + theme + "thread.njk", viewData));
                 }
                 else
                     res.end("Error finding branch");

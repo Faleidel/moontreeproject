@@ -82,7 +82,7 @@ export async function handleUserGet(url: string[], query: any, req: any, res: an
                     viewData.notifications = await model.getNotificationsByUser(viewData.user);
                 }
                 
-                let html = utils.renderTemplate("views/account.njk" ,viewData);
+                let html = await utils.renderTemplate("views/account.njk" ,viewData);
                 
                 res.end(html);
             }

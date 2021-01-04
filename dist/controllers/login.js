@@ -31,14 +31,14 @@ async function handleLoginPost(url, query, req, res, body, cookies) {
     }
     else {
         let viewData = Object.assign({}, await utils.createViewData(cookies), { error: "The user and password didn't match", user: qName.name });
-        let html = utils.renderTemplate("views/login.njk", viewData);
+        let html = await utils.renderTemplate("views/login.njk", viewData);
         res.end(html);
     }
 }
 exports.handleLoginPost = handleLoginPost;
 async function handleLogin(url, query, req, res, body, cookies) {
     let viewData = await utils.createViewData(cookies);
-    let html = utils.renderTemplate("views/login.njk", viewData);
+    let html = await utils.renderTemplate("views/login.njk", viewData);
     res.end(html);
 }
 exports.handleLogin = handleLogin;

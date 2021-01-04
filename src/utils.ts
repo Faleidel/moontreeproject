@@ -219,41 +219,51 @@ export function stringifyCookies(cookies: {[key: string]: string}): string {
     return list.join('; ');
 }
 
-export function renderTemplate(templatePath: string, viewData: any): string {
-    return njk.render(templatePath, {
-        serverName: getServerName(),
-        acceptSignUp: getAcceptSignUp(),
-        headHTML: getHeadHTML(),
-        footerHTML: getFooterHTML(),
-        customCSS: getCustomCSS(),
-            
-        utils: {
-            encodeURIComponent: encodeURIComponent,
-            threadLink: (id: string) => {
-                if (id.split("/")[2] == serverAddress())
-                    return id;
-                else
-                    return "/thread/" + encodeURIComponent(id);
-            },
-            renderMarkdown: renderMarkdown,
-            renderUserName: (name: string) => {
-                if (name.indexOf("@"+serverAddress()) == -1)
-                    return name;
-                else
-                    return name.substr(0, name.indexOf("@"+host()));
-            },
-            renderRelativeTime: (date: number) => {
-                let days = (new Date().getTime() - date) / (1000 * 60 * 60 * 24);
-                days = Math.floor(days);
+export function renderTemplate(templatePath: string, viewData: any): Promise<string> {
+    return new Promise((res, rej) => {
+        njk.render(templatePath, {
+            serverName: getServerName(),
+            acceptSignUp: getAcceptSignUp(),
+            headHTML: getHeadHTML(),
+            footerHTML: getFooterHTML(),
+            customCSS: getCustomCSS(),
                 
-                if (days > 1)
-                    return days + " days ago";
-                else
-                    return "one day ago";
+            utils: {
+                encodeURIComponent: encodeURIComponent,
+                threadLink: (id: string) => {
+                    if (id.split("/")[2] == serverAddress())
+                        return id;
+                    else
+                        return "/thread/" + encodeURIComponent(id);
+                },
+                renderMarkdown: renderMarkdown,
+                renderRemoteHTML: renderRemoteHTML,
+                renderUserName: (name: string) => {
+                    if (name.indexOf("@"+serverAddress()) == -1)
+                        return name;
+                    else
+                        return name.substr(0, name.indexOf("@"+host()));
+                },
+                renderRelativeTime: (date: number) => {
+                    let days = (new Date().getTime() - date) / (1000 * 60 * 60 * 24);
+                    days = Math.floor(days);
+                    
+                    if (days > 1)
+                        return days + " days ago";
+                    else
+                        return "one day ago";
+                },
+                isUrl: isUrl
             },
-            isUrl: isUrl
-        },
-        ...viewData
+            ...viewData
+        }, (err, str) => {
+            if (err) {
+                console.log(err);
+                rej(err);
+            } else {
+                res(str);
+            }
+        });
     });
 }
 
@@ -463,7 +473,13 @@ export function hashPassword(password: string, salt: string): Promise<string> {
     });
 }
 
+export function renderRemoteHTML(str: string): string {
+    return sanitizeHtml(str, {allowedTags: []});
+}
+
 export function renderMarkdown(str: string): string {
+    str = renderRemoteHTML(str);
+    
     str = str.replace(/&/g, '&amp;')
              .replace(/</g, '&lt;')
              .replace(/>/g, '&gt;')

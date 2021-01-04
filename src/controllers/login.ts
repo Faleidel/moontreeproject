@@ -33,13 +33,13 @@ export async function handleLoginPost(url: string[], query: any, req: any, res: 
                        , error: "The user and password didn't match"
                        , user: qName.name
                        };
-        let html = utils.renderTemplate("views/login.njk", viewData);
+        let html = await utils.renderTemplate("views/login.njk", viewData);
         res.end(html);
     }
 }
 
 export async function handleLogin(url: string[], query: any, req: any, res: any, body: string, cookies: any){
     let viewData = await utils.createViewData(cookies);
-    let html = utils.renderTemplate("views/login.njk", viewData);
+    let html = await utils.renderTemplate("views/login.njk", viewData);
     res.end(html);
 }

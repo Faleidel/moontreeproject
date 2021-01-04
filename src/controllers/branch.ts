@@ -129,7 +129,7 @@ export async function handleBranch(url: string[], query: any, req: any, res: any
                 threads: await threadGetter(branchName, user, pageNumber)
             };
             
-            let html = utils.renderTemplate("views/branch.njk", viewData);
+            let html = await utils.renderTemplate("views/branch.njk", viewData);
             res.end(html);
         } else {
             res.end("This branch does not exist");

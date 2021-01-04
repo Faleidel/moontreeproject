@@ -21,6 +21,11 @@ async function handleBranchInboxPost(url, query, req, res, body, cookies) {
             res.statusCode = 201;
             res.end();
         }
+        else if (streamObject.type == "Accept") {
+            utils.log("branch Accept", streamObject);
+            res.statusCode = 201;
+            res.end();
+        }
         else if (streamObject.type == "Create") {
             let newComment = {
                 id: streamObject.object.id,
@@ -108,7 +113,7 @@ async function handleBranch(url, query, req, res, body, cookies) {
                     : model.getHotThreadsByBranch;
         if (branch) {
             let viewData = Object.assign({}, await utils.createViewData(cookies), { branch: branch, pageNumber: pageNumber, sort: sort, postableBranch: true, isBranchAdmin: await model.isBranchAdmin(user, branch), threads: await threadGetter(branchName, user, pageNumber) });
-            let html = utils.renderTemplate("views/branch.njk", viewData);
+            let html = await utils.renderTemplate("views/branch.njk", viewData);
             res.end(html);
         }
         else {

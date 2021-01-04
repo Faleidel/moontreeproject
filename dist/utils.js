@@ -218,31 +218,42 @@ function stringifyCookies(cookies) {
 }
 exports.stringifyCookies = stringifyCookies;
 function renderTemplate(templatePath, viewData) {
-    return njk.render(templatePath, Object.assign({ serverName: getServerName(), acceptSignUp: getAcceptSignUp(), headHTML: getHeadHTML(), footerHTML: getFooterHTML(), customCSS: getCustomCSS(), utils: {
-            encodeURIComponent: encodeURIComponent,
-            threadLink: (id) => {
-                if (id.split("/")[2] == serverAddress())
-                    return id;
-                else
-                    return "/thread/" + encodeURIComponent(id);
-            },
-            renderMarkdown: renderMarkdown,
-            renderUserName: (name) => {
-                if (name.indexOf("@" + serverAddress()) == -1)
-                    return name;
-                else
-                    return name.substr(0, name.indexOf("@" + host()));
-            },
-            renderRelativeTime: (date) => {
-                let days = (new Date().getTime() - date) / (1000 * 60 * 60 * 24);
-                days = Math.floor(days);
-                if (days > 1)
-                    return days + " days ago";
-                else
-                    return "one day ago";
-            },
-            isUrl: isUrl
-        } }, viewData));
+    return new Promise((res, rej) => {
+        njk.render(templatePath, Object.assign({ serverName: getServerName(), acceptSignUp: getAcceptSignUp(), headHTML: getHeadHTML(), footerHTML: getFooterHTML(), customCSS: getCustomCSS(), utils: {
+                encodeURIComponent: encodeURIComponent,
+                threadLink: (id) => {
+                    if (id.split("/")[2] == serverAddress())
+                        return id;
+                    else
+                        return "/thread/" + encodeURIComponent(id);
+                },
+                renderMarkdown: renderMarkdown,
+                renderRemoteHTML: renderRemoteHTML,
+                renderUserName: (name) => {
+                    if (name.indexOf("@" + serverAddress()) == -1)
+                        return name;
+                    else
+                        return name.substr(0, name.indexOf("@" + host()));
+                },
+                renderRelativeTime: (date) => {
+                    let days = (new Date().getTime() - date) / (1000 * 60 * 60 * 24);
+                    days = Math.floor(days);
+                    if (days > 1)
+                        return days + " days ago";
+                    else
+                        return "one day ago";
+                },
+                isUrl: isUrl
+            } }, viewData), (err, str) => {
+            if (err) {
+                console.log(err);
+                rej(err);
+            }
+            else {
+                res(str);
+            }
+        });
+    });
 }
 exports.renderTemplate = renderTemplate;
 function request(options) {
@@ -443,7 +454,12 @@ function hashPassword(password, salt) {
     });
 }
 exports.hashPassword = hashPassword;
+function renderRemoteHTML(str) {
+    return sanitizeHtml(str, { allowedTags: [] });
+}
+exports.renderRemoteHTML = renderRemoteHTML;
 function renderMarkdown(str) {
+    str = renderRemoteHTML(str);
     str = str.replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')

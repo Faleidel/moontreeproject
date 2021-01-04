@@ -43,7 +43,7 @@ export async function handleThread(url: string[], query: any, req: any, res: any
                     if (theme)
                         theme = theme + "-";
                     
-                    res.end(utils.renderTemplate("views/"+theme+"thread.njk", viewData));
+                    res.end(await utils.renderTemplate("views/"+theme+"thread.njk", viewData));
                 }
                 else
                     res.end("Error finding branch");

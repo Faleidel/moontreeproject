@@ -45,7 +45,7 @@ export async function handleSignupPost(url: string[], query: any, req: any, res:
                        , errors: errors.join("</br>")
                        , user: user
                        };
-        let html = utils.renderTemplate("views/signup.njk", viewData);
+        let html = await utils.renderTemplate("views/signup.njk", viewData);
         res.end(html);
     }
 }

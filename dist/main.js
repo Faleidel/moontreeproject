@@ -569,7 +569,7 @@ utils.configLoaded.then(() => {
                         description: utils.config.homeDescription || "",
                         isHome: true
                     }, threads: await threadGetter(undefined, user, pageNumber) });
-                let html = utils.renderTemplate("views/branch.njk", viewData);
+                let html = await utils.renderTemplate("views/branch.njk", viewData);
                 res.end(html);
             }
             // BRANCH PAGE
@@ -579,7 +579,7 @@ utils.configLoaded.then(() => {
             // NEW BRANCH
             else if (url[0] == "newBranch") {
                 let viewData = Object.assign({}, await utils.createViewData(cookies));
-                let html = utils.renderTemplate("views/newBranch.njk", viewData);
+                let html = await utils.renderTemplate("views/newBranch.njk", viewData);
                 res.end(html);
             }
             // BRANCH LIST
@@ -588,7 +588,7 @@ utils.configLoaded.then(() => {
                     return Object.assign({}, branch, { threadsCount: await model.getThreadsCountForBranch(branch) });
                 }));
                 let viewData = Object.assign({}, await utils.createViewData(cookies), { branches: branches, overviewBranches: utils.getOverviewBranches() });
-                let html = utils.renderTemplate("views/branchList.njk", viewData);
+                let html = await utils.renderTemplate("views/branchList.njk", viewData);
                 res.end(html);
             }
             // ADMIN CONFIG
@@ -596,7 +596,7 @@ utils.configLoaded.then(() => {
                 let user = await utils.getLoggedUser(cookies);
                 if (user && utils.isAdmin(user.name)) {
                     let viewData = Object.assign({}, await utils.createViewData(cookies), { urlStats: {}, serverNameValue: utils.getServerName(), adminsValue: utils.getAdmins().join(", "), blockNewInstancesValue: utils.getBlockNewInstances(), acceptSignUpValue: utils.getAcceptSignUp(), overviewBranchesJSON: JSON.stringify(utils.getOverviewBranches()), overviewHasThreads: utils.getOverviewHasThreads(), headHTMLValue: utils.getHeadHTML(), footerHTMLValue: utils.getFooterHTML(), customCSSValue: utils.getCustomCSS(), remoteInstances: await model.getRemoteInstances(), users: await model.getUserList() });
-                    let html = utils.renderTemplate("views/config.njk", viewData);
+                    let html = await utils.renderTemplate("views/config.njk", viewData);
                     res.end(html);
                 }
                 else {
@@ -614,13 +614,13 @@ utils.configLoaded.then(() => {
                 else {
                     let viewData = Object.assign({}, await utils.createViewData(cookies), { isAdmin,
                         instance });
-                    res.end(utils.renderTemplate("views/instance.njk", viewData));
+                    res.end(await utils.renderTemplate("views/instance.njk", viewData));
                 }
             }
             // INSTANCE LIST
             else if (url[0] == "instanceList") {
                 let viewData = Object.assign({}, await utils.createViewData(cookies), { instanceList: await model.getRemoteInstances() });
-                res.end(utils.renderTemplate("views/instanceList.njk", viewData));
+                res.end(await utils.renderTemplate("views/instanceList.njk", viewData));
             }
             // API V1 INSTANCE
             else if (url[0] == "api") {
@@ -644,7 +644,7 @@ utils.configLoaded.then(() => {
                 }
                 else {
                     let viewData = await utils.createViewData(cookies);
-                    let html = utils.renderTemplate("views/signup.njk", viewData);
+                    let html = await utils.renderTemplate("views/signup.njk", viewData);
                     res.end(html);
                 }
             }

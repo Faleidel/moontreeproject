@@ -643,7 +643,7 @@ utils.configLoaded.then(() => {
                     threads: await threadGetter(undefined, user, pageNumber)
                 };
                 
-                let html = utils.renderTemplate("views/branch.njk", viewData);
+                let html = await utils.renderTemplate("views/branch.njk", viewData);
                 res.end(html);
             }
             // BRANCH PAGE
@@ -656,7 +656,7 @@ utils.configLoaded.then(() => {
                     ... await utils.createViewData(cookies),
                 };
                 
-                let html = utils.renderTemplate("views/newBranch.njk", viewData);
+                let html = await utils.renderTemplate("views/newBranch.njk", viewData);
                 res.end(html);
             }
             // BRANCH LIST
@@ -673,7 +673,7 @@ utils.configLoaded.then(() => {
                     overviewBranches: utils.getOverviewBranches()
                 };
                 
-                let html = utils.renderTemplate("views/branchList.njk", viewData);
+                let html = await utils.renderTemplate("views/branchList.njk", viewData);
                 res.end(html);
             }
             // ADMIN CONFIG
@@ -699,7 +699,7 @@ utils.configLoaded.then(() => {
                         users: await model.getUserList()
                     };
                     
-                    let html = utils.renderTemplate("views/config.njk", viewData);
+                    let html = await utils.renderTemplate("views/config.njk", viewData);
                     res.end(html);
                 } else {
                     utils.endWithRedirect(res, "/");
@@ -722,7 +722,7 @@ utils.configLoaded.then(() => {
                         instance
                     };
                     
-                    res.end(utils.renderTemplate("views/instance.njk", viewData));
+                    res.end(await utils.renderTemplate("views/instance.njk", viewData));
                 }
             }
             // INSTANCE LIST
@@ -732,7 +732,7 @@ utils.configLoaded.then(() => {
                     instanceList: await model.getRemoteInstances()
                 };
                 
-                res.end(utils.renderTemplate("views/instanceList.njk", viewData));
+                res.end(await utils.renderTemplate("views/instanceList.njk", viewData));
             }
             // API V1 INSTANCE
             else if (url[0] == "api") {
@@ -755,7 +755,7 @@ utils.configLoaded.then(() => {
                     res.end("We do not accept registrations right now");
                 } else {
                     let viewData = await utils.createViewData(cookies);
-                    let html = utils.renderTemplate("views/signup.njk", viewData);
+                    let html = await utils.renderTemplate("views/signup.njk", viewData);
                     res.end(html);
                 }
             }

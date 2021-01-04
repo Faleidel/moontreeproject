@@ -108,7 +108,7 @@
                 <a href="/branch/{{thread.branch}}" style="margin-bottom:20px; display: inline-block">On branch: {{thread.branch}}</a>
                 
                 <div class="threadTitle">
-                    {{thread.title}}
+                    {{utils.renderRemoteHTML(thread.title)}}
                 </div>
                 
                 <div id="{{thread.id}}_likeControls" class="likeCount {% if not commentTree.liked and userName %}canLike{% endif %}">

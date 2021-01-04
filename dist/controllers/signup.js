@@ -45,7 +45,7 @@ async function handleSignupPost(url, query, req, res, body, cookies) {
     }
     else {
         let viewData = Object.assign({}, await utils.createViewData(cookies), { errors: errors.join("</br>"), user: user });
-        let html = utils.renderTemplate("views/signup.njk", viewData);
+        let html = await utils.renderTemplate("views/signup.njk", viewData);
         res.end(html);
     }
 }

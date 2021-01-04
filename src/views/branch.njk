@@ -171,9 +171,9 @@
                             <div class="threadInfos">
                                 <div style="word-break: break-all;" class="threadTitle">
                                     {% if thread.isLink %}
-                                        <a href="{{thread.content}}">{{thread.title}}</a>
+                                        <a href="{{thread.content}}">{{utils.renderRemoteHTML(thread.title)}}</a>
                                     {% else %}
-                                        <a href="{{thread.id}}">{{thread.title}}</a>
+                                        <a href="{{thread.id}}">{{utils.renderRemoteHTML(thread.title)}}</a>
                                     {% endif %}
                                 </div>
                                 <div class="threadInfosBottomLines">
