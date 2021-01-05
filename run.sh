@@ -1,1 +1,1 @@
-node dist/main.js
+node dist/main.js $@

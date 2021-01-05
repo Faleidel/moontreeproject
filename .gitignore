@@ -1,8 +1,13 @@
 node_modules
 config.json
+config2.json
 log.txt
 store.json
 urlStats.json
 .DS_Store
 static/uploads/*
 dist/tsconfig.tsbuildinfo
+deploy.sh
+chromedriver
+testsOutput
+todo.md

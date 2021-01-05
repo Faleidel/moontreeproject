@@ -18,13 +18,22 @@ const showdown = __importStar(require("showdown"));
 const sanitizeHtml = require("sanitize-html");
 const sharp = require("sharp");
 exports.config = {};
-exports.configLoaded = new Promise((resolve, reject) => {
-    fs_1.readFile("config.json", "UTF-8", (err, data) => {
+let configFile = "config.json";
+function loadConfig(file) {
+    if (file)
+        configFile = file;
+    console.log("Loading config", configFile);
+    fs_1.readFile(configFile, "UTF-8", (err, data) => {
         exports.config = JSON.parse(data);
         exports.generateTestData = !!exports.config.generateTestData;
         exports.migrationNumber = exports.config.migrationNumber || 0;
-        resolve();
+        resolveConfigLoad();
     });
+}
+exports.loadConfig = loadConfig;
+let resolveConfigLoad;
+exports.configLoaded = new Promise((resolve, reject) => {
+    resolveConfigLoad = resolve;
 });
 const mails = __importStar(require("./mails"));
 const sms = __importStar(require("./sms"));
@@ -48,7 +57,7 @@ exports.generateTestData = !!exports.config.generateTestData;
 exports.migrationNumber = exports.config.migrationNumber || 0;
 function saveConfig() {
     setTimeout(() => {
-        fs_1.writeFile("config.json", JSON.stringify(exports.config, undefined, 4), "UTF-8", () => { });
+        fs_1.writeFile(configFile, JSON.stringify(exports.config, undefined, 4), "UTF-8", () => { });
     }, 0);
 }
 function alertLog(logType, content) {
@@ -68,6 +77,7 @@ function setServerName(name) {
 }
 exports.setServerName = setServerName;
 function setMigrationNumber(n) {
+    console.log("Migration number", exports.migrationNumber, "->", n);
     exports.migrationNumber = n;
     exports.config.migrationNumber = exports.migrationNumber;
     saveConfig();

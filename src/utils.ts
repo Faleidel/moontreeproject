@@ -11,15 +11,25 @@ const sharp = require("sharp");
 
 export let config = {} as any;
 
-export const configLoaded = new Promise((resolve, reject) => {
-    readFile("config.json", "UTF-8", (err, data) => {
+let configFile = "config.json";
+export function loadConfig(file?: string) {
+    if (file)
+        configFile = file;
+    
+    console.log("Loading config", configFile);
+    readFile(configFile, "UTF-8", (err, data) => {
         config = JSON.parse(data);
         
         generateTestData = !!config.generateTestData;
         migrationNumber = config.migrationNumber || 0;
         
-        resolve();
+        resolveConfigLoad();
     });
+}
+
+let resolveConfigLoad: any;
+export const configLoaded = new Promise((resolve, reject) => {
+    resolveConfigLoad = resolve;
 });
 
 import * as mails from "./mails";
@@ -44,7 +54,7 @@ export let migrationNumber = config.migrationNumber || 0;
 
 function saveConfig(){
     setTimeout(() => {
-        writeFile("config.json", JSON.stringify(config, undefined, 4), "UTF-8", () => {});
+        writeFile(configFile, JSON.stringify(config, undefined, 4), "UTF-8", () => {});
     }, 0);
 }
 
@@ -64,6 +74,7 @@ export function setServerName(name: string) {
 }
 
 export function setMigrationNumber(n: number) {
+    console.log("Migration number", migrationNumber , "->", n);
     migrationNumber = n;
     config.migrationNumber = migrationNumber;
     saveConfig();

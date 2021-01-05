@@ -25,8 +25,9 @@ const fileType = require("file-type");
 const db = __importStar(require("./db"));
 const modelInterfaces_1 = require("./modelInterfaces");
 const request = require("request");
-model.loadStore(() => { });
-utils.configLoaded.then(() => {
+utils.loadConfig(process.argv[2]); // if called like: "node main.js myConfig.json" will use the other file as a config
+utils.configLoaded.then(async () => {
+    await model.loadStore();
     http.createServer(async function (req, res) {
         let parsed = urlUtils.parse(req.url, true);
         let query = parsed.query;

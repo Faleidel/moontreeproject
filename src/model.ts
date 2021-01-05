@@ -258,7 +258,19 @@ export async function branchFromJSON(obj: any): Promise<Branch | undefined> {
     };
 }
 
-export let store = {}; // not used anymore
+export let store = {
+    "activitys": [],
+    "comments": [],
+    "threads": [],
+    "follows": [],
+    "branches": [],
+    "users": [],
+    "notifications": [],
+    "sessions": [],
+    "likes": [],
+    "remoteInstances": [],
+    "likeBundles": []
+}; // not used anymore
 
 async function testLikeOn(comment: Comment, amount: number): Promise<void> {
     for (let i = 0 ; i < amount ; i++) {
@@ -273,310 +285,304 @@ async function testLikeOn(comment: Comment, amount: number): Promise<void> {
     }
 }
 
-export function loadStore(cb: any): void {
-    fs.readFile("store.json", "utf-8", async (err, data) => {
-        if (data) {
-            console.log("Loading JSON store...");
-            store = JSON.parse(data);
+export async function loadStore(): Promise<void> {
+    console.log("Loading JSON store...", utils.migrationNumber);
+    
+    if (utils.migrationNumber == 1) {
+        utils.log("Migration is 1, migrating to 2");
+        
+        // change activitys publish date from string format to timestamp
+        Object.values((store as any).activitys as Activity[]).map((act: Activity) => {
+            act.published = new Date(act.published).getTime();
+        });
+        Object.values((store as any).comments as Comment[]).map(act => {
+            act.published = new Date(act.published).getTime();
+        });
+        Object.values((store as any).threads as Thread[]).map(act => {
+            act.published = new Date(act.published).getTime();
+        });
+        
+        saveStore();
+        
+        utils.setMigrationNumber(utils.migrationNumber + 1);
+    }
+    
+    if (utils.migrationNumber == 2) {
+        saveStore();
+        
+        utils.setMigrationNumber(utils.migrationNumber + 1);
+    }
+    
+    if (utils.migrationNumber == 3) {
+        (store as any).follows = {};
+        
+        saveStore();
+        
+        utils.setMigrationNumber(utils.migrationNumber + 1);
+    }
+    
+    if (utils.migrationNumber == 4) {
+        await Promise.all(Object.values((store as any).branches as Branch[]).map(async (branch) => {
+            let kp = await utils.generateUserKeyPair();
             
-            if (utils.migrationNumber == 1) {
-                utils.log("Migration is 1, migrating to 2");
-                
-                // change activitys publish date from string format to timestamp
-                Object.values((store as any).activitys as Activity[]).map((act: Activity) => {
-                    act.published = new Date(act.published).getTime();
-                });
-                Object.values((store as any).comments as Comment[]).map(act => {
-                    act.published = new Date(act.published).getTime();
-                });
-                Object.values((store as any).threads as Thread[]).map(act => {
-                    act.published = new Date(act.published).getTime();
-                });
-                
-                saveStore();
-                
-                utils.setMigrationNumber(utils.migrationNumber + 1);
-            }
+            branch.privateKey = kp.privateKey;
+            branch.publicKey = kp.publicKey;
+        }));
+        
+        saveStore();
+        
+        utils.setMigrationNumber(utils.migrationNumber + 1);
+    }
+    
+    if (utils.migrationNumber == 5) {
+        Object.values((store as any).branches as Branch[]).map(branch => {
+            branch.icon = "";
+        });
+        
+        saveStore();
+        
+        utils.setMigrationNumber(utils.migrationNumber + 1);
+    }
+    
+    if (utils.migrationNumber == 6) {
+        const dbPoolPG = new Pool({
+            user: utils.config.database.user,
+            host: utils.config.database.host,
+            database: "postgres",
+            password: utils.config.database.password,
+            port: utils.config.database.port
+        });
+        
+        await dbPoolPG.query(`CREATE DATABASE ${utils.config.database.database};`)
+        .then(() => utils.log("Created database " + utils.config.database.database))
+        .catch(() => utils.log("Database " + utils.config.database.database + " already existed"));
+        
+        dbPoolPG.end();
+        
+        db.setDbPool();
+        
+        await Promise.all(Object.keys((store as any).users).map(async userName => {
+            console.log("Insert user", userName);
+            let user = (store as any).users[userName];
             
-            if (utils.migrationNumber == 2) {
-                saveStore();
-                
-                utils.setMigrationNumber(utils.migrationNumber + 1);
-            }
+            await insertUser(user)
+            .catch((e: any) => console.log("Error adding user to userse table", e));
+        }));
+        
+        utils.setMigrationNumber(utils.migrationNumber + 1);
+    }
+    
+    await db.dbReady;
+    await modelInterfaces.createMissingTables()
+    .catch(async e => {
+        const dbPoolPG = new Pool({
+            user: utils.config.database.user,
+            host: utils.config.database.host,
+            database: "postgres",
+            password: utils.config.database.password,
+            port: utils.config.database.port
+        });
+        
+        await dbPoolPG.query(`CREATE DATABASE ${utils.config.database.database};`)
+        .then(() => utils.log("Created database " + utils.config.database.database))
+        .catch(() => utils.log("Database " + utils.config.database.database + " already existed"));
+        
+        dbPoolPG.end();
+        
+        db.setDbPool();
+        
+        await modelInterfaces.createMissingTables()
+    })
+    
+    if (utils.migrationNumber == 7) {
+        await Promise.all(Object.keys((store as any).notifications).map(async notifId => {
+            let notif = (store as any).notifications[notifId];
             
-            if (utils.migrationNumber == 3) {
-                (store as any).follows = {};
-                
-                saveStore();
-                
-                utils.setMigrationNumber(utils.migrationNumber + 1);
-            }
+            await insertNotification(notif)
+            .catch((e: any) => console.log("Error adding notification to table", e));
+        }));
+        
+        utils.setMigrationNumber(utils.migrationNumber + 1);
+    }
+    
+    if (utils.migrationNumber == 8) {
+        await Promise.all(Object.keys((store as any).sessions).map(async sessionId => {
+            let session = (store as any).sessions[sessionId];
             
-            if (utils.migrationNumber == 4) {
-                await Promise.all(Object.values((store as any).branches as Branch[]).map(async (branch) => {
-                    let kp = await utils.generateUserKeyPair();
-                    
-                    branch.privateKey = kp.privateKey;
-                    branch.publicKey = kp.publicKey;
-                }));
-                
-                saveStore();
-                
-                utils.setMigrationNumber(utils.migrationNumber + 1);
-            }
+            await insertSession(session)
+            .catch((e: any) => console.log("Error adding session to table", e));
+        }));
+        
+        utils.setMigrationNumber(utils.migrationNumber + 1);
+    }
+    
+    if (utils.migrationNumber == 9) {
+        await Promise.all(Object.keys((store as any).activitys).map(async actId => {
+            let activity = (store as any).activitys[actId];
             
-            if (utils.migrationNumber == 5) {
-                Object.values((store as any).branches as Branch[]).map(branch => {
-                    branch.icon = "";
-                });
-                
-                saveStore();
-                
-                utils.setMigrationNumber(utils.migrationNumber + 1);
-            }
+            await insertActivity(activity)
+            .catch((e: any) => console.log("Error adding activity to table", e));
+        }));
+        
+        utils.setMigrationNumber(utils.migrationNumber + 1);
+    }
+    
+    if (utils.migrationNumber == 10) {
+        await Promise.all(Object.keys((store as any).branches).map(async branchId => {
+            let branch = (store as any).branches[branchId];
             
-            if (utils.migrationNumber == 6) {
-                const dbPoolPG = new Pool({
-                    user: utils.config.database.user,
-                    host: utils.config.database.host,
-                    database: "postgres",
-                    password: utils.config.database.password,
-                    port: utils.config.database.port
-                });
-                
-                await dbPoolPG.query(`CREATE DATABASE ${utils.config.database.database};`)
-                .then(() => utils.log("Created database " + utils.config.database.database))
-                .catch(() => utils.log("Database " + utils.config.database.database + " already existed"));
-                
-                dbPoolPG.end();
-                
-                db.setDbPool();
-                
-                await Promise.all(Object.keys((store as any).users).map(async userName => {
-                    console.log("Insert user", userName);
-                    let user = (store as any).users[userName];
-                    
-                    await insertUser(user)
-                    .catch((e: any) => console.log("Error adding user to userse table", e));
-                }));
-                
-                utils.setMigrationNumber(utils.migrationNumber + 1);
-            }
+            await insertBranch(branch)
+            .catch((e: any) => console.log("Error adding branch to table", e));
+        }));
+        
+        utils.setMigrationNumber(utils.migrationNumber + 1);
+    }
+    
+    if (utils.migrationNumber == 11) {
+        await Promise.all(Object.keys((store as any).likes).map(async likeId => {
+            let like = (store as any).likes[likeId];
             
-            await db.dbReady;
-            await modelInterfaces.createMissingTables()
-            .catch(async e => {
-                const dbPoolPG = new Pool({
-                    user: utils.config.database.user,
-                    host: utils.config.database.host,
-                    database: "postgres",
-                    password: utils.config.database.password,
-                    port: utils.config.database.port
-                });
-                
-                await dbPoolPG.query(`CREATE DATABASE ${utils.config.database.database};`)
-                .then(() => utils.log("Created database " + utils.config.database.database))
-                .catch(() => utils.log("Database " + utils.config.database.database + " already existed"));
-                
-                dbPoolPG.end();
-                
-                db.setDbPool();
-                
-                await modelInterfaces.createMissingTables()
-            })
+            await insertLike(like)
+            .catch((e: any) => console.log("Error adding like to table", e));
+        }));
+        
+        utils.setMigrationNumber(utils.migrationNumber + 1);
+    }
+    
+    if (utils.migrationNumber == 12) {
+        await Promise.all(Object.keys((store as any).follows).map(async followId => {
+            let follow = (store as any).follows[followId];
             
-            if (utils.migrationNumber == 7) {
-                await Promise.all(Object.keys((store as any).notifications).map(async notifId => {
-                    let notif = (store as any).notifications[notifId];
-                    
-                    await insertNotification(notif)
-                    .catch((e: any) => console.log("Error adding notification to table", e));
-                }));
-                
-                utils.setMigrationNumber(utils.migrationNumber + 1);
-            }
+            await insertFollow(follow)
+            .catch((e: any) => console.log("Error adding follow to table", e));
+        }));
+        
+        utils.setMigrationNumber(utils.migrationNumber + 1);
+    }
+    
+    if (utils.migrationNumber == 13) {
+        await Promise.all(Object.keys((store as any).remoteInstances).map(async remoteId => {
+            let remoteInstance = (store as any).remoteInstances[remoteId];
             
-            if (utils.migrationNumber == 8) {
-                await Promise.all(Object.keys((store as any).sessions).map(async sessionId => {
-                    let session = (store as any).sessions[sessionId];
-                    
-                    await insertSession(session)
-                    .catch((e: any) => console.log("Error adding session to table", e));
-                }));
-                
-                utils.setMigrationNumber(utils.migrationNumber + 1);
-            }
+            await insertRemoteInstance(remoteInstance)
+            .catch((e: any) => console.log("Error adding remoteInstance to table", e));
+        }));
+        
+        utils.setMigrationNumber(utils.migrationNumber + 1);
+    }
+    
+    if (utils.migrationNumber == 14) {
+        await Promise.all(Object.keys((store as any).likeBundles).map(async id => {
+            let bundle = (store as any).likeBundles[id];
             
-            if (utils.migrationNumber == 9) {
-                await Promise.all(Object.keys((store as any).activitys).map(async actId => {
-                    let activity = (store as any).activitys[actId];
-                    
-                    await insertActivity(activity)
-                    .catch((e: any) => console.log("Error adding activity to table", e));
-                }));
-                
-                utils.setMigrationNumber(utils.migrationNumber + 1);
-            }
+            await insertLikeBundle(bundle)
+            .catch((e: any) => console.log("Error adding like bundle to table", e));
+        }));
+        
+        utils.setMigrationNumber(utils.migrationNumber + 1);
+    }
+    
+    if (utils.migrationNumber == 15) {
+        await Promise.all(Object.keys((store as any).comments).map(async id => {
+            let comment = (store as any).comments[id];
             
-            if (utils.migrationNumber == 10) {
-                await Promise.all(Object.keys((store as any).branches).map(async branchId => {
-                    let branch = (store as any).branches[branchId];
-                    
-                    await insertBranch(branch)
-                    .catch((e: any) => console.log("Error adding branch to table", e));
-                }));
-                
-                utils.setMigrationNumber(utils.migrationNumber + 1);
-            }
+            comment.tags = comment.tags || []; //to fix a bug, lot's of comment's don't have tags but the field is mendatory
             
-            if (utils.migrationNumber == 11) {
-                await Promise.all(Object.keys((store as any).likes).map(async likeId => {
-                    let like = (store as any).likes[likeId];
-                    
-                    await insertLike(like)
-                    .catch((e: any) => console.log("Error adding like to table", e));
-                }));
-                
-                utils.setMigrationNumber(utils.migrationNumber + 1);
-            }
+            await insertComment(comment)
+            .catch((e: any) => console.log("Error adding comment bundle to table", e));
+        }));
+        
+        utils.setMigrationNumber(utils.migrationNumber + 1);
+    }
+    
+    if (utils.migrationNumber == 16) {
+        await Promise.all(Object.keys((store as any).threads).map(async id => {
+            let thread = (store as any).threads[id];
             
-            if (utils.migrationNumber == 12) {
-                await Promise.all(Object.keys((store as any).follows).map(async followId => {
-                    let follow = (store as any).follows[followId];
-                    
-                    await insertFollow(follow)
-                    .catch((e: any) => console.log("Error adding follow to table", e));
-                }));
-                
-                utils.setMigrationNumber(utils.migrationNumber + 1);
-            }
+            thread.tags = thread.tags || []; //to fix a bug, lot's of comment's don't have tags but the field is mendatory
             
-            if (utils.migrationNumber == 13) {
-                await Promise.all(Object.keys((store as any).remoteInstances).map(async remoteId => {
-                    let remoteInstance = (store as any).remoteInstances[remoteId];
-                    
-                    await insertRemoteInstance(remoteInstance)
-                    .catch((e: any) => console.log("Error adding remoteInstance to table", e));
-                }));
+            await insertThread(thread)
+            .catch((e: any) => console.log("Error adding thread bundle to table", e));
+        }));
+        
+        utils.setMigrationNumber(utils.migrationNumber + 1);
+    }
+    
+    if (utils.migrationNumber == 17) {
+        await db.query(`
+            ALTER TABLE url_view
+            ADD COLUMN user_agent text;
+        `).catch(e => console.log(e));
+        
+        utils.setMigrationNumber(utils.migrationNumber + 1);
+    }
+    
+    if (utils.migrationNumber == 18) {
+        await db.query(`
+            ALTER TABLE branches
+            DROP COLUMN source_branches;
+        `).catch((e: any) => console.log(e));
+        
+        await db.query(`
+            ALTER TABLE branches
+            ADD COLUMN following text[];
+        `).catch((e: any) => console.log(e));
+        
+        utils.setMigrationNumber(utils.migrationNumber + 1);
+    }
+    
+    // test code to generate random comments tree for a thread
+//    let user = await getUserByName("test0@192.168.117.101:9090");
+//    let ids = [Object.values(store.threads)[Math.floor(Math.random()* threadLength)].id];
+//    if (user) {
+//        for (let x = 0 ; x < 0 ; x++) {
+//            let comment = await createComment(user, Math.random() + "", ids[Math.floor(Math.random() * ids.length)]);
+//            ids.push(comment.id);
+//        }
+//    }
+    
+    console.log("Finised loading, migrating and indexing JSON store");
+    
+    if (false) {
+        (async () => {
+            if (utils.generateTestData) {
+                console.log("Generating test datas");
                 
-                utils.setMigrationNumber(utils.migrationNumber + 1);
-            }
-            
-            if (utils.migrationNumber == 14) {
-                await Promise.all(Object.keys((store as any).likeBundles).map(async id => {
-                    let bundle = (store as any).likeBundles[id];
-                    
-                    await insertLikeBundle(bundle)
-                    .catch((e: any) => console.log("Error adding like bundle to table", e));
-                }));
+                let admin = await createUser("admin", "admin") as any;
+                let admin2  = await createUser("admin2", "admin2") as any;
                 
-                utils.setMigrationNumber(utils.migrationNumber + 1);
-            }
-            
-            if (utils.migrationNumber == 15) {
-                await Promise.all(Object.keys((store as any).comments).map(async id => {
-                    let comment = (store as any).comments[id];
-                    
-                    comment.tags = comment.tags || []; //to fix a bug, lot's of comment's don't have tags but the field is mendatory
-                    
-                    await insertComment(comment)
-                    .catch((e: any) => console.log("Error adding comment bundle to table", e));
-                }));
+                utils.setAdmins(["admin@"+utils.serverAddress(), "admin2@"+utils.serverAddress()]);
                 
-                utils.setMigrationNumber(utils.migrationNumber + 1);
-            }
-            
-            if (utils.migrationNumber == 16) {
-                await Promise.all(Object.keys((store as any).threads).map(async id => {
-                    let thread = (store as any).threads[id];
-                    
-                    thread.tags = thread.tags || []; //to fix a bug, lot's of comment's don't have tags but the field is mendatory
-                    
-                    await insertThread(thread)
-                    .catch((e: any) => console.log("Error adding thread bundle to table", e));
-                }));
+                for (let i = 0 ; i < 20 ; i++)
+                    await createUser("test" + i, "test" + i);
                 
-                utils.setMigrationNumber(utils.migrationNumber + 1);
-            }
-            
-            if (utils.migrationNumber == 17) {
-                await db.query(`
-                    ALTER TABLE url_view
-                    ADD COLUMN user_agent text;
-                `);
+                await createBranch("gold", "This is the gold branch", [], admin);
+                await createBranch("silver", "This is the silver branch", [], admin2);
+                await createBranch("iron", "This is the iron branch", [], await getUserByName("test1@"+utils.serverAddress()) as any);
+                await createBranch("test", "This is the test branch", [], admin);
                 
-                utils.setMigrationNumber(utils.migrationNumber + 1);
-            }
-            
-            if (utils.migrationNumber == 18) {
-                await db.query(`
-                    ALTER TABLE branches
-                    DROP COLUMN source_branches;
-                `).catch((e: any) => console.log(e));
+                let randomBranch = () => ["gold", "silver", "iron"][Math.floor(Math.random()*3)];
                 
-                await db.query(`
-                    ALTER TABLE branches
-                    ADD COLUMN following text[];
-                `).catch((e: any) => console.log(e));
-                
-                utils.setMigrationNumber(utils.migrationNumber + 1);
-            }
-            
-            // test code to generate random commentst tree for a thread
-//            let user = await getUserByName("test0@192.168.117.101:9090");
-//            let ids = [Object.values(store.threads)[Math.floor(Math.random()* threadLength)].id];
-//            if (user ) {
-//                for (let x = 0 ; x < 0 ; x++) {
-//                    let comment = await createComment(user, Math.random() + "", ids[Math.floor(Math.random() * ids.length)]);
-//                    ids.push(comment.id);
-//                }
-//            }
-            
-            console.log("Finised loading, migrating and indexing JSON store");
-        } else {
-            console.log("Got no store");
-            (async () => {
-                if (utils.generateTestData) {
-                    console.log("Generating test datas");
-                    
-                    let admin = await createUser("admin", "admin") as any;
-                    let admin2  = await createUser("admin2", "admin2") as any;
-                    
-                    utils.setAdmins(["admin@"+utils.serverAddress(), "admin2@"+utils.serverAddress()]);
-                    
-                    for (let i = 0 ; i < 20 ; i++)
-                        await createUser("test" + i, "test" + i);
-                    
-                    await createBranch("gold", "This is the gold branch", [], admin);
-                    await createBranch("silver", "This is the silver branch", [], admin2);
-                    await createBranch("iron", "This is the iron branch", [], await getUserByName("test1@"+utils.serverAddress()) as any);
-                    await createBranch("test", "This is the test branch", [], admin);
-                    
-                    let randomBranch = () => ["gold", "silver", "iron"][Math.floor(Math.random()*3)];
-                    
-                    for (let i = 0 ; i < 20 ; i++) {
-                        let { thread } = await createThread(admin, "test thread" + i, "With no content", randomBranch());
-                        thread.published -= Math.floor(1000 * 60 * 60 * 24 * 5 * Math.random());
-                    }
-                    
-                    await (async () => {
-//                        for (let tid in store.threads) {
-//                            let c = await getThreadById(tid);
-//                            if (c)
-//                                await testLikeOn(c, Math.floor(Math.random()*5));
-//                            else
-//                                console.log("Bad thread", c);
-//                        }
-                    })();
+                for (let i = 0 ; i < 20 ; i++) {
+                    let { thread } = await createThread(admin, "test thread" + i, "With no content", randomBranch());
+                    thread.published -= Math.floor(1000 * 60 * 60 * 24 * 5 * Math.random());
                 }
                 
-                saveStore();
-                console.log("Generate new store");
-            })();
-        }
-        
-        cb();
-    });
+                await (async () => {
+                      for (let tid in store.threads) {
+                          let c = await getThreadById(tid);
+                          if (c)
+                              await testLikeOn(c, Math.floor(Math.random()*5));
+                          else
+                              console.log("Bad thread", c);
+                      }
+                })();
+            }
+            
+            saveStore();
+            console.log("Generate new store");
+        })();
+    }
 }
 let saveTimeout: number | undefined = undefined;
 export function saveStore(): void {

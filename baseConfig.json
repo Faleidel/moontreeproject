@@ -25,5 +25,12 @@
         },
         "userCreation": {
         }
+    },
+    "database": {
+        "user": "...",
+        "password": "...",
+        "host": "localhost",
+        "database": "moontreeproject",
+        "port": "5432"
     }
 }

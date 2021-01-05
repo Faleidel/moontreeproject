@@ -28,12 +28,12 @@
                             <span class="notifCount">({{notifCount}})</span>
                         {% endif %}
                     </a>
-                    <a href="/logout">logout</a>
+                    <a id="logout" href="/logout">logout</a>
                 </div>
             {% endif %}
             {% if not userName %}
-                <a href="/login" class="desktop">login</a>
-                {% if acceptSignUp %}<a href="/signup" class="desktop">signup</a>{% endif %}
+                <a id="login" href="/login" class="desktop">login</a>
+                {% if acceptSignUp %}<a id="signup" href="/signup" class="desktop">signup</a>{% endif %}
             {% endif %}
             <div class="mobile">
                 <img toToggle="mobileMenu" style="position: relative; top: 9px; right: 13px; cursor: pointer;" src="data:image/svg+xml;utf8;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pgo8IS0tIEdlbmVyYXRvcjogQWRvYmUgSWxsdXN0cmF0b3IgMTguMS4xLCBTVkcgRXhwb3J0IFBsdWctSW4gLiBTVkcgVmVyc2lvbjogNi4wMCBCdWlsZCAwKSAgLS0+CjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4PSIwcHgiIHk9IjBweCIgdmlld0JveD0iMCAwIDQyNCA0MjQiIHN0eWxlPSJlbmFibGUtYmFja2dyb3VuZDpuZXcgMCAwIDQyNCA0MjQ7IiB4bWw6c3BhY2U9InByZXNlcnZlIiB3aWR0aD0iMzJweCIgaGVpZ2h0PSIzMnB4Ij4KPGc+Cgk8Zz4KCQk8cGF0aCBkPSJNMzUsODlDMTUsODksMCw3NCwwLDU0czE1LTM2LDM1LTM2aDM1M2MyMCwwLDM2LDE2LDM2LDM2cy0xNiwzNS0zNiwzNUgzNXoiIGZpbGw9IiMwMDAwMDAiLz4KCQk8cGF0aCBkPSJNMzg4LDE3NmMyMCwwLDM2LDE2LDM2LDM2cy0xNiwzNS0zNiwzNUgzNWMtMjAsMC0zNS0xNS0zNS0zNXMxNS0zNiwzNS0zNkgzODh6IiBmaWxsPSIjMDAwMDAwIi8+CgkJPHBhdGggZD0iTTM4OCwzMzVjMjAsMCwzNiwxNSwzNiwzNXMtMTYsMzYtMzYsMzZIMzVjLTIwLDAtMzUtMTYtMzUtMzZzMTUtMzUsMzUtMzVIMzg4eiIgZmlsbD0iIzAwMDAwMCIvPgoJPC9nPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+CjxnPgo8L2c+Cjwvc3ZnPgo="/>
