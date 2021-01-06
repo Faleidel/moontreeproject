@@ -1,7 +1,33 @@
-const {Builder, By, Key, until} = require('selenium-webdriver');
+const { Builder, By, Key, until } = require('selenium-webdriver');
 let utils = require("./utils");
 
-async function runLoginTest(user, password) {
+let testUser = {};
+exports.testUser = testUser;
+
+// login as a random user
+async function baseLogin() {
+    await utils.test("base login", async driver => {
+        let hasLogout = await driver.findElements(By.id("logout"));
+        if (hasLogout.length == 0) {
+            // ok, not logged
+        } else {
+            await hasLogout[0].click();
+            await utils.sleep(100);
+        }
+        
+        if (!testUser.name) {
+            testUser.name = "testUser" + Math.random();
+            testUser.password = "testUser" + Math.random();
+            
+            await createUser(testUser.name, testUser.password);
+        }
+        
+        await login(testUser.name, testUser.password);
+    });
+}
+exports.baseLogin = baseLogin;
+
+async function login(user, password, logs = false) {
     await utils.test("login", async (driver) => {
         await driver.get(utils.baseUrl);
         
@@ -9,13 +35,17 @@ async function runLoginTest(user, password) {
         let loginLink = await driver.findElement(By.id("login"));
         await loginLink.click();
         
-        await utils.sleep(1000);
-        await utils.screenShot();
+        if (logs) {
+            await utils.sleep(100);
+            await utils.screenShot();
+        }
         
         // enter user name
         let userInput = await driver.findElement(By.css('[type="user"][name="user"]'));
         await userInput.sendKeys(user);
-        await utils.screenShot();
+        
+        if (logs)
+            await utils.screenShot();
         
         // enter password
         let passwordInput = await driver.findElement(By.css('[type="password"][name="password"]'));
@@ -23,7 +53,7 @@ async function runLoginTest(user, password) {
         
         // click login
         (await driver.findElement(By.css('[type="submit"][value="Login"]'))).click();
-        await utils.sleep(1000);
+        await utils.sleep(100);
         
         let hasLogout = await driver.findElements(By.id("logout"));
         if (hasLogout.length == 0) {
@@ -32,6 +62,17 @@ async function runLoginTest(user, password) {
         }
     });
 }
+exports.login = login;
+
+async function logout(driver) {
+    await utils.test("logout", async driver => {
+        let hasLogout = await driver.findElements(By.id("logout"));
+        
+        if (hasLogout.length != 0)
+            await hasLogout[0].click();
+    });
+}
+exports.logout = logout;
 
 async function createUser(user, password) {
     await utils.test("signup", async (driver) => {
@@ -41,7 +82,7 @@ async function createUser(user, password) {
         let signupLink = await driver.findElement(By.id("signup"));
         await signupLink.click();
         
-        await utils.sleep(1000);
+        await utils.sleep(100);
         await utils.screenShot();
         
         // enter user name
@@ -57,7 +98,7 @@ async function createUser(user, password) {
         
         // click login
         (await driver.findElement(By.css('[type="submit"][value="Create"]'))).click();
-        await utils.sleep(1000);
+        await utils.sleep(100);
         
         await utils.screenShot();
         
@@ -67,18 +108,17 @@ async function createUser(user, password) {
             throw new Error("Loggin didn't work.");
         } else {
             await hasLogout[0].click();
-            await utils.sleep(1000);
         }
-        console.log("Signup over");
     });
 }
 
-exports.run = async function () {
-    let user = "testUser" + Math.random();
-    let password = "testUser" + Math.random();
-    console.log("Create user");
-    await createUser(user, password);
-    
-    console.log("Login user");
-    await runLoginTest(user, password);
+exports.run = async function() {
+    await utils.test("Run newUser", async driver => {
+        await baseLogin();
+        await logout();
+        
+        await login(testUser.name, testUser.password, true);
+        
+        await logout();
+    });
 }

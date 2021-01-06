@@ -12,9 +12,9 @@
         </div>
         <div class="leftSection">
             <a href="/">{{serverName}}</a>
-            <a class="desktop" href="/branchList" style="font-size: 1.1rem">branch list</a>
+            <a id="branchList" class="desktop" href="/branchList" style="font-size: 1.1rem">branch list</a>
             {% if userName %}
-                <a class="desktop" href="/newBranch" style="font-size: 1rem;">new branch</a>
+                <a id="newBranch" class="desktop" href="/newBranch" style="font-size: 1rem;">new branch</a>
             {% endif %}
             {% if isAdmin %}<a class="desktop" href="/config" style="font-size: 1rem">config</a>{% endif %}
         </div>
@@ -49,7 +49,7 @@
     <div style="display:none; margin-top: 10px;" id="mobileMenu" class="lightSection mobile">
         <div class="button"><a href="/branchList">branch list</a></div>
         {% if userName %}
-            <div class="button"><a href="/newBranch">new branch</a></div>
+            <div class="button"><a id="newBranch" href="/newBranch">new branch</a></div>
         {% endif %}
         {% if isAdmin %}<div class="button"><a href="/config">config</a></div>{% endif %}
         

@@ -15,8 +15,27 @@ fs.readdir(directory, (err, files) => {
   }
 });
 
-require("./newUser").run().catch(e => {
-    console.log(e);
-}).then(() => {
-    utils.quit();
-});
+(async () => {
+    if (process.argv[2]) {
+        await require("./" + process.argv[2]).run().catch(e => {
+            console.log(e);
+        }).then(() => {
+            utils.quit();
+        });
+    } else {
+        let tests = [
+            "newUser",
+            "branch",
+            "thread",
+            "comment"
+        ];
+        
+        for (test of tests) {
+            await require("./" + test).run().catch(e => {
+                console.log(e);
+            });
+        }
+        
+        utils.quit();
+    }
+})();
