@@ -13,7 +13,7 @@
     "nunjucks": "^3.1.4",
     "pg": "^7.11.0",
     "request": "^2.88.0",
-    "sanitize-html": "^1.20.0",
+    "sanitize-html": "^2.3.2",
     "sharp": "^0.23.2",
     "showdown": "^1.9.0",
     "twilio": "^3.30.3",
